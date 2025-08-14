@@ -209,6 +209,28 @@ func (e *LuaEngine) luaSelect(L *lua.LState) int {
 	selection.Each(func(i int, s *goquery.Selection) {
 		elementTable := L.CreateTable(0, 3)
 		html, _ := s.Html()
+		fmt.Printf("select html: %q\n", html)
+
+		// 如果html不包含标签，说明是文本内容，需要获取完整的元素HTML
+		if !strings.Contains(html, "<") {
+			// 获取标签名和所有属性
+			node := s.Get(0)
+			tagName := node.Data
+
+			// 构建属性字符串
+			var attrs []string
+			for _, attr := range node.Attr {
+				attrs = append(attrs, fmt.Sprintf(`%s="%s"`, attr.Key, attr.Val))
+			}
+
+			attrStr := ""
+			if len(attrs) > 0 {
+				attrStr = " " + strings.Join(attrs, " ")
+			}
+
+			html = fmt.Sprintf("<%s%s>%s</%s>", tagName, attrStr, html, tagName)
+		}
+
 		elementTable.RawSetString("_html", lua.LString(html))
 		elementTable.RawSetString("_text", lua.LString(s.Text()))
 		elementTable.RawSetString("_selection", lua.LString("goquery_selection"))
@@ -244,7 +266,31 @@ func (e *LuaEngine) luaSelectOne(L *lua.LState) int {
 
 	// 创建元素对象
 	elementTable := L.CreateTable(0, 3)
+
+	// 获取完整的HTML（包含元素本身）
 	htmlContent, _ := selection.Html()
+	fmt.Printf("htmlContent: %q ,selector: %s\n", htmlContent, selector)
+
+	// 如果htmlContent不包含标签，说明是文本内容，需要获取完整的元素HTML
+	if !strings.Contains(htmlContent, "<") {
+		// 获取标签名和所有属性
+		node := selection.Get(0)
+		tagName := node.Data
+
+		// 构建属性字符串
+		var attrs []string
+		for _, attr := range node.Attr {
+			attrs = append(attrs, fmt.Sprintf(`%s="%s"`, attr.Key, attr.Val))
+		}
+
+		attrStr := ""
+		if len(attrs) > 0 {
+			attrStr = " " + strings.Join(attrs, " ")
+		}
+
+		htmlContent = fmt.Sprintf("<%s%s>%s</%s>", tagName, attrStr, htmlContent, tagName)
+	}
+
 	elementTable.RawSetString("_html", lua.LString(htmlContent))
 	elementTable.RawSetString("_text", lua.LString(selection.Text()))
 	elementTable.RawSetString("_selection", lua.LString("goquery_selection"))
@@ -259,7 +305,10 @@ func (e *LuaEngine) luaAttr(L *lua.LState) int {
 	elementTable := L.CheckTable(1)
 	attrName := L.CheckString(2)
 
+	// 从元素表中获取HTML内容
 	html := elementTable.RawGetString("_html").String()
+
+	// 使用goquery解析HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		L.Push(lua.LNil)
@@ -267,8 +316,16 @@ func (e *LuaEngine) luaAttr(L *lua.LState) int {
 		return 2
 	}
 
-	// 获取属性值
-	attrValue, exists := doc.Find("*").First().Attr(attrName)
+	// 获取第一个元素的属性值
+	selection := doc.Find("*").First()
+	if selection.Length() == 0 {
+		L.Push(lua.LNil)
+		L.Push(lua.LString("no element found"))
+		return 2
+	}
+
+	// 使用goquery的Attr方法获取属性
+	attrValue, exists := selection.Attr(attrName)
 	if !exists {
 		L.Push(lua.LNil)
 		L.Push(lua.LString("attribute not found"))
@@ -291,9 +348,39 @@ func (e *LuaEngine) luaText(L *lua.LState) int {
 // luaHtml Lua中的html函数
 func (e *LuaEngine) luaHtml(L *lua.LState) int {
 	elementTable := L.CheckTable(1)
+
+	// 从元素表中获取HTML内容
 	html := elementTable.RawGetString("_html").String()
+
+	// 如果HTML为空，返回空字符串
+	if html == "" {
+		L.Push(lua.LString(""))
+		return 1
+	}
 	fmt.Printf("html: %q\n", html)
-	L.Push(lua.LString(html))
+	// 使用goquery解析HTML以确保格式正确
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		// 如果解析失败，返回原始HTML
+		L.Push(lua.LString(html))
+		return 1
+	}
+
+	// 获取第一个元素的HTML
+	selection := doc.Find("*").First()
+	if selection.Length() == 0 {
+		L.Push(lua.LString(html))
+		return 1
+	}
+
+	// 使用goquery的Html方法获取格式化后的HTML
+	formattedHtml, err := selection.Html()
+	if err != nil {
+		L.Push(lua.LString(html))
+		return 1
+	}
+
+	L.Push(lua.LString(formattedHtml))
 	return 1
 }
 
