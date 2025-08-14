@@ -68,6 +68,7 @@ cd video-crawler
 # 复制示例配置文件
 cp configs/config.example.yaml configs/config.yaml
 cp configs/users.example.json configs/users.json
+cp configs/video-source.example.json configs/video-source.json
 
 # 编辑配置文件，设置你的 JWT 密钥和用户信息
 ```
@@ -168,7 +169,7 @@ server:
 包含用户信息，密码使用 MD5 加密存储。
 
 ### 视频源配置 (configs/video-source.json)
-包含爬虫规则和站点配置信息。
+包含爬虫规则和站点配置信息，定义了如何从不同视频站点提取数据。
 
 ## 开发
 

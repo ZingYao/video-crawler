@@ -68,6 +68,8 @@ temp/
 
 # Sensitive configuration files
 configs/users.json
+configs/video-source.json
+configs/config.yaml
 configs/login_history/
 configs/video_history/
 configs/search_history/
