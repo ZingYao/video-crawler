@@ -1,0 +1,15 @@
+[
+  {
+    "id": "your-user-id-here",
+    "nickname": "管理员",
+    "username": "admin",
+    "salt": "your-salt-here",
+    "password": "your-hashed-password-here",
+    "is_admin": true,
+    "allow_login": true,
+    "created_at": "2025-01-01T00:00:00+08:00",
+    "updated_at": "2025-01-01T00:00:00+08:00",
+    "last_login_at": "2025-01-01T00:00:00+08:00",
+    "login_count": 0
+  }
+]

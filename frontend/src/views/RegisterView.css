@@ -1,0 +1,119 @@
+.register-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  padding: 20px;
+  width: 100%;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logo {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.register-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.register-header p {
+  color: #64748b;
+  margin: 0;
+  font-size: 14px;
+}
+
+.register-form {
+  margin-bottom: 24px;
+}
+
+.error-message {
+  margin-bottom: 16px;
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 16px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.login-link {
+  color: #10b981;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+  color: #059669;
+}
+
+/* 青绿色主题按钮（提升选择器优先级并使用 !important） */
+.register-container :deep(.ant-btn-primary),
+.register-card :deep(.ant-btn-primary) {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: none !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2) !important;
+  transition: all 0.2s ease !important;
+}
+
+.register-container :deep(.ant-btn-primary:hover),
+.register-card :deep(.ant-btn-primary:hover) {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+}
+
+.register-container :deep(.ant-btn-primary:active),
+.register-card :deep(.ant-btn-primary:active) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  transform: translateY(0) !important;
+}
+
+/* Ant Design卡片头部样式 */
+:deep(.ant-card-head) {
+  text-align: center;
+  padding-top: 16px;
+}
+
+:deep(.ant-card-head-title) {
+  text-align: center;
+  padding-top: 8px;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+  .register-container {
+    padding: 10px;
+  }
+  
+  .register-card {
+    max-width: 100%;
+  }
+  
+  .register-header h1 {
+    font-size: 24px;
+  }
+  
+  .logo {
+    font-size: 40px;
+  }
+}

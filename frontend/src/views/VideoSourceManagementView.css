@@ -1,0 +1,146 @@
+.content-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 8px;
+  margin-top: 16px;
+}
+
+.card-header h2 {
+  margin: 0 0 8px 0;
+  color: #1e293b;
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center !important;
+}
+
+.card-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.video-source-list-container {
+  padding: 0;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.list-header h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.list-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* 青绿色主题按钮 */
+.list-actions :deep(.ant-btn-primary),
+.list-actions :deep(.ant-btn) {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  transition: all 0.2s ease;
+  color: white !important;
+}
+
+.list-actions :deep(.ant-btn-primary:hover),
+.list-actions :deep(.ant-btn:hover) {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  color: white !important;
+}
+
+.list-actions :deep(.ant-btn-primary:active),
+.list-actions :deep(.ant-btn:active) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(0);
+  color: white !important;
+}
+
+/* 表格中的青绿色编辑按钮 */
+:deep(.ant-table-tbody .ant-btn-primary) {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  transition: all 0.2s ease;
+}
+
+:deep(.ant-table-tbody .ant-btn-primary:hover) {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+:deep(.ant-table-tbody .ant-btn-primary:active) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(0);
+}
+
+/* 淡红色删除按钮 */
+:deep(.ant-table-tbody .ant-btn-dangerous) {
+  background: linear-gradient(135deg, #fca5a5 0%, #f87171 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+  transition: all 0.2s ease;
+  color: #dc2626 !important;
+}
+
+:deep(.ant-table-tbody .ant-btn-dangerous:hover) {
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+:deep(.ant-table-tbody .ant-btn-dangerous:active) {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(0);
+}
+
+/* Ant Design卡片头部样式 */
+:deep(.ant-card-head) {
+  text-align: center;
+  padding-top: 16px;
+}
+
+:deep(.ant-card-head-title) {
+  text-align: center;
+  padding-top: 8px;
+}
+
+/* 卡片头部标题居中 */
+.card-header h2 {
+  text-align: center;
+  margin-top: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .list-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .list-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

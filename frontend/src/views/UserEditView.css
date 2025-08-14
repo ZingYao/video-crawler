@@ -1,0 +1,83 @@
+.content-card {
+  margin: 20px 0;
+  position: relative;
+}
+
+.back-button-container {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+}
+
+.back-button {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+
+.back-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  color: white;
+}
+
+.card-header {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.card-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.card-header p {
+  color: #64748b;
+  margin: 0;
+  font-size: 14px;
+}
+
+.user-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.form-hint {
+  color: #64748b;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .content-card {
+    margin: 10px;
+  }
+  
+  .back-button-container {
+    top: 15px;
+    left: 15px;
+  }
+  
+  .back-button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .card-header h2 {
+    font-size: 20px;
+  }
+  
+  .card-header p {
+    font-size: 12px;
+  }
+}

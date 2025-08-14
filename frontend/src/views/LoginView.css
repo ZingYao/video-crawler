@@ -1,0 +1,141 @@
+.login-container {
+  /* 使用动态视口单位以适配移动端地址栏显示/隐藏导致的高度变化 */
+  min-height: 100vh;
+  min-height: 100dvh;
+  /* 网格居中，保证纵横双向居中更稳健 */
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  padding: 20px;
+  width: 100%;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logo {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.login-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.login-header p {
+  color: #64748b;
+  margin: 0;
+  font-size: 14px;
+}
+
+.login-form {
+  margin-bottom: 24px;
+}
+
+.error-message {
+  margin-bottom: 16px;
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 16px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.register-link {
+  color: #10b981;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.register-link:hover {
+  text-decoration: underline;
+  color: #059669;
+}
+
+.tech-info {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 24px;
+  text-align: center;
+}
+
+.tech-info h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 12px 0;
+}
+
+.tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* 青绿色主题按钮（提升选择器优先级并使用 !important，覆盖默认蓝色） */
+.login-container :deep(.ant-btn-primary),
+.login-card :deep(.ant-btn-primary) {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: none !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2) !important;
+  transition: all 0.2s ease !important;
+}
+
+.login-container :deep(.ant-btn-primary:hover),
+.login-card :deep(.ant-btn-primary:hover) {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+}
+
+.login-container :deep(.ant-btn-primary:active),
+.login-card :deep(.ant-btn-primary:active) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  transform: translateY(0) !important;
+}
+
+/* Ant Design卡片头部样式 */
+:deep(.ant-card-head) {
+  text-align: center;
+  padding-top: 16px;
+}
+
+:deep(.ant-card-head-title) {
+  text-align: center;
+  padding-top: 8px;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 10px;
+  }
+  
+  .login-card {
+    max-width: 100%;
+  }
+  
+  .login-header h1 {
+    font-size: 24px;
+  }
+  
+  .logo {
+    font-size: 40px;
+  }
+}

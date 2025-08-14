@@ -1,0 +1,255 @@
+.movie-view {
+  padding: 24px;
+}
+
+.search-section {
+  margin-bottom: 24px;
+  margin-top: 16px;
+}
+
+.search-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.search-form {
+  padding: 8px 0;
+}
+
+.results-section {
+  margin-top: 24px;
+}
+
+.movie-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.movie-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.movie-cover {
+  position: relative;
+  overflow: hidden;
+  height: 300px;
+}
+
+.movie-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.movie-card:hover .movie-cover img {
+  transform: scale(1.05);
+}
+
+.movie-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.movie-card:hover .movie-overlay {
+  opacity: 1;
+}
+
+.movie-info {
+  padding: 8px 0;
+}
+
+.movie-meta {
+  margin-bottom: 12px;
+}
+
+.meta-item {
+  display: flex;
+  margin-bottom: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.meta-item .label {
+  color: #666;
+  min-width: 40px;
+  flex-shrink: 0;
+}
+
+.meta-item .value {
+  color: #333;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.movie-description {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.welcome-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.welcome-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .movie-view {
+    padding: 16px;
+  }
+  
+  .search-form .ant-row {
+    margin: 0 !important;
+  }
+  
+  .search-form .ant-col {
+    margin-bottom: 12px;
+    padding: 0 8px !important;
+  }
+  
+  .search-form .ant-col:last-child {
+    margin-bottom: 0;
+  }
+  
+  .movie-cover {
+    height: 200px;
+  }
+  
+  .search-card {
+    margin: 0 -8px;
+  }
+  
+  .search-form {
+    padding: 16px 0;
+  }
+}
+
+@media (max-width: 576px) {
+  .movie-view {
+    padding: 12px;
+  }
+  
+  .search-form .ant-col {
+    padding: 0 4px !important;
+  }
+  
+  .search-card {
+    margin: 0 -4px;
+  }
+}
+
+/* Ant Design 组件样式覆盖 */
+:deep(.ant-card-head) {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0 24px;
+}
+
+:deep(.ant-card-head-title) {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  margin: 16px 0 8px 0;
+}
+
+:deep(.card-header h2) {
+  text-align: center !important;
+  margin: 16px 0 8px 0 !important;
+  color: #1e293b !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+}
+
+:deep(.card-header p) {
+  text-align: center !important;
+  margin: 0 0 16px 0 !important;
+  color: #64748b !important;
+  font-size: 14px !important;
+}
+
+:deep(.ant-card-body) {
+  padding: 16px;
+}
+
+:deep(.ant-auto-complete) {
+  width: 100%;
+}
+
+:deep(.ant-select) {
+  width: 100%;
+}
+
+:deep(.ant-btn-primary) {
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%) !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3) !important;
+  color: white !important;
+}
+
+:deep(.ant-btn-primary:hover) {
+  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4) !important;
+  color: white !important;
+}
+
+:deep(.ant-tag) {
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+:deep(.ant-empty) {
+  margin: 40px 0;
+}
+
+:deep(.ant-result-title) {
+  color: #52c41a;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+:deep(.ant-result-subtitle) {
+  color: #666;
+  font-size: 14px;
+}
