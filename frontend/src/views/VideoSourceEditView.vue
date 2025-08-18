@@ -6,7 +6,7 @@
         <div class="card-header">
           <h2>{{ isEdit ? '编辑视频源' : '添加视频源' }}</h2>
             <div class="header-actions">
-              <a-button type="primary" @click="handleSave" :loading="saveLoading">{{ isEdit ? '保存' : '创建' }}</a-button>
+              <a-button type="primary" class="teal-btn" @click="handleSave" :loading="saveLoading">{{ isEdit ? '保存' : '创建' }}</a-button>
             </div>
         </div>
       </template>
@@ -16,40 +16,41 @@
           <a-input v-model:value="formData.domain" placeholder="请输入站点域名，如：http://example.com" />
         </a-form-item>
 
-          <div class="editor-panel">
-            <div class="panel-title">
-              <div class="title-left">
-                <span class="title-text">Lua 脚本</span>
+          <div class="editor-logs-wrap">
+            <div class="editor-panel">
+              <div class="panel-title">
+                <div class="title-left">
+                  <span class="title-text">Lua 脚本</span>
+                </div>
+                <div class="title-actions">
+                  <a-button class="teal-btn" size="small" @click="openDocs">打开文档</a-button>
+                  <a-button class="teal-btn" size="small" @click="onFillDemo">填充完整 Demo</a-button>
+                  <a-button class="teal-btn" size="small" :loading="debugLoading" @click="runScript">脚本调试</a-button>
+                </div>
               </div>
-              <div class="title-actions">
-                <a-button class="teal-btn" size="small" @click="openDocs">打开文档</a-button>
-                <a-button class="teal-btn" size="small" @click="onFillDemo">填充完整 Demo</a-button>
-                <a-button class="teal-btn" size="small" :loading="debugLoading" @click="runScript">脚本调试</a-button>
+              <div class="editor-gradient">
+                <MonacoEditor
+                  class="monaco"
+                  :theme="monacoTheme"
+                  language="lua"
+                  :options="monacoOptions"
+                  v-model:value="scriptContent"
+                  @mount="onEditorMount"
+                />
               </div>
             </div>
-            <div class="editor-gradient">
-              <MonacoEditor
-                class="monaco"
-                :theme="monacoTheme"
-                language="lua"
-                :options="monacoOptions"
-                v-model:value="scriptContent"
-                @mount="onEditorMount"
-              />
+
+            <div class="logs-panel side">
+              <div class="panel-title">调试输出</div>
+              <div class="logs-box gradient scrollable" ref="logsRef">
+                <div v-for="(line, idx) in coloredLines" :key="idx" class="log-line" :class="line.type">
+                  {{ line.text }}
+                </div>
+              </div>
             </div>
           </div>
-
-          <div class="logs-panel">
-            <div class="panel-title">调试输出</div>
-            <div class="logs-box gradient" ref="logsRef">
-              <div v-for="(line, idx) in coloredLines" :key="idx" class="log-line" :class="line.type">
-                {{ line.text }}
-              </div>
-            </div>
-        </div>
       </a-form>
     </a-card>
-
       <LuaDocs v-model:open="docsOpen" />
     </div>
   </AppLayout>
@@ -227,33 +228,43 @@ const runScript = async () => {
 }
 
 onMounted(() => { if (isEdit.value && route.params.id) fetchVideoSourceDetail(route.params.id as string) })
+
+// 全局快捷键：F5 运行脚本；屏蔽 ⌘S / Ctrl+S
+document.addEventListener('keydown', (e: KeyboardEvent) => {
+  const isSave = (e.key.toLowerCase() === 's') && (e.metaKey || e.ctrlKey)
+  if (isSave) { e.preventDefault(); e.stopPropagation() }
+  if (e.key === 'F5') { e.preventDefault(); runScript() }
+})
 </script>
 
 <style scoped>
-:root { --teal: #10b981; --teal-hover: #34d399; --teal-active: #059669; }
-.page-wrap { padding: 12px; }
-.card-header { display: flex; align-items: center; justify-content: space-between; }
+.page-wrap { --teal: #10b981; --teal-hover: #34d399; --teal-active: #059669; padding: 12px; }
+.editor-logs-wrap { display: grid; grid-template-columns: 1fr 360px; gap: 12px; align-items: stretch; }
+.card-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; }
 .header-actions > * { margin-left: 8px; }
-.editor-panel, .logs-panel { background: transparent; border: 1px solid #20c7ab; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.editor-panel, .logs-panel { background: transparent; border: 1px solid #20c7ab; border-radius: 8px; overflow: hidden; margin-bottom: 12px; min-width: 0; }
+.editor-panel { display: flex; flex-direction: column; height: 620px; }
 .panel-title { height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; color: #0a2f28; font-weight: 800; background: linear-gradient(90deg, #99f6e4 0%, #34d399 100%); border-bottom: 1px solid #20c7ab; font-size: 13px; letter-spacing: 0.5px; }
-.title-left { display: flex; align-items: center; gap: 10px; }
+.title-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .title-actions { display: flex; gap: 8px; align-items: center; }
 .title-text { font-weight: 800; }
-.editor-gradient { background: linear-gradient(135deg, #99f6e4 0%, #5eead4 35%, #34d399 70%, #2dd4bf 100%); padding: 0; }
-.monaco { min-height: 520px; height: auto; }
+.editor-gradient { background: linear-gradient(135deg, #99f6e4 0%, #5eead4 35%, #34d399 70%, #2dd4bf 100%); padding: 0; overflow-x: hidden; min-width: 0; flex: 1; min-height: 0; }
+.monaco { height: 100%; min-height: 0; }
 ::v-deep(.monaco-editor),
 ::v-deep(.monaco-editor .margin),
 ::v-deep(.monaco-editor .monaco-editor-background) { background: transparent !important; max-width: 100% !important; }
 /* 避免强制设置内部滚动容器宽度导致布局抖动或无限重排 */
-/* ::v-deep(.monaco-editor .overflow-guard),
-::v-deep(.monaco-editor .editor-scrollable) { max-width: 100% !important; width: 100% !important; } */
+::v-deep(.monaco-editor .overflow-guard),
+::v-deep(.monaco-editor .editor-scrollable) { max-width: 100% !important; }
 /* 可能的白色顶部预览/阴影 */
 ::v-deep(.monaco-editor .sticky-scroll),
 ::v-deep(.monaco-editor .monaco-sticky-scroll),
 ::v-deep(.monaco-editor .editor-sticky-scroll),
 ::v-deep(.monaco-scrollable-element .scroll-decoration) { background: transparent !important; box-shadow: none !important; }
 
-.logs-box.gradient { background: linear-gradient(135deg, #99f6e4 0%, #5eead4 35%, #34d399 70%, #2dd4bf 100%); border-top: 1px solid #20c7ab; }
+.logs-box.gradient { background: linear-gradient(135deg, #99f6e4 0%, #5eead4 35%, #34d399 70%, #2dd4bf 100%); border-top: 1px solid #20c7ab; min-width: 0; }
+.logs-panel.side { display: flex; flex-direction: column; height: 620px; overflow: hidden; }
+.logs-box.scrollable { flex: 1; min-height: 0; overflow: auto; }
 .log-line { font-family: Menlo, Monaco, Consolas, 'Courier New', monospace; font-size: 12px; color: #083942; white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
 .log-line.print { color: #065f46; }
 .log-line.log { color: #075985; }
@@ -268,16 +279,34 @@ onMounted(() => { if (isEdit.value && route.params.id) fetchVideoSourceDetail(ro
   border-color: var(--teal-active) !important;
   color: #fff !important;
 }
+.title-actions .teal-btn {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%) !important;
+  border: 1px solid #047857 !important;
+  color: #fff !important;
+  /* 强制按钮文本为白色 */
+  &,
+  & span,
+  & * { color: #fff !important; }
+  border-radius: 6px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(4, 120, 87, 0.25) !important;
+}
 .teal-btn:hover, ::v-deep(.title-actions .ant-btn-primary:hover),
 ::v-deep(.header-actions .ant-btn-primary:hover) {
   background: linear-gradient(180deg, var(--teal-hover) 0%, var(--teal) 100%) !important;
   border-color: var(--teal-hover) !important;
+}
+.title-actions .teal-btn:hover {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%) !important;
+  border-color: #34d399 !important;
+  box-shadow: 0 3px 8px rgba(4, 120, 87, 0.35) !important;
 }
 .teal-btn:active, ::v-deep(.title-actions .ant-btn-primary:active),
 ::v-deep(.header-actions .ant-btn-primary:active) {
   background: linear-gradient(180deg, var(--teal-active) 0%, #047857 100%) !important;
   border-color: #047857 !important;
 }
+.title-actions .teal-btn:active { box-shadow: 0 1px 4px rgba(4, 120, 87, 0.3) !important; }
 /* 若有默认按钮类型，使用主题绿色描边 */
 ::v-deep(.title-actions .ant-btn-default),
 ::v-deep(.header-actions .ant-btn-default) {
@@ -291,7 +320,7 @@ onMounted(() => { if (isEdit.value && route.params.id) fetchVideoSourceDetail(ro
   background: rgba(16, 185, 129, 0.08) !important;
 }
 
-/* 编辑器全屏样式 */
+/* 防止在侧边栏展开时产生横向溢出 */
 .page-wrap, .content-card, .video-source-form { max-width: 100%; width: 100%; box-sizing: border-box; overflow-x: hidden; }
 .monaco { width: 100%; }
 </style>

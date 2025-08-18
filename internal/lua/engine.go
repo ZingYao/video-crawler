@@ -214,12 +214,20 @@ func (e *LuaEngine) luaHttpGet(L *lua.LState) int {
 	responseTable.RawSetString("status_code", lua.LNumber(response.StatusCode))
 	//去 body 的转义 和首位的引号
 	var body map[string]string
-	err = json.Unmarshal([]byte(fmt.Sprintf("{\"body\":%s}", response.Body)), &body)
-	if err != nil {
-		L.Push(lua.LNil)
-		L.Push(lua.LString(err.Error()))
-		return 2
+	bodyContent := string(response.Body)
+	if strings.HasPrefix(bodyContent, "\"") {
+		err = json.Unmarshal([]byte(fmt.Sprintf("{\"body\":%s}", bodyContent)), &body)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+	} else {
+		body = map[string]string{
+			"body": bodyContent,
+		}
 	}
+	fmt.Println("response body:", body["body"])
 	responseTable.RawSetString("body", lua.LString(body["body"]))
 	responseTable.RawSetString("url", lua.LString(response.URL))
 

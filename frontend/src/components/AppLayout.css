@@ -196,6 +196,8 @@
   background: #f0fdf4;
   transition: margin-left 0.3s ease;
   margin-left: 0;
+  /* 允许在侧边栏展开时主内容区域按需收缩，避免横向溢出 */
+  min-width: 0;
 }
 
 /* 大屏幕下菜单展开时的样式 */
@@ -371,6 +373,8 @@
   padding: 24px;
   overflow-y: auto;
   background: #f0fdf4;
+  /* 防止子元素最小宽度撑破容器 */
+  min-width: 0;
 }
 
 /* 响应式设计 */
