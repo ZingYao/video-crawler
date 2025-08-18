@@ -1,6 +1,25 @@
 // API 基础配置
 const API_BASE_URL = window.location.origin
 
+import router from '@/router'
+import { useAuthStore } from '@/stores/auth'
+import { message } from 'ant-design-vue'
+
+// 业务码处理
+function handleBusinessCode(result: any) {
+  if (result && typeof result === 'object' && 'code' in result && result.code === 6) {
+    // 登录过期
+    const DURATION = 1.5 // 秒
+    message.error('登录已过期，请重新登录', DURATION)
+    const auth = useAuthStore()
+    auth.logout()
+    // 等待提示展示后再跳转
+    setTimeout(() => {
+      router.push('/login')
+    }, DURATION * 1000)
+  }
+}
+
 // 通用请求方法
 async function request<T = any>(
   path: string,
@@ -19,7 +38,9 @@ async function request<T = any>(
     throw new Error(`HTTP error! status: ${response.status}`)
   }
 
-  return response.json()
+  const json = await response.json()
+  handleBusinessCode(json)
+  return json as T
 }
 
 // 带认证的请求方法

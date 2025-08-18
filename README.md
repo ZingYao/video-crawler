@@ -149,6 +149,24 @@ make help
 - `DELETE /api/video-source/delete/:id` - 删除视频源
 - `GET /api/video-source/check-status/:id` - 检查站点状态
 
+### Lua 脚本实时调试与链式 HTML API（新增）
+- 新增后端 Lua 引擎与长连接流式输出，`print`/`log` 均带毫秒时间戳，统一格式：`[PRINT][YYYY-MM-DD HH:mm:ss.SSS] ...`、`[LOG][...] ...`
+- 新增接口：
+  - `POST /api/lua/test`：HTTP chunked 流式输出
+  - `POST /api/lua/test-sse`：SSE 方式输出
+- 注入函数：`sleep(ms)`、HTTP 请求函数（`http_get`/`http_post`/`set_headers`/`set_cookies`/`set_user_agent`/`set_random_user_agent`）
+- HTML 解析改为链式 API：
+  - `parse_html(html) -> Document`
+  - `Document:select(css)`、`Document:select_one(css)`、`Document:html()`、`Document:text()`
+  - `Selection:select(css)`、`Selection:select_one(css)`、`Selection:first()`、`Selection:eq(i)`、`Selection:parent()`、`Selection:children()`、`Selection:next()`、`Selection:prev()`、`Selection:attr(name)`、`Selection:html()`、`Selection:text()`
+- `http_get/http_post` 返回体 `body` 去除转义显示：JSON 自动解码再紧凑编码；非 JSON 直接按 UTF-8 输出，避免 `\\uXXXX`。
+
+前端新增页面 `VideoSourceEditView.vue` 的 Lua 调试面板：
+- 集成 Monaco Editor（本地资源加载，无需 CDN），主题与页面统一绿色风格。
+- “打开文档/填充完整 Demo/脚本调试”三个按钮置于标题栏右侧，统一绿色主题。
+- 调试输出支持自动滚动与不同前缀着色（PRINT/LOG/INFO/ERROR）。
+- “保存/创建”按钮样式统一为绿色主按钮。
+
 ### 历史记录
 - `GET /api/history/video` - 获取观看历史
 - `GET /api/history/search` - 获取搜索历史
@@ -163,6 +181,7 @@ server:
   port: 8080
   jwt_secret: "your-jwt-secret-here"
   jwt_expire: 72
+env: dev # 新增：dev 时日志输出到控制台
 ```
 
 ### 用户配置文件 (configs/users.json)

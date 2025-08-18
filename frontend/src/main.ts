@@ -6,6 +6,7 @@ import { createPinia } from 'pinia'
 import Antd from 'ant-design-vue'
 import 'ant-design-vue/dist/reset.css'
 import { ConfigProvider } from 'ant-design-vue'
+import { loader } from '@guolao/vue-monaco-editor'
 
 import App from './App.vue'
 import router from './router'
@@ -24,6 +25,13 @@ const theme = {
     colorError: '#ef4444',
   },
 }
+
+// 强制 monaco 从本地静态资源加载，避免走 CDN
+loader.config({
+  paths: {
+    vs: '/monaco/vs',
+  },
+})
 
 app.use(createPinia())
 app.use(router)

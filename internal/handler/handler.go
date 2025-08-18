@@ -14,15 +14,17 @@ type Handler struct {
 	userService        services.UserServiceInterface
 	videoSourceService services.VideoSourceService
 	historyService     services.HistoryService
+	luaTestService     services.LuaTestService
 }
 
 // New 创建新的处理器实例
-func New(cfg *config.Config, userService services.UserServiceInterface, videoSourceService services.VideoSourceService, historyService services.HistoryService) *Handler {
+func New(cfg *config.Config, userService services.UserServiceInterface, videoSourceService services.VideoSourceService, historyService services.HistoryService, luaTestService services.LuaTestService) *Handler {
 	return &Handler{
 		config:             cfg,
 		userService:        userService,
 		videoSourceService: videoSourceService,
 		historyService:     historyService,
+		luaTestService:     luaTestService,
 	}
 }
 
@@ -55,6 +57,8 @@ func (h *Handler) HandleApi(c *gin.Context) {
 				"GET /api/user/detail - 用户详情",
 				"POST /api/user/save - 用户保存",
 				"GET /api/user/list - 用户列表",
+				"POST /api/lua/test - Lua脚本测试(流式)",
+				"POST /api/lua/test-sse - Lua脚本测试(SSE)",
 			},
 		})
 	case "/api/video-source/list":
@@ -108,6 +112,14 @@ func (h *Handler) HandleApi(c *gin.Context) {
 	case "/api/user/allow-login-status-change":
 		// 用户能否登录状态修改
 		userController.AllowLoginStatusChange(c)
+	case "/api/lua/test":
+		// Lua脚本测试(流式)
+		luaTestController := controllers.NewLuaTestController(h.luaTestService)
+		luaTestController.TestScript(c)
+	case "/api/lua/test-sse":
+		// Lua脚本测试(SSE)
+		luaTestController := controllers.NewLuaTestController(h.luaTestService)
+		luaTestController.TestScriptSSE(c)
 	}
 }
 

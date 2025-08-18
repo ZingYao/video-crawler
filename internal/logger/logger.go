@@ -1,17 +1,28 @@
 package logger
 
 import (
+	"os"
 	"time"
+
+	"video-crawler/internal/config"
 
 	"github.com/gin-gonic/gin"
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/sirupsen/logrus"
 )
 
-func init() {
+// Init 根据配置初始化日志输出
+func Init(cfg *config.Config) {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 	// 打印调用日志的文件路径
 	logrus.SetReportCaller(true)
+
+	// dev 环境打印到控制台
+	if cfg != nil && cfg.Env == "dev" {
+		logrus.SetOutput(os.Stdout)
+		return
+	}
+
 	// 使用 lestrrat-go/file-rotatelogs 实现日志文件自动过期
 	rotator, err := rotatelogs.New(
 		"./logs/app.%Y%m%d.log",

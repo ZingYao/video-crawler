@@ -12,6 +12,7 @@ import (
 
 	"video-crawler/internal/config"
 	"video-crawler/internal/handler"
+	"video-crawler/internal/logger"
 	"video-crawler/internal/middleware"
 	"video-crawler/internal/services"
 	"video-crawler/internal/static"
@@ -39,6 +40,9 @@ func New(cfg *config.Config) *App {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// 初始化日志
+	logger.Init(cfg)
+
 	// 创建 Gin 引擎
 	engine := gin.New()
 
@@ -50,9 +54,10 @@ func New(cfg *config.Config) *App {
 	userService := services.NewUserService(jwtManager)
 	videoSourceService := services.NewVideoSourceService()
 	historyService := services.GetHistoryService()
+	luaTestService := services.NewLuaTestService()
 	return &App{
 		config:      cfg,
-		httpHandler: handler.New(cfg, userService, videoSourceService, historyService),
+		httpHandler: handler.New(cfg, userService, videoSourceService, historyService, luaTestService),
 		userService: userService,
 		engine:      engine,
 	}
