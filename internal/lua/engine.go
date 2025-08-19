@@ -213,23 +213,7 @@ func (e *LuaEngine) luaHttpGet(L *lua.LState) int {
 	// 返回响应表
 	responseTable := L.CreateTable(0, 4)
 	responseTable.RawSetString("status_code", lua.LNumber(response.StatusCode))
-	//去 body 的转义 和首位的引号
-	var body map[string]string
-	bodyContent := string(response.Body)
-	if strings.HasPrefix(bodyContent, "\"") {
-		err = json.Unmarshal([]byte(fmt.Sprintf("{\"body\":%s}", bodyContent)), &body)
-		if err != nil {
-			L.Push(lua.LNil)
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-	} else {
-		body = map[string]string{
-			"body": bodyContent,
-		}
-	}
-	fmt.Println("response body:", body["body"])
-	responseTable.RawSetString("body", lua.LString(body["body"]))
+	responseTable.RawSetString("body", lua.LString(string(response.Body)))
 	responseTable.RawSetString("url", lua.LString(response.URL))
 
 	// 设置响应头
@@ -275,7 +259,7 @@ func (e *LuaEngine) luaHttpPost(L *lua.LState) int {
 	// 返回响应表
 	responseTable := L.CreateTable(0, 4)
 	responseTable.RawSetString("status_code", lua.LNumber(response.StatusCode))
-	responseTable.RawSetString("body", lua.LString(normalizeResponseBody(response.Body)))
+	responseTable.RawSetString("body", lua.LString(response.Body))
 	responseTable.RawSetString("url", lua.LString(response.URL))
 
 	// 设置响应头

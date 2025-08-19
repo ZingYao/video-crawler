@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gocolly/colly/v2"
-	"github.com/gocolly/colly/v2/extensions"
 	fakeUserAgent "github.com/lib4u/fake-useragent"
 )
 
@@ -41,19 +41,20 @@ func NewCollyBrowser(config *BrowserConfig) (*CollyBrowser, error) {
 		collector.SetProxy(config.Proxy)
 	}
 
-	for key, value := range config.Headers {
-		collector.OnRequest(func(r *colly.Request) {
+	// 设置默认请求头
+	collector.OnRequest(func(r *colly.Request) {
+		// 设置所有配置的请求头
+		for key, value := range config.Headers {
 			r.Headers.Set(key, value)
-		})
-	}
-
-	if len(config.Cookies) > 0 {
-		collector.OnRequest(func(r *colly.Request) {
+		}
+		
+		// 设置Cookie
+		if len(config.Cookies) > 0 {
 			for key, value := range config.Cookies {
 				r.Headers.Set("Cookie", fmt.Sprintf("%s=%s", key, value))
 			}
-		})
-	}
+		}
+	})
 
 	if config.FollowRedirects {
 		collector.SetRedirectHandler(func(req *http.Request, via []*http.Request) error {
@@ -61,7 +62,7 @@ func NewCollyBrowser(config *BrowserConfig) (*CollyBrowser, error) {
 		})
 	}
 
-	extensions.RandomUserAgent(collector)
+	// 注意：不在这里调用extensions.RandomUserAgent，因为我们会手动设置UA
 
 	return &CollyBrowser{
 		collector: collector,
@@ -96,7 +97,23 @@ func (c *CollyBrowser) doGet(url string) (*Response, error) {
 	var responseHeaders map[string]string
 
 	c.collector.OnResponse(func(r *colly.Response) {
-		responseBody = r.Body
+
+		//去 body 的转义 和首位的引号
+		var body map[string]string
+		bodyContent := string(r.Body)
+		if strings.HasPrefix(bodyContent, "\"") {
+			err := json.Unmarshal([]byte(fmt.Sprintf("{\"body\":%s}", bodyContent)), &body)
+			if err != nil {
+				body = map[string]string{
+					"body": bodyContent,
+				}
+			}
+		} else {
+			body = map[string]string{
+				"body": bodyContent,
+			}
+		}
+		responseBody = []byte(body["body"])
 		statusCode = r.StatusCode
 		responseHeaders = make(map[string]string)
 		// 暂时跳过Headers处理，避免类型问题
@@ -175,22 +192,18 @@ func (c *CollyBrowser) Post(url string, data map[string]interface{}) (*Response,
 
 // SetHeaders 设置请求头
 func (c *CollyBrowser) SetHeaders(headers map[string]string) {
-	c.config.Headers = headers
-	c.collector.OnRequest(func(r *colly.Request) {
-		for key, value := range headers {
-			r.Headers.Set(key, value)
-		}
-	})
+	// 合并新的请求头到现有配置中
+	for key, value := range headers {
+		c.config.Headers[key] = value
+	}
 }
 
 // SetCookies 设置Cookie
 func (c *CollyBrowser) SetCookies(cookies map[string]string) {
-	c.config.Cookies = cookies
-	c.collector.OnRequest(func(r *colly.Request) {
-		for key, value := range cookies {
-			r.Headers.Set("Cookie", fmt.Sprintf("%s=%s", key, value))
-		}
-	})
+	// 合并新的Cookie到现有配置中
+	for key, value := range cookies {
+		c.config.Cookies[key] = value
+	}
 }
 
 // SetTimeout 设置超时时间
