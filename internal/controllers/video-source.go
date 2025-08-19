@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"net/http"
 	"video-crawler/internal/consts"
+	"video-crawler/internal/crawler"
 	"video-crawler/internal/entities"
 	"video-crawler/internal/services"
 	"video-crawler/internal/utils"
@@ -81,13 +81,22 @@ func (c *VideoSourceController) CheckStatus(ctx *gin.Context) {
 		utils.SendResponse(ctx, consts.ResponseCodeGetVideoSourceDetailFailed, err.Error(), nil)
 		return
 	}
-	// 请求域名，如果返回200，则站点正常，否则站点不可用
-	resp, err := http.Get(videoSource.Domain)
+	
+	// 创建爬虫浏览器实例，使用随机UA
+	browser, err := crawler.NewDefaultBrowser()
+	if err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeCheckVideoSourceStatusFailed, "创建浏览器实例失败: "+err.Error(), nil)
+		return
+	}
+	defer browser.Close()
+	
+	// 使用爬虫请求域名，如果返回200，则站点正常，否则站点不可用
+	resp, err := browser.Get(videoSource.Domain)
 	if err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeCheckVideoSourceStatusFailed, err.Error(), nil)
 		return
 	}
-	defer resp.Body.Close()
+	
 	if resp.StatusCode == 200 {
 		videoSource.Status = consts.VideoSourceStatusNormal
 	} else {
