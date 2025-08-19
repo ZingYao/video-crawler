@@ -44,14 +44,17 @@ log('step 2 after 300ms')
           <h3>HTTP</h3>
           <div class="doc-item"><b>set_user_agent(ua: string)</b> 设置 UA</div>
           <div class="doc-item"><b>set_random_user_agent()</b> 随机 UA</div>
+          <div class="doc-item"><b>get_user_agent()</b> → <code>string</code> 获取当前 UA</div>
           <div class="doc-item"><b>set_headers(h: table)</b> 设置通用请求头</div>
           <div class="doc-item"><b>set_cookies(c: table)</b> 设置通用 Cookie（键值对）</div>
           <div class="doc-item"><b>http_get(url: string)</b> → <code>resp, err</code></div>
           <div class="doc-item"><b>http_post(url: string, data: table|string)</b> → <code>resp, err</code></div>
           <div class="doc-item">resp 结构：<code>{ status_code:number, url:string, headers:table, body:string }</code></div>
-          <pre class="doc-code">-- set_user_agent / set_random_user_agent
+          <pre class="doc-code">-- set_user_agent / set_random_user_agent / get_user_agent
 set_user_agent('Lua-Demo/1.0')
 set_random_user_agent()  -- 可选：随机 UA 会覆盖上面的 UA
+local current_ua = get_user_agent()  -- 获取当前设置的 UA
+print('当前 UA:', current_ua)
 
 -- set_headers / set_cookies
 set_headers({ ['Accept'] = 'application/json', ['X-Trace'] = 'demo' })
@@ -81,6 +84,7 @@ end
           <ul>
             <li><code>set_user_agent(ua)</code>：<code>ua:string</code>；<b>无返回</b></li>
             <li><code>set_random_user_agent()</code>：<b>无返回</b></li>
+            <li><code>get_user_agent()</code>：<b>返回</b> <code>string</code> 当前 UA</li>
             <li><code>set_headers(h)</code>：<code>h:table</code>，示例 <code>{ ['K']='V' }</code>；<b>无返回</b></li>
             <li><code>set_cookies(c)</code>：<code>c:table</code>，示例 <code>{ name='v' }</code>；<b>无返回</b></li>
             <li><code>http_get(url)</code>：<code>url:string</code>；返回 <code>resp, err</code></li>

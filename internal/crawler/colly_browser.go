@@ -218,6 +218,11 @@ func (c *CollyBrowser) SetRandomUserAgent() {
 	c.SetUserAgent(randomUA)
 }
 
+// GetUserAgent 获取当前User-Agent
+func (c *CollyBrowser) GetUserAgent() string {
+	return c.config.UserAgent
+}
+
 // Close 关闭浏览器实例
 func (c *CollyBrowser) Close() error {
 	return nil

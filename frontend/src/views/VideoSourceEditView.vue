@@ -48,7 +48,7 @@
                 </div>
               </div>
             </div>
-          </div>
+        </div>
       </a-form>
     </a-card>
       <LuaDocs v-model:open="docsOpen" />
@@ -124,6 +124,10 @@ print('[Demo] 启动')
 set_user_agent('Lua-Demo-Agent/1.0')
 set_headers({ ['Accept'] = 'text/html' })
 
+-- 获取并打印当前 UA
+local current_ua = get_user_agent()
+print('当前 User-Agent:', current_ua)
+
 -- 1) 请求示例站点
 local resp, reqErr = http_get('https://example.com')
 if reqErr then
@@ -193,6 +197,10 @@ const fetchVideoSourceDetail = async (id: string) => {
       const data = (response as any).data || {}
       formData.value.id = data.id || ''
       formData.value.domain = data.domain || ''
+      // 加载Lua脚本到编辑器
+      if (data.lua_script) {
+        scriptContent.value = data.lua_script
+      }
     } else { message.error((response as any).message || '获取视频源详情失败') }
   } catch (err: any) { message.error(err.message || '网络错误') }
 }
@@ -202,7 +210,11 @@ const handleSave = async () => {
   try { await formRef.value?.validate() } catch { return }
   saveLoading.value = true
   try {
-    const payload: any = { id: formData.value.id || '', domain: formData.value.domain }
+    const payload: any = { 
+      id: formData.value.id || '', 
+      domain: formData.value.domain,
+      lua_script: scriptContent.value
+    }
     const response = await videoSourceAPI.saveVideoSource(authStore.token, payload)
     if ((response as any).code === 0) { message.success(isEdit.value ? '保存成功' : '创建成功'); if (!isEdit.value) formData.value.id = (response as any).data?.id || '' }
     else { message.error((response as any).message || '保存失败') }

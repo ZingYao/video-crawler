@@ -160,6 +160,7 @@ interface VideoSource {
   status: number
   source_type: number
   sort: number
+  lua_script?: string
 }
 
 const router = useRouter()

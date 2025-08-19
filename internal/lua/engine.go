@@ -70,6 +70,7 @@ func (e *LuaEngine) registerFunctions() {
 	e.L.SetGlobal("print", e.L.NewFunction(e.luaPrint))
 	e.L.SetGlobal("log", e.L.NewFunction(e.luaLog))
 	e.L.SetGlobal("sleep", e.L.NewFunction(e.luaSleep))
+	e.L.SetGlobal("get_user_agent", e.L.NewFunction(e.luaGetUserAgent))
 
 	// 链式类型注册
 	e.registerGoqueryTypes()
@@ -326,6 +327,13 @@ func (e *LuaEngine) luaSetUserAgent(L *lua.LState) int {
 func (e *LuaEngine) luaSetRandomUserAgent(L *lua.LState) int {
 	e.browser.SetRandomUserAgent()
 	return 0
+}
+
+// luaGetUserAgent Lua中的get_user_agent函数
+func (e *LuaEngine) luaGetUserAgent(L *lua.LState) int {
+	userAgent := e.browser.GetUserAgent()
+	L.Push(lua.LString(userAgent))
+	return 1
 }
 
 // normalizeResponseBody 尝试将响应体以 UTF-8 文本返回，避免出现大量转义显示

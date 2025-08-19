@@ -30,6 +30,9 @@ type BrowserRequest interface {
 	// SetRandomUserAgent 设置随机User-Agent
 	SetRandomUserAgent()
 
+	// GetUserAgent 获取当前User-Agent
+	GetUserAgent() string
+
 	// Close 关闭浏览器实例
 	Close() error
 }
