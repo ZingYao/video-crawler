@@ -23,6 +23,15 @@
         <a-form-item label="站点域名" name="domain">
           <a-input v-model:value="formData.domain" placeholder="请输入站点域名，如：http://example.com" />
         </a-form-item>
+        <a-form-item label="排序值" name="sort">
+          <a-input-number 
+            v-model:value="formData.sort" 
+            placeholder="请输入排序值，数字越大越靠前" 
+            :min="0" 
+            :max="9999"
+            style="width: 100%"
+          />
+        </a-form-item>
 
           <div class="editor-logs-wrap">
             <div class="editor-panel">
@@ -89,9 +98,12 @@ const logsRef = ref<HTMLDivElement | null>(null)
 
 const isEdit = computed(() => !!route.params.id)
 
-const formData = ref({ id: '', domain: '' })
+const formData = ref({ id: '', domain: '', sort: 0 })
 
-const rules = { domain: [{ required: true, message: '请输入站点域名', trigger: 'blur' }] }
+const rules = { 
+  domain: [{ required: true, message: '请输入站点域名', trigger: 'blur' }],
+  sort: [{ required: true, message: '请输入排序值', trigger: 'blur' }]
+}
 
 // 自定义 Monaco 主题（偏亮青绿）
 const monacoTheme = ref('teal-light')
@@ -180,6 +192,7 @@ const editorRef = ref<any>(null)
 const saveDraft = () => {
   const draft = {
     domain: formData.value.domain,
+    sort: formData.value.sort,
     script: scriptContent.value,
     timestamp: Date.now()
   }
@@ -207,7 +220,7 @@ const hasDraft = () => {
 }
 
 const isDraftDifferent = (draft: any) => {
-  return draft.domain !== formData.value.domain || draft.script !== scriptContent.value
+  return draft.domain !== formData.value.domain || draft.sort !== formData.value.sort || draft.script !== scriptContent.value
 }
 
 // 定时保存草稿
@@ -263,6 +276,7 @@ const showDraftRestoreDialog = (draft: any) => {
     cancelText: '删除草稿',
     onOk: () => {
       formData.value.domain = draft.domain
+      formData.value.sort = draft.sort || 0
       scriptContent.value = draft.script
       clearDraft()
       message.success('草稿已恢复')
@@ -304,6 +318,7 @@ const fetchVideoSourceDetail = async (id: string) => {
       const data = (response as any).data || {}
       formData.value.id = data.id || ''
       formData.value.domain = data.domain || ''
+      formData.value.sort = data.sort || 0
       // 加载Lua脚本到编辑器
       if (data.lua_script) {
         scriptContent.value = data.lua_script
@@ -326,6 +341,7 @@ const handleSave = async () => {
     const payload: any = { 
       id: formData.value.id || '', 
       domain: formData.value.domain,
+      sort: formData.value.sort,
       lua_script: scriptContent.value
     }
     const response = await videoSourceAPI.saveVideoSource(authStore.token, payload)

@@ -79,6 +79,7 @@ type VideoSourceListResponse struct {
 	Id         string `json:"id"`
 	Name       string `json:"name"`
 	Domain     string `json:"domain"`
+	Sort       int    `json:"sort"`        // 排序值
 	Status     int    `json:"status"`
 	SourceType int    `json:"source_type"`
 	LuaScript  string `json:"lua_script"` // Lua脚本内容
