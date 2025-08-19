@@ -189,7 +189,7 @@ browser, err := crawler.NewBrowser(crawler.CollyBrowserType, config)
 
 ## 随机User-Agent
 
-使用 `github.com/EDDYCJY/fake-useragent` 库生成真实的浏览器User-Agent：
+使用 `github.com/lib4u/fake-useragent` 库生成真实的浏览器User-Agent：
 
 ```go
 browser.SetRandomUserAgent()

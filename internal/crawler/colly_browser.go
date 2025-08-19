@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	browser "github.com/EDDYCJY/fake-useragent"
 	"github.com/gocolly/colly/v2"
 	"github.com/gocolly/colly/v2/extensions"
+	fakeUserAgent "github.com/lib4u/fake-useragent"
 )
 
 // CollyBrowser Colly浏览器实现
@@ -214,7 +214,13 @@ func (c *CollyBrowser) SetUserAgent(userAgent string) {
 
 // SetRandomUserAgent 设置随机User-Agent
 func (c *CollyBrowser) SetRandomUserAgent() {
-	randomUA := browser.Random()
+	ua, err := fakeUserAgent.New()
+	if err != nil {
+		// 如果创建失败，使用默认UA
+		c.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+		return
+	}
+	randomUA := ua.GetRandom()
 	c.SetUserAgent(randomUA)
 }
 

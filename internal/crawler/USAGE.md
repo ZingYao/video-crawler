@@ -40,4 +40,4 @@ go run cmd/simple-demo/main.go
 ## 依赖库
 
 - `github.com/gocolly/colly/v2` - 爬虫框架
-- `github.com/EDDYCJY/fake-useragent` - 随机User-Agent
+- `github.com/lib4u/fake-useragent` - 随机User-Agent
