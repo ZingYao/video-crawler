@@ -4,10 +4,18 @@
     <a-card class="content-card">
       <template #title>
         <div class="card-header">
-          <h2>{{ isEdit ? '编辑视频源' : '添加视频源' }}</h2>
-            <div class="header-actions">
-              <a-button type="primary" class="teal-btn" @click="handleSave" :loading="saveLoading">{{ isEdit ? '保存' : '创建' }}</a-button>
-            </div>
+          <div class="header-left">
+            <a-button class="back-btn" @click="handleBack" type="text">
+              <template #icon>
+                <ArrowLeftOutlined />
+              </template>
+              返回
+            </a-button>
+            <h2>{{ isEdit ? '编辑视频源' : '添加视频源' }}</h2>
+          </div>
+          <div class="header-actions">
+            <a-button type="primary" class="teal-btn" @click="handleSave" :loading="saveLoading">{{ isEdit ? '保存' : '创建' }}</a-button>
+          </div>
         </div>
       </template>
 
@@ -62,6 +70,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { videoSourceAPI } from '@/api'
 import { message, Modal } from 'ant-design-vue'
+import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
 import MonacoEditor from '@guolao/vue-monaco-editor'
 import * as monaco from 'monaco-editor'
@@ -211,6 +220,24 @@ const stopDraftTimer = () => {
   if (draftTimer) {
     clearInterval(draftTimer)
     draftTimer = null
+  }
+}
+
+const handleBack = () => {
+  // 如果有未保存的草稿，提示用户
+  if (hasDraft()) {
+    Modal.confirm({
+      title: '确认离开',
+      content: '您有未保存的草稿，确定要离开吗？',
+      okText: '离开',
+      cancelText: '取消',
+      onOk: () => {
+        clearDraft()
+        router.push('/video-source')
+      }
+    })
+  } else {
+    router.push('/video-source')
   }
 }
 
@@ -367,6 +394,10 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 .page-wrap { --teal: #10b981; --teal-hover: #34d399; --teal-active: #059669; padding: 12px; }
 .editor-logs-wrap { display: grid; grid-template-columns: 1fr 360px; gap: 12px; align-items: stretch; }
 .card-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.back-btn { color: var(--teal-active); font-weight: 600; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; }
+.back-btn:hover { color: var(--teal-hover); background: rgba(16, 185, 129, 0.08); }
+.back-btn:active { color: #047857; background: rgba(4, 120, 87, 0.12); }
 .header-actions > * { margin-left: 8px; }
 .editor-panel, .logs-panel { background: transparent; border: 1px solid #20c7ab; border-radius: 8px; overflow: hidden; margin-bottom: 12px; min-width: 0; }
 .editor-panel { display: flex; flex-direction: column; height: 620px; }

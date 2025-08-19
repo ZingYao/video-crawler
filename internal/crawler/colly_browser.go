@@ -47,7 +47,7 @@ func NewCollyBrowser(config *BrowserConfig) (*CollyBrowser, error) {
 		for key, value := range config.Headers {
 			r.Headers.Set(key, value)
 		}
-		
+
 		// 设置Cookie
 		if len(config.Cookies) > 0 {
 			for key, value := range config.Cookies {
