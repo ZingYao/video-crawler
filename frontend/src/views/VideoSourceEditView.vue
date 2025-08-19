@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { videoSourceAPI } from '@/api'
@@ -160,8 +160,59 @@ end
 print('[Demo] 完成')
 `
 
+// 草稿相关
+const DRAFT_KEY = 'video_source_draft'
+const DRAFT_INTERVAL = 3000 // 3秒自动保存
+let draftTimer: number | null = null
 const scriptContent = ref<string>(defaultDemo)
 const editorRef = ref<any>(null)
+
+// 草稿管理函数
+const saveDraft = () => {
+  const draft = {
+    domain: formData.value.domain,
+    script: scriptContent.value,
+    timestamp: Date.now()
+  }
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+}
+
+const loadDraft = () => {
+  const draftStr = localStorage.getItem(DRAFT_KEY)
+  if (draftStr) {
+    try {
+      return JSON.parse(draftStr)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+const clearDraft = () => {
+  localStorage.removeItem(DRAFT_KEY)
+}
+
+const hasDraft = () => {
+  return localStorage.getItem(DRAFT_KEY) !== null
+}
+
+const isDraftDifferent = (draft: any) => {
+  return draft.domain !== formData.value.domain || draft.script !== scriptContent.value
+}
+
+// 定时保存草稿
+const startDraftTimer = () => {
+  if (draftTimer) clearInterval(draftTimer)
+  draftTimer = setInterval(saveDraft, DRAFT_INTERVAL)
+}
+
+const stopDraftTimer = () => {
+  if (draftTimer) {
+    clearInterval(draftTimer)
+    draftTimer = null
+  }
+}
 
 const openDocs = () => { docsOpen.value = true }
 const onEditorMount = (editor: any) => { editorRef.value = editor; defineTealTheme() }
@@ -174,6 +225,35 @@ const onFillDemo = () => {
   if (current.length > 0 && current !== defaultDemo.trim()) {
     Modal.confirm({ title: '确认覆盖当前脚本？', content: '填充 Demo 将覆盖编辑器中的现有内容。', okText: '覆盖', cancelText: '取消', onOk: () => resetDemo() })
   } else { resetDemo() }
+}
+
+// 草稿恢复弹窗
+const showDraftRestoreDialog = (draft: any) => {
+  Modal.confirm({
+    title: '发现草稿',
+    content: '检测到您有未保存的草稿，是否要恢复？',
+    okText: '恢复草稿',
+    cancelText: '删除草稿',
+    onOk: () => {
+      formData.value.domain = draft.domain
+      scriptContent.value = draft.script
+      clearDraft()
+      message.success('草稿已恢复')
+    },
+    onCancel: () => {
+      Modal.confirm({
+        title: '确认删除草稿',
+        content: '删除后无法恢复，确定要删除草稿吗？',
+        okText: '确定删除',
+        cancelText: '取消',
+        okType: 'danger',
+        onOk: () => {
+          clearDraft()
+          message.success('草稿已删除')
+        }
+      })
+    }
+  })
 }
 
 const coloredLines = computed(() => {
@@ -201,6 +281,12 @@ const fetchVideoSourceDetail = async (id: string) => {
       if (data.lua_script) {
         scriptContent.value = data.lua_script
       }
+      
+      // 检查是否有草稿需要恢复
+      const draft = loadDraft()
+      if (draft && isDraftDifferent(draft)) {
+        showDraftRestoreDialog(draft)
+      }
     } else { message.error((response as any).message || '获取视频源详情失败') }
   } catch (err: any) { message.error(err.message || '网络错误') }
 }
@@ -216,7 +302,12 @@ const handleSave = async () => {
       lua_script: scriptContent.value
     }
     const response = await videoSourceAPI.saveVideoSource(authStore.token, payload)
-    if ((response as any).code === 0) { message.success(isEdit.value ? '保存成功' : '创建成功'); if (!isEdit.value) formData.value.id = (response as any).data?.id || '' }
+    if ((response as any).code === 0) { 
+      message.success(isEdit.value ? '保存成功' : '创建成功')
+      if (!isEdit.value) formData.value.id = (response as any).data?.id || ''
+      // 保存成功后清除草稿
+      clearDraft()
+    }
     else { message.error((response as any).message || '保存失败') }
   } catch (err: any) { message.error(err.message || '网络错误') }
   finally { saveLoading.value = false }
@@ -239,7 +330,30 @@ const runScript = async () => {
   finally { debugLoading.value = false }
 }
 
-onMounted(() => { if (isEdit.value && route.params.id) fetchVideoSourceDetail(route.params.id as string) })
+onMounted(() => { 
+  // 启动定时保存草稿
+  startDraftTimer()
+  
+  if (isEdit.value && route.params.id) {
+    fetchVideoSourceDetail(route.params.id as string)
+  } else {
+    // 新建模式下检查草稿
+    const draft = loadDraft()
+    if (draft) {
+      showDraftRestoreDialog(draft)
+    }
+  }
+  
+  // 监听页面离开事件
+  window.addEventListener('beforeunload', saveDraft)
+})
+
+onUnmounted(() => {
+  // 清理定时器
+  stopDraftTimer()
+  // 移除页面离开事件监听
+  window.removeEventListener('beforeunload', saveDraft)
+})
 
 // 全局快捷键：F5 运行脚本；屏蔽 ⌘S / Ctrl+S
 document.addEventListener('keydown', (e: KeyboardEvent) => {
