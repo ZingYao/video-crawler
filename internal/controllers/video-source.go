@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"io"
 	"video-crawler/internal/consts"
 	"video-crawler/internal/crawler"
 	"video-crawler/internal/entities"
@@ -98,6 +99,14 @@ func (c *VideoSourceController) CheckStatus(ctx *gin.Context) {
 	resp, err := browser.Get(videoSource.Domain)
 	if err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeCheckVideoSourceStatusFailed, err.Error(), nil)
+		return
+	}
+	defer resp.Body.Close()
+
+	// 读取响应体以确保连接正常
+	_, err = io.ReadAll(resp.Body)
+	if err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeCheckVideoSourceStatusFailed, "读取响应失败: "+err.Error(), nil)
 		return
 	}
 

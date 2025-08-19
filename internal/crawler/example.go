@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"time"
 )
@@ -46,8 +47,16 @@ func ExampleUsage() {
 	}
 
 	fmt.Printf("Status Code: %d\n", response.StatusCode)
-	fmt.Printf("Response Body Length: %d\n", len(response.Body))
-	fmt.Printf("Response URL: %s\n", response.URL)
+	
+	// 读取响应体
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal("Failed to read response body:", err)
+	}
+	response.Body.Close()
+	
+	fmt.Printf("Response Body Length: %d\n", len(body))
+	fmt.Printf("Response URL: %s\n", response.Request.URL.String())
 
 	// 发送POST请求
 	fmt.Println("\nSending POST request...")
@@ -61,7 +70,15 @@ func ExampleUsage() {
 	}
 
 	fmt.Printf("Status Code: %d\n", postResponse.StatusCode)
-	fmt.Printf("Response Body Length: %d\n", len(postResponse.Body))
+	
+	// 读取响应体
+	postBody, err := io.ReadAll(postResponse.Body)
+	if err != nil {
+		log.Fatal("Failed to read post response body:", err)
+	}
+	postResponse.Body.Close()
+	
+	fmt.Printf("Response Body Length: %d\n", len(postBody))
 }
 
 // ExampleWithCustomConfig 使用自定义配置的示例
@@ -79,7 +96,7 @@ func ExampleWithCustomConfig() {
 	}
 
 	// 创建浏览器实例
-	browser, err := NewBrowser(CollyBrowserType, config)
+	browser, err := NewBrowser(HTTPBrowserType, config)
 	if err != nil {
 		log.Fatal("Failed to create browser:", err)
 	}
@@ -94,5 +111,12 @@ func ExampleWithCustomConfig() {
 		log.Fatal("Request failed:", err)
 	}
 
-	fmt.Printf("User-Agent: %s\n", string(response.Body))
+	// 读取响应体
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal("Failed to read response body:", err)
+	}
+	response.Body.Close()
+	
+	fmt.Printf("User-Agent: %s\n", string(body))
 }

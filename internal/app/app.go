@@ -96,6 +96,10 @@ func (a *App) registerRoutes() {
 			middleware.CustomMiddleware(c, middleware.RequestIdMiddleware(), middleware.LoggerMiddleware(), a.httpHandler.HandleHealth)
 			return
 		} else {
+			// 打印所有请求头
+			for key, values := range c.Request.Header {
+				fmt.Printf("%s: %v\n", key, values)
+			}
 			// 对于所有其他路径，返回 index.html 以支持前端路由
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.Status(http.StatusOK)

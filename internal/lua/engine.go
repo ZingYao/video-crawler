@@ -3,6 +3,7 @@ package lua
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -209,17 +210,30 @@ func (e *LuaEngine) luaHttpGet(L *lua.LState) int {
 		L.Push(lua.LString(err.Error()))
 		return 2
 	}
+	defer response.Body.Close()
 
+	// 读取响应体
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		L.Push(lua.LNil)
+		L.Push(lua.LString(fmt.Sprintf("failed to read response body: %v", err)))
+		return 2
+	}
+
+	// 处理响应体，去除转义
+	bodyStr := normalizeResponseBody(body)
 	// 返回响应表
 	responseTable := L.CreateTable(0, 4)
 	responseTable.RawSetString("status_code", lua.LNumber(response.StatusCode))
-	responseTable.RawSetString("body", lua.LString(string(response.Body)))
-	responseTable.RawSetString("url", lua.LString(response.URL))
+	responseTable.RawSetString("body", lua.LString(bodyStr))
+	responseTable.RawSetString("url", lua.LString(response.Request.URL.String()))
 
 	// 设置响应头
-	headersTable := L.CreateTable(0, len(response.Headers))
-	for key, value := range response.Headers {
-		headersTable.RawSetString(key, lua.LString(value))
+	headersTable := L.CreateTable(0, len(response.Header))
+	for key, values := range response.Header {
+		if len(values) > 0 {
+			headersTable.RawSetString(key, lua.LString(values[0]))
+		}
 	}
 	responseTable.RawSetString("headers", headersTable)
 
@@ -255,17 +269,31 @@ func (e *LuaEngine) luaHttpPost(L *lua.LState) int {
 		L.Push(lua.LString(err.Error()))
 		return 2
 	}
+	defer response.Body.Close()
+
+	// 读取响应体
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		L.Push(lua.LNil)
+		L.Push(lua.LString(fmt.Sprintf("failed to read response body: %v", err)))
+		return 2
+	}
+
+	// 处理响应体，去除转义
+	bodyStr := normalizeResponseBody(body)
 
 	// 返回响应表
 	responseTable := L.CreateTable(0, 4)
 	responseTable.RawSetString("status_code", lua.LNumber(response.StatusCode))
-	responseTable.RawSetString("body", lua.LString(response.Body))
-	responseTable.RawSetString("url", lua.LString(response.URL))
+	responseTable.RawSetString("body", lua.LString(bodyStr))
+	responseTable.RawSetString("url", lua.LString(response.Request.URL.String()))
 
 	// 设置响应头
-	headersTable := L.CreateTable(0, len(response.Headers))
-	for key, value := range response.Headers {
-		headersTable.RawSetString(key, lua.LString(value))
+	headersTable := L.CreateTable(0, len(response.Header))
+	for key, values := range response.Header {
+		if len(values) > 0 {
+			headersTable.RawSetString(key, lua.LString(values[0]))
+		}
 	}
 	responseTable.RawSetString("headers", headersTable)
 

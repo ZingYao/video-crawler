@@ -1,16 +1,19 @@
 package crawler
 
 import (
+	"net/http"
 	"time"
+
+	fakeUserAgent "github.com/lib4u/fake-useragent"
 )
 
 // BrowserRequest 浏览器请求接口
 type BrowserRequest interface {
 	// Get 发送GET请求
-	Get(url string) (*Response, error)
+	Get(url string) (*http.Response, error)
 
 	// Post 发送POST请求
-	Post(url string, data map[string]interface{}) (*Response, error)
+	Post(url string, data map[string]interface{}) (*http.Response, error)
 
 	// SetHeaders 设置请求头
 	SetHeaders(headers map[string]string)
@@ -37,14 +40,7 @@ type BrowserRequest interface {
 	Close() error
 }
 
-// Response 响应结构
-type Response struct {
-	StatusCode int
-	Headers    map[string]string
-	Body       []byte
-	URL        string
-	Cookies    map[string]string
-}
+
 
 // BrowserConfig 浏览器配置
 type BrowserConfig struct {
@@ -61,20 +57,23 @@ type BrowserConfig struct {
 // DefaultConfig 默认配置
 func DefaultConfig() *BrowserConfig {
 	// 设置真实的浏览器请求头
+	ua, _ := fakeUserAgent.New()
+	var userAgent string
+	if ua != nil {
+		userAgent = ua.GetRandom()
+	}
+	if userAgent == "" {
+		userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+	}
 	headers := map[string]string{
 		"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-		"Accept-Language":           "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
 		"Accept-Encoding":           "gzip, deflate, br, zstd",
-		"Cache-Control":             "max-age=0",
+		"Accept-Language":           "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+		"Cache-Control":             "no-cache",
 		"Connection":                "keep-alive",
+		"Pragma":                    "no-cache",
 		"Upgrade-Insecure-Requests": "1",
-		"Sec-Fetch-Dest":            "document",
-		"Sec-Fetch-Mode":            "navigate",
-		"Sec-Fetch-Site":            "none",
-		"Sec-Fetch-User":            "?1",
-		"sec-ch-ua":                 `"Not;A=Brand";v="99", "Microsoft Edge";v="139", "Chromium";v="139"`,
-		"sec-ch-ua-mobile":          "?0",
-		"sec-ch-ua-platform":        `"macOS"`,
+		"User-Agent":                userAgent,
 	}
 
 	return &BrowserConfig{
