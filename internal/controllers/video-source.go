@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"fmt"
 	"io"
+	"strings"
 	"video-crawler/internal/consts"
 	"video-crawler/internal/crawler"
 	"video-crawler/internal/entities"
@@ -84,7 +84,7 @@ func (c *VideoSourceController) CheckStatus(ctx *gin.Context) {
 		return
 	}
 
-	// 创建爬虫浏览器实例，使用随机UA
+	// 创建爬虫浏览器实例
 	browser, err := crawler.NewDefaultBrowser()
 	if err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeCheckVideoSourceStatusFailed, "创建浏览器实例失败: "+err.Error(), nil)
@@ -92,8 +92,37 @@ func (c *VideoSourceController) CheckStatus(ctx *gin.Context) {
 	}
 	defer browser.Close()
 	browser.SetRandomUserAgent()
-	userAgent := browser.GetUserAgent()
-	fmt.Println("userAgent:", userAgent)
+
+	// 将前端请求头透传到 crawler 请求（合并，不覆盖默认关键头）
+	incoming := ctx.Request.Header
+	headers := make(map[string]string)
+	var ua string
+	for key, values := range incoming {
+		if len(values) == 0 {
+			continue
+		}
+		val := values[0]
+		lk := strings.ToLower(key)
+		// 跳过不适合透传或由客户端自动设置的头
+		switch lk {
+		case "host", "content-length":
+			continue
+		case "user-agent":
+			ua = val
+			continue
+		case "cookie":
+			// 按需求：Cookie 不透传
+			continue
+		}
+		headers[key] = val
+	}
+	if len(headers) > 0 {
+		browser.SetHeaders(headers)
+	}
+	// 处理 UA
+	if strings.TrimSpace(ua) != "" {
+		browser.SetUserAgent(ua)
+	}
 
 	// 使用爬虫请求域名，如果返回200，则站点正常，否则站点不可用
 	resp, err := browser.Get(videoSource.Domain)

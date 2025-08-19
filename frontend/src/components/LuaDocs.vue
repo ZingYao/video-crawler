@@ -45,14 +45,18 @@ log('step 2 after 300ms')
           <div class="doc-item"><b>set_user_agent(ua: string)</b> 设置 UA</div>
           <div class="doc-item"><b>set_random_user_agent()</b> 随机 UA</div>
           <div class="doc-item"><b>get_user_agent()</b> → <code>string</code> 获取当前 UA</div>
+          <div class="doc-item"><b>set_ua_2_current_request_ua()</b> → <code>string</code> 将当前 HTTP 客户端 UA 写入请求头并返回实际生效的 UA</div>
           <div class="doc-item"><b>set_headers(h: table)</b> 设置通用请求头</div>
           <div class="doc-item"><b>set_cookies(c: table)</b> 设置通用 Cookie（键值对）</div>
           <div class="doc-item"><b>http_get(url: string)</b> → <code>resp, err</code></div>
           <div class="doc-item"><b>http_post(url: string, data: table|string)</b> → <code>resp, err</code></div>
           <div class="doc-item">resp 结构：<code>{ status_code:number, url:string, headers:table, body:string }</code></div>
-          <pre class="doc-code">-- set_user_agent / set_random_user_agent / get_user_agent
+          <pre class="doc-code">-- set_user_agent / set_random_user_agent / get_user_agent / set_ua_2_current_request_ua
 set_user_agent('Lua-Demo/1.0')
 set_random_user_agent()  -- 可选：随机 UA 会覆盖上面的 UA
+local ua_applied = set_ua_2_current_request_ua()  -- 将当前 UA 写入到后续 HTTP 请求
+print('生效 UA:', ua_applied)
+
 local current_ua = get_user_agent()  -- 获取当前设置的 UA
 print('当前 UA:', current_ua)
 
@@ -85,6 +89,7 @@ end
             <li><code>set_user_agent(ua)</code>：<code>ua:string</code>；<b>无返回</b></li>
             <li><code>set_random_user_agent()</code>：<b>无返回</b></li>
             <li><code>get_user_agent()</code>：<b>返回</b> <code>string</code> 当前 UA</li>
+            <li><code>set_ua_2_current_request_ua()</code>：<b>返回</b> <code>string</code> 实际生效的 UA</li>
             <li><code>set_headers(h)</code>：<code>h:table</code>，示例 <code>{ ['K']='V' }</code>；<b>无返回</b></li>
             <li><code>set_cookies(c)</code>：<code>c:table</code>，示例 <code>{ name='v' }</code>；<b>无返回</b></li>
             <li><code>http_get(url)</code>：<code>url:string</code>；返回 <code>resp, err</code></li>
@@ -99,10 +104,10 @@ end
           <div class="doc-item"><b>select_one(doc|el, css: string)</b> → <code>element, err</code></div>
           <div class="doc-item"><b>text(el)</b> → <code>string</code>，<b>html(el)</b> → <code>string</code>，<b>attr(el, name)</b> → <code>value, err</code></div>
           <pre class="doc-code">local htmlStr = [[
-<html><body>
-  <div class="card" data-id="100">Hello</div>
-  <p id="p1">world</p>
-</body></html>
+&lt;html&gt;&lt;body&gt;
+  &lt;div class="card" data-id="100"&gt;Hello&lt;/div&gt;
+  &lt;p id="p1"&gt;world&lt;/p&gt;
+&lt;/body&gt;&lt;/html&gt;
 ]]
 local doc, perr = parse_html(htmlStr)
 if perr then

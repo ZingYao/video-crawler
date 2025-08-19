@@ -11,6 +11,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// CtxKey 用于在 context 中存取附加信息的 key 类型
+type CtxKey string
+
+// CtxKeyRequestUA 上下文中存放前端请求 User-Agent 的 key
+const CtxKeyRequestUA CtxKey = "request_ua"
+
 type LuaTestService interface {
 	// ExecuteScript 执行Lua脚本并返回流式输出
 	ExecuteScript(ctx context.Context, script string) (<-chan string, error)
@@ -27,6 +33,13 @@ func (s *luaTestService) ExecuteScript(ctx context.Context, script string) (<-ch
 	browser, err := crawler.NewDefaultBrowser()
 	if err != nil {
 		return nil, fmt.Errorf("创建浏览器实例失败: %w", err)
+	}
+
+	// 如果上下文中携带了请求UA，优先使用它
+	if v := ctx.Value(CtxKeyRequestUA); v != nil {
+		if ua, ok := v.(string); ok && ua != "" {
+			browser.SetUserAgent(ua)
+		}
 	}
 
 	// 创建Lua引擎

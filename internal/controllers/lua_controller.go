@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -47,8 +48,15 @@ func (c *LuaTestController) TestScript(ctx *gin.Context) {
 	// 设置响应状态码
 	ctx.Status(http.StatusOK)
 
+	// 从请求头提取 UA，写入上下文
+	ua := ctx.GetHeader("User-Agent")
+	reqCtx := ctx.Request.Context()
+	if ua != "" {
+		reqCtx = context.WithValue(reqCtx, services.CtxKeyRequestUA, ua)
+	}
+
 	// 获取输出通道
-	outputChan, err := c.luaTestService.ExecuteScript(ctx.Request.Context(), request.Script)
+	outputChan, err := c.luaTestService.ExecuteScript(reqCtx, request.Script)
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("[ERROR] 启动脚本执行失败: %v\n", err))
 		return
@@ -72,11 +80,11 @@ func (c *LuaTestController) TestScript(ctx *gin.Context) {
 				flusher.Flush()
 				return
 			}
-			
+
 			// 发送消息并刷新
 			writer.Write([]byte(msg + "\n"))
 			flusher.Flush()
-			
+
 		case <-ctx.Request.Context().Done():
 			// 客户端断开连接
 			return
@@ -112,8 +120,15 @@ func (c *LuaTestController) TestScriptSSE(ctx *gin.Context) {
 	// 设置响应状态码
 	ctx.Status(http.StatusOK)
 
+	// 从请求头提取 UA，写入上下文
+	ua := ctx.GetHeader("User-Agent")
+	reqCtx := ctx.Request.Context()
+	if ua != "" {
+		reqCtx = context.WithValue(reqCtx, services.CtxKeyRequestUA, ua)
+	}
+
 	// 获取输出通道
-	outputChan, err := c.luaTestService.ExecuteScript(ctx.Request.Context(), request.Script)
+	outputChan, err := c.luaTestService.ExecuteScript(reqCtx, request.Script)
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("event: error\ndata: %s\n\n", err.Error()))
 		return
@@ -141,12 +156,12 @@ func (c *LuaTestController) TestScriptSSE(ctx *gin.Context) {
 				flusher.Flush()
 				return
 			}
-			
+
 			// 发送消息事件
 			eventData := fmt.Sprintf("event: message\ndata: %s\n\n", jsonEscape(msg))
 			writer.Write([]byte(eventData))
 			flusher.Flush()
-			
+
 		case <-ctx.Request.Context().Done():
 			// 客户端断开连接
 			return

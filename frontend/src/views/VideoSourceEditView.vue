@@ -20,6 +20,17 @@
       </template>
 
         <a-form ref="formRef" :model="formData" :rules="rules" layout="vertical" class="video-source-form" @finish="handleSave">
+        <a-form-item label="资源类型" name="source_type">
+          <a-select
+            v-model:value="formData.source_type"
+            :options="sourceTypeOptions"
+            placeholder="请选择资源类型"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="站点名称" name="name">
+          <a-input v-model:value="formData.name" placeholder="请输入站点名称，例如：示例影视站" />
+        </a-form-item>
         <a-form-item label="站点域名" name="domain">
           <a-input v-model:value="formData.domain" placeholder="请输入站点域名，如：http://example.com" />
         </a-form-item>
@@ -98,12 +109,25 @@ const logsRef = ref<HTMLDivElement | null>(null)
 
 const isEdit = computed(() => !!route.params.id)
 
-const formData = ref({ id: '', domain: '', sort: 0 })
+const formData = ref({ id: '', name: '', domain: '', source_type: 0, sort: 0 })
 
 const rules = { 
+  source_type: [{ required: true, message: '请选择资源类型', trigger: 'change' }],
+  name: [{ required: true, message: '请输入站点名称', trigger: 'blur' }],
   domain: [{ required: true, message: '请输入站点域名', trigger: 'blur' }],
   sort: [{ required: true, message: '请输入排序值', trigger: 'blur' }]
 }
+
+const sourceTypeOptions = [
+  { label: '综合', value: 0 },
+  { label: '短剧', value: 1 },
+  { label: '电影', value: 2 },
+  { label: '电视剧', value: 3 },
+  { label: '综艺', value: 4 },
+  { label: '动漫', value: 5 },
+  { label: '纪录片', value: 6 },
+  { label: '其他', value: 7 },
+]
 
 // 自定义 Monaco 主题（偏亮青绿）
 const monacoTheme = ref('teal-light')
@@ -191,7 +215,9 @@ const editorRef = ref<any>(null)
 // 草稿管理函数
 const saveDraft = () => {
   const draft = {
+    name: formData.value.name,
     domain: formData.value.domain,
+    source_type: formData.value.source_type,
     sort: formData.value.sort,
     script: scriptContent.value,
     timestamp: Date.now()
@@ -220,7 +246,7 @@ const hasDraft = () => {
 }
 
 const isDraftDifferent = (draft: any) => {
-  return draft.domain !== formData.value.domain || draft.sort !== formData.value.sort || draft.script !== scriptContent.value
+  return draft.name !== formData.value.name || draft.domain !== formData.value.domain || draft.source_type !== formData.value.source_type || draft.sort !== formData.value.sort || draft.script !== scriptContent.value
 }
 
 // 定时保存草稿
@@ -275,7 +301,9 @@ const showDraftRestoreDialog = (draft: any) => {
     okText: '恢复草稿',
     cancelText: '删除草稿',
     onOk: () => {
+      formData.value.name = draft.name || ''
       formData.value.domain = draft.domain
+      formData.value.source_type = draft.source_type ?? 0
       formData.value.sort = draft.sort || 0
       scriptContent.value = draft.script
       clearDraft()
@@ -317,7 +345,9 @@ const fetchVideoSourceDetail = async (id: string) => {
     if ((response as any).code === 0) {
       const data = (response as any).data || {}
       formData.value.id = data.id || ''
+      formData.value.name = data.name || ''
       formData.value.domain = data.domain || ''
+      formData.value.source_type = data.source_type ?? 0
       formData.value.sort = data.sort || 0
       // 加载Lua脚本到编辑器
       if (data.lua_script) {
@@ -340,7 +370,9 @@ const handleSave = async () => {
   try {
     const payload: any = { 
       id: formData.value.id || '', 
+      name: formData.value.name,
       domain: formData.value.domain,
+      source_type: formData.value.source_type,
       sort: formData.value.sort,
       lua_script: scriptContent.value
     }
@@ -496,4 +528,15 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 /* 防止在侧边栏展开时产生横向溢出 */
 .page-wrap, .content-card, .video-source-form { max-width: 100%; width: 100%; box-sizing: border-box; overflow-x: hidden; }
 .monaco { width: 100%; }
+
+/* 移动端自适应（不影响 PC） */
+@media (max-width: 900px) {
+  .page-wrap { padding: 8px; }
+  .editor-logs-wrap { grid-template-columns: 1fr; gap: 10px; }
+  .panel-title { height: 32px; font-size: 12px; }
+  .editor-panel { height: 48vh; }
+  .logs-panel.side { height: 36vh; }
+  .logs-box.scrollable { overflow: auto; }
+  .monaco { height: 100%; min-height: 0; }
+}
 </style>

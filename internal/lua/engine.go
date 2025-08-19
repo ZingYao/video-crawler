@@ -63,6 +63,8 @@ func (e *LuaEngine) registerFunctions() {
 	e.L.SetGlobal("set_cookies", e.L.NewFunction(e.luaSetCookies))
 	e.L.SetGlobal("set_user_agent", e.L.NewFunction(e.luaSetUserAgent))
 	e.L.SetGlobal("set_random_user_agent", e.L.NewFunction(e.luaSetRandomUserAgent))
+	// 将 HTTP 客户端当前 UA 应用到请求头，返回生效的 UA
+	e.L.SetGlobal("set_ua_2_current_request_ua", e.L.NewFunction(e.luaSetUA2CurrentRequestUA))
 
 	// 注册HTML解析函数（链式入口）
 	e.L.SetGlobal("parse_html", e.L.NewFunction(e.luaParseHtml))
@@ -339,6 +341,19 @@ func (e *LuaEngine) luaSetUserAgent(L *lua.LState) int {
 func (e *LuaEngine) luaSetRandomUserAgent(L *lua.LState) int {
 	e.browser.SetRandomUserAgent()
 	return 0
+}
+
+// luaSetUA2CurrentRequestUA 将 HTTP 客户端当前 UA 应用到请求头，并返回最终 UA
+func (e *LuaEngine) luaSetUA2CurrentRequestUA(L *lua.LState) int {
+	ua := e.browser.GetUserAgent()
+	if ua == "" {
+		e.browser.SetRandomUserAgent()
+		ua = e.browser.GetUserAgent()
+	}
+	// 再次设置，确保写入到 headers
+	e.browser.SetUserAgent(ua)
+	L.Push(lua.LString(ua))
+	return 1
 }
 
 // luaGetUserAgent Lua中的get_user_agent函数
