@@ -153,12 +153,82 @@ const localOpen = computed({
 </script>
 
 <style scoped>
-:root { --teal: #10b981; }
-.docs { color: #052e2b; }
-.docs .doc-section { margin-bottom: 18px; padding-left: 6px; border-left: 3px solid rgba(16,185,129,0.7); }
-.docs h3 { margin: 12px 0 8px; font-weight: 800; color: #0b3b35; background: linear-gradient(90deg, #14b8a6 0%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.docs .doc-item { margin: 10px 0 16px; line-height: 1.7; color: #08433c; }
-.docs ul { padding-left: 18px; }
-.docs code { background: rgba(16,185,129,0.12); color: #065f46; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(16,185,129,0.25); }
-.docs pre.doc-code { background: linear-gradient(135deg, #0ee0b4 0%, #12c4a3 35%, #10b981 70%, #0aa58d 100%); color: #032f26; padding: 12px; border-radius: 8px; overflow: auto; border: 1px solid rgba(16,185,129,0.35); box-shadow: inset 0 0 0 1px rgba(16,185,129,0.15); }
+.docs { 
+  color: #052e2b; 
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.doc-section { 
+  margin-bottom: 24px; 
+  padding-left: 12px; 
+  border-left: 3px solid #10b981; 
+  background: rgba(16, 185, 129, 0.02);
+  padding: 16px 12px;
+  border-radius: 8px;
+}
+
+.docs h3 { 
+  margin: 0 0 16px 0; 
+  font-weight: 700; 
+  color: #065f46; 
+  font-size: 18px;
+  border-bottom: 2px solid #10b981;
+  padding-bottom: 8px;
+}
+
+.doc-item { 
+  margin: 12px 0; 
+  line-height: 1.7; 
+  color: #064e3b; 
+  font-size: 14px;
+}
+
+.docs ul { 
+  padding-left: 20px; 
+  margin: 12px 0;
+}
+
+.docs li {
+  margin: 8px 0;
+  color: #064e3b;
+}
+
+.docs code { 
+  background: #f0fdf4; 
+  color: #166534; 
+  padding: 2px 6px; 
+  border-radius: 4px; 
+  border: 1px solid #bbf7d0;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.docs pre.doc-code { 
+  background: #f0fdf4; 
+  color: #166534; 
+  padding: 16px; 
+  border-radius: 8px; 
+  overflow-x: auto; 
+  border: 1px solid #bbf7d0;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+
+.docs b {
+  font-weight: 600;
+  color: #047857;
+}
+
+/* 确保抽屉内容可见 */
+:deep(.ant-drawer-body) {
+  padding: 0 !important;
+}
+
+:deep(.ant-drawer-content) {
+  background: #ffffff;
+}
 </style>

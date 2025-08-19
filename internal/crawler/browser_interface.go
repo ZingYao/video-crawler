@@ -40,8 +40,6 @@ type BrowserRequest interface {
 	Close() error
 }
 
-
-
 // BrowserConfig 浏览器配置
 type BrowserConfig struct {
 	Timeout         time.Duration

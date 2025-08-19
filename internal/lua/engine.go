@@ -221,7 +221,7 @@ func (e *LuaEngine) luaHttpGet(L *lua.LState) int {
 	}
 
 	// 处理响应体，去除转义
-	bodyStr := normalizeResponseBody(body)
+	bodyStr := string(body)
 	// 返回响应表
 	responseTable := L.CreateTable(0, 4)
 	responseTable.RawSetString("status_code", lua.LNumber(response.StatusCode))
@@ -280,7 +280,7 @@ func (e *LuaEngine) luaHttpPost(L *lua.LState) int {
 	}
 
 	// 处理响应体，去除转义
-	bodyStr := normalizeResponseBody(body)
+	bodyStr := string(body)
 
 	// 返回响应表
 	responseTable := L.CreateTable(0, 4)
