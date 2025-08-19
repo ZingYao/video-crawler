@@ -233,11 +233,11 @@ const handleBack = () => {
       cancelText: '取消',
       onOk: () => {
         clearDraft()
-        router.push('/video-source')
+        router.push('/video-source-management')
       }
     })
   } else {
-    router.push('/video-source')
+    router.push('/video-source-management')
   }
 }
 
