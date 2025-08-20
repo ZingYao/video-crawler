@@ -32,7 +32,7 @@ func New(cfg *config.Config, userService services.UserServiceInterface, videoSou
 func (h *Handler) HandleApi(c *gin.Context) {
 	userController := controllers.NewUserController(h.userService, h.historyService)
 	videoSourceController := controllers.NewVideoSourceController(h.videoSourceService)
-	videoController := controllers.NewVideoController(h.videoSourceService)
+	videoController := controllers.NewVideoController(h.videoSourceService, h.historyService, h.userService)
 	historyController := controllers.NewHistoryController(h.historyService, h.userService)
 	switch c.Request.URL.Path {
 	case "/api":

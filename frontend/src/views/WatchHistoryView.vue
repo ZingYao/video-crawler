@@ -11,7 +11,7 @@
       <a-spin v-if="loading" />
       <a-result v-else-if="error" status="error" :title="error" />
 
-      <a-table v-else :data-source="rows" :columns="columns" :pagination="false" :row-key="rowKey">
+      <a-table v-else :data-source="rows" :columns="columns" :pagination="false" :row-key="rowKey" :onRow="onRow">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'created_at'">
             {{ formatDateTime(record.created_at) }}
@@ -19,8 +19,8 @@
           <template v-else-if="column.key === 'updated_at'">
             {{ formatDateTime(record.updated_at) }}
           </template>
-          <template v-else-if="column.key === 'progress'">
-            {{ Math.round((record.progress || 0) * 100) }}%
+          <template v-else-if="column.key === 'action'">
+            <a-button type="link" @click.stop="continueWatch(record)">继续观看</a-button>
           </template>
         </template>
       </a-table>
@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { historyAPI } from '@/api'
 import AppLayout from '@/components/AppLayout.vue'
@@ -51,16 +51,17 @@ interface VideoHistory {
 
 const route = useRoute()
 const auth = useAuthStore()
+const router = useRouter()
 const loading = ref(false)
 const error = ref('')
 const rows = ref<VideoHistory[]>([])
 
 const columns = [
   { title: '标题', dataIndex: 'video_title', key: 'video_title' },
-  { title: '进度', dataIndex: 'progress', key: 'progress', width: 100 },
   { title: '来源', dataIndex: 'source_name', key: 'source_name', width: 140 },
   { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 180 },
   { title: '更新时间', dataIndex: 'updated_at', key: 'updated_at', width: 180 },
+  { title: '操作', key: 'action', width: 120 },
 ]
 
 const formatDateTime = (s?: string) => {
@@ -93,6 +94,30 @@ onMounted(() => {
 
 // rowKey 显式类型
 const rowKey = (r: VideoHistory): string => r.id
+
+// 行点击跳转观看页
+const onRow = (record: VideoHistory) => {
+  return {
+    onClick: () => {
+      if (!record.source_id || !record.video_url) return
+      router.push({
+        name: 'watch',
+        params: { sourceId: record.source_id },
+        query: { url: record.video_url, title: record.video_title },
+      })
+    },
+  }
+}
+
+// 按钮点击：继续观看
+const continueWatch = (record: VideoHistory) => {
+  if (!record.source_id || !record.video_url) return
+  router.push({
+    name: 'watch',
+    params: { sourceId: record.source_id },
+    query: { url: record.video_url, title: record.video_title },
+  })
+}
 </script>
 
 <style scoped>

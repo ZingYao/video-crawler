@@ -185,6 +185,8 @@ onMounted(() => {
               <span class="tech-tag">TypeScript 5.8.0</span>
               <span class="tech-tag">Vite 7.0.6</span>
               <span class="tech-tag">Pinia 3.0.3</span>
+              <span class="tech-tag">Ant Design Vue 4.2.6</span>
+              <span class="tech-tag">Monaco Editor</span>
             </div>
           </div>
           
@@ -209,6 +211,17 @@ onMounted(() => {
               <span class="tech-tag">json_encode/json_decode</span>
               <span class="tech-tag">sleep/split/trim</span>
               <span class="tech-tag">http_get/http_post</span>
+            </div>
+          </div>
+          
+          <div class="tech-card">
+            <div class="tech-icon">🎥</div>
+            <h4>播放器</h4>
+            <div class="tech-tags">
+              <span class="tech-tag">video.js</span>
+              <span class="tech-tag">@videojs-player/vue</span>
+              <span class="tech-tag">HLS.js (m3u8)</span>
+              <span class="tech-tag">倍速/长按2x/续播</span>
             </div>
           </div>
           

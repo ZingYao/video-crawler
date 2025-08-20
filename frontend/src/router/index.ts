@@ -20,73 +20,73 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: '首页' }
     },
     {
       path: '/login',
       name: 'login',
       component: LoginView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: false, title: '登录' }
     },
     {
       path: '/register',
       name: 'register',
       component: RegisterView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: false, title: '注册' }
     },
     {
       path: '/user-management',
       name: 'user-management',
       component: UserManagementView,
-      meta: { requiresAuth: true, requiresAdmin: true }
+      meta: { requiresAuth: true, requiresAdmin: true, title: '用户管理' }
     },
     {
       path: '/user/edit/:userId?',
       name: 'user-edit',
       component: UserEditView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: '编辑用户' }
     },
     {
       path: '/profile',
       name: 'profile',
       component: UserEditView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: '个人中心' }
     },
     {
       path: '/video-source-management',
       name: 'video-source-management',
       component: VideoSourceManagementView,
-      meta: { requiresAuth: true, requiresAdmin: true }
+      meta: { requiresAuth: true, requiresAdmin: true, title: '视频源管理' }
     },
     {
       path: '/video-source-edit/:id?',
       name: 'video-source-edit',
       component: VideoSourceEditView,
-      meta: { requiresAuth: true, requiresAdmin: true }
+      meta: { requiresAuth: true, requiresAdmin: true, title: '编辑视频源' }
     },
     {
       path: '/history/watch/:userId?',
       name: 'watch-history',
       component: WatchHistoryView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: '观看历史' }
     },
     {
       path: '/movie',
       name: 'movie',
       component: MovieView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: '观影' }
     },
     {
-      path: '/watch',
+      path: '/watch/:sourceId',
       name: 'watch',
       component: WatchView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: '观看' }
     },
     {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: NotFoundView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: false, title: '页面未找到' }
     },
   ]
 })
@@ -113,3 +113,16 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
+
+// 全局后置钩子：设置浏览器标题
+router.afterEach((to) => {
+  const baseTitle = 'Video Crawler'
+  const t = typeof to.meta.title === 'function' ? (to.meta.title as any)(to) : (to.meta.title as string)
+  const dynamic =
+    to.name === 'watch' && to.query?.title
+      ? String(to.query.title)
+      : to.name === 'movie'
+      ? (to.query?.q ? `观影 - ${String(to.query.q)}` : '观影')
+      : undefined
+  document.title = [t || dynamic, baseTitle].filter(Boolean).join(' | ')
+})

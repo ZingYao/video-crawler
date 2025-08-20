@@ -1,5 +1,5 @@
 <template>
-    <AppLayout page-title="观影">
+    <AppLayout :page-title="pageTitle">
     <a-card class="content-card">
       <template #title>
         <div class="card-header">
@@ -75,7 +75,7 @@
           :lg="6"
           :xl="4"
         >
-          <a-card class="movie-card" hoverable>
+          <a-card class="movie-card" hoverable @click="startWatching(movie)">
             <template #cover>
               <div class="movie-cover">
                 <img :src="movie.cover_url" :alt="movie.title" />
@@ -90,7 +90,7 @@
                     </a-button>
                     <a-button
                       size="small"
-                      @click="goToOriginal(movie)"
+                      @click.stop="goToOriginal(movie)"
                     >
                       原站点
                     </a-button>
@@ -118,6 +118,12 @@
                       <span class="label">主演：</span>
                       <a-tooltip :title="movie.actors || '未知'" :overlayStyle="tooltipOverlayStyle">
                         <span class="value">{{ movie.actors || '未知' }}</span>
+                      </a-tooltip>
+                    </div>
+                    <div class="meta-item">
+                      <span class="label">类型：</span>
+                      <a-tooltip :title="movie.type || '未知'" :overlayStyle="tooltipOverlayStyle">
+                        <span class="value">{{ movie.type || '未知' }}</span>
                       </a-tooltip>
                     </div>
                     <div class="meta-item">
@@ -175,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
@@ -191,6 +197,7 @@ interface MovieResult {
   actors: string
   release_date: string
   region: string
+  type: string
   source_name: string
   description: string
   video_url: string
@@ -220,6 +227,52 @@ const auth = useAuthStore()
 
 // Tooltip 弹层样式：限制最大宽度、允许换行/长词换行
 const tooltipOverlayStyle = { maxWidth: '70vw', whiteSpace: 'normal', wordBreak: 'break-word' }
+
+// 页面标题：带上搜索词
+const pageTitle = computed(() => {
+  const q = searchKeyword.value?.trim()
+  return q ? `观影 - ${q}` : '观影'
+})
+
+// 会话缓存键
+const SEARCH_CACHE_KEY = 'movie_search_state'
+
+function saveSearchCache() {
+  try {
+    const payload = {
+      searchKeyword: searchKeyword.value,
+      selectedSourceType: selectedSourceType.value,
+      hasSearched: hasSearched.value,
+      results: searchResults.value,
+      t: Date.now(),
+    }
+    sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(payload))
+  } catch {}
+}
+
+function loadSearchCache(): boolean {
+  try {
+    const raw = sessionStorage.getItem(SEARCH_CACHE_KEY)
+    if (!raw) return false
+    const obj = JSON.parse(raw)
+    if (!obj) return false
+    searchKeyword.value = String(obj.searchKeyword || '')
+    selectedSourceType.value = String(obj.selectedSourceType ?? selectedSourceType.value)
+    hasSearched.value = Boolean(obj.hasSearched)
+    searchResults.value = Array.isArray(obj.results) ? obj.results : []
+    return true
+  } catch {
+    return false
+  }
+}
+
+onMounted(() => {
+  loadSearchCache()
+})
+
+onBeforeUnmount(() => {
+  saveSearchCache()
+})
 
 // 加载搜索历史
 const loadSearchHistory = () => {
@@ -287,6 +340,7 @@ const handleSearch = async () => {
               actors: String(item.actor || ''),
               release_date: String(item.release_date || ''),
               region: String(item.region || ''),
+              type: String(item.type || item.category || ''),
               source_name: String(src.name || ''),
               description: String(item.description || ''),
               video_url: String(item.url || ''),
@@ -308,6 +362,7 @@ const handleSearch = async () => {
     await Promise.all(workers)
 
     searchResults.value = results
+    saveSearchCache()
     saveSearchHistory(searchKeyword.value)
     message.success(`搜索完成，找到 ${results.length} 个结果`)
   } catch (error) {
@@ -331,9 +386,10 @@ const startWatching = (movie: MovieResult) => {
   }
   router.push({
     name: 'watch',
+    params: { sourceId: movie.source_id },
     query: {
-      source_id: movie.source_id,
       url: movie.video_url || movie.original_url,
+      original_url: movie.original_url || movie.video_url,
       title: movie.title || '',
     },
   })

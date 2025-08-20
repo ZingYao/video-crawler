@@ -2,7 +2,7 @@
 
 [English README](README_EN.md) | 中文说明
 
-一个基于 Go + Vue3 的可视化视频爬虫/脚本运行平台，支持 Lua 实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力。
+一个基于 Go + Vue3 的可视化视频爬虫/脚本运行平台，支持 Lua 实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力，并内置基于 video.js 的 HLS 播放器与观影页。
 
 ## 技术栈（已更新）
 
@@ -24,6 +24,7 @@
 - 前端（Vue3 + TS + Vite）
   - Ant Design Vue、Pinia
   - @guolao/vue-monaco-editor + 本地 Monaco 资源（无 CDN）
+  - 播放器：video.js + @videojs-player/vue，支持 m3u8（HLS）、倍速、长按 2x、上一集/下一集、剧集 Tab、进度本地缓存与续播
   - 统一绿色主题；编辑器/日志并排、支持拖拽分栏宽度与持久化、日志彩色高亮、清空日志、F5 调试、禁用 Cmd/Ctrl+S
   - 全局请求拦截：`code === 6` 提示登录过期并延迟跳转到登录页
   - Lua 文档组件（右侧抽屉，无遮罩，可同时编辑）
@@ -77,6 +78,11 @@ go run cmd/video-crawler/main.go
 4) 访问
 - 前端: http://localhost:8080
 - API:   http://localhost:8080/api
+
+5) 播放/观影
+- 搜索页：输入关键词，选择站点类型后搜索，仅使用“正常状态”的站点
+- 结果卡片：整卡可点击开始观看，保留“原站点”按钮
+- 播放页：自动选第一源第一集（若无缓存），支持切源/切集、自动播放与续播
 
 ## Lua 调试接口
 

@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,10 +17,12 @@ import (
 // VideoController 提供视频搜索 / 详情 / 播放地址能力
 type VideoController struct {
 	videoSourceService services.VideoSourceService
+	historyService     services.HistoryService
+	userService        services.UserServiceInterface
 }
 
-func NewVideoController(videoSourceService services.VideoSourceService) *VideoController {
-	return &VideoController{videoSourceService: videoSourceService}
+func NewVideoController(videoSourceService services.VideoSourceService, historyService services.HistoryService, userService services.UserServiceInterface) *VideoController {
+	return &VideoController{videoSourceService: videoSourceService, historyService: historyService, userService: userService}
 }
 
 // Search 视频搜索
@@ -66,6 +70,43 @@ func (c *VideoController) Detail(ctx *gin.Context) {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
+	// 异步记录观看历史，失败不影响接口返回
+	go func(sourceIDCopy, urlCopy string, dataCopy interface{}) {
+		userIDVal, exists := ctx.Get("user_id")
+		if !exists {
+			return
+		}
+		userID, _ := userIDVal.(string)
+		userEntity, ok := c.userService.UserDetailInner(userID)
+		if !ok {
+			return
+		}
+
+		videoTitle := ctx.Query("title")
+		if m, ok := dataCopy.(map[string]interface{}); ok {
+			if v, ok := m["name"]; ok && fmt.Sprint(v) != "" {
+				videoTitle = fmt.Sprint(v)
+			} else if v, ok := m["title"]; ok && fmt.Sprint(v) != "" {
+				videoTitle = fmt.Sprint(v)
+			}
+		}
+
+		h := md5.Sum([]byte(sourceIDCopy + "|" + urlCopy))
+		videoID := hex.EncodeToString(h[:])
+
+		_ = c.historyService.AddVideoHistory(
+			ctx,
+			&userEntity,
+			videoID,
+			videoTitle,
+			urlCopy,
+			sourceIDCopy,
+			videoSource.Name,
+			0,
+			0,
+		)
+	}(sourceID, url, data)
+
 	utils.SuccessResponse(ctx, data)
 }
 
