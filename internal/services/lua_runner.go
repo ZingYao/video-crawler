@@ -2,8 +2,8 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 	"video-crawler/internal/crawler"
 	"video-crawler/internal/lua"
@@ -42,79 +42,88 @@ func (s *luaTestService) ExecuteScript(ctx context.Context, script string) (<-ch
 		}
 	}
 
+	// 设置更完整的真实浏览器请求头，确保与测试脚本一致
+	headers := map[string]string{
+		"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+		"Accept-Language":           "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+		"Accept-Encoding":           "gzip, deflate, br, zstd",
+		"Cache-Control":             "max-age=0",
+		"Connection":                "keep-alive",
+		"Upgrade-Insecure-Requests": "1",
+		"Sec-Fetch-Dest":            "document",
+		"Sec-Fetch-Mode":            "navigate",
+		"Sec-Fetch-Site":            "none",
+		"Sec-Fetch-User":            "?1",
+		"sec-ch-ua":                 `"Not;A=Brand";v="99", "Microsoft Edge";v="139", "Chromium";v="139"`,
+		"sec-ch-ua-mobile":          "?0",
+		"sec-ch-ua-platform":        `"macOS"`,
+		"DNT":                       "1",
+	}
+	browser.SetHeaders(headers)
+
 	// 创建Lua引擎
 	engine := lua.NewLuaEngine(browser)
 
 	// 创建输出通道
 	outputChan := make(chan string, 100)
 
-	// 统一关闭
-	var closeOnce sync.Once
-	closeAll := func() {
-		defer func() {
-			_ = browser.Close()
-		}()
-		engine.Close()
-	}
-
 	formatMsg := func(level string, msg string) string {
 		return fmt.Sprintf("[%s][%s] %s", level, time.Now().Format(time.RFC3339Nano), msg)
 	}
 
-	// 在goroutine中执行脚本
+	// 单协程串行写入，严格保证顺序
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				logrus.Errorf("Lua脚本执行panic: %v", r)
-				select {
-				case outputChan <- formatMsg("ERROR", fmt.Sprintf("脚本执行panic: %v", r)):
-				default:
-				}
+				outputChan <- formatMsg("ERROR", fmt.Sprintf("脚本执行panic: %v", r))
 			}
-			// 脚本结束后关闭引擎与浏览器
-			closeOnce.Do(closeAll)
+			// 最终清理
+			_ = browser.Close()
+			close(outputChan)
 		}()
 
-		// 发送开始执行的消息
-		select {
-		case outputChan <- formatMsg("INFO", "开始执行Lua脚本..."):
-		default:
-		}
+		// 先发送开始消息
+		outputChan <- formatMsg("INFO", "开始执行Lua脚本...")
 
-		// 执行脚本
-		if err := engine.Execute(script); err != nil {
-			select {
-			case outputChan <- formatMsg("ERROR", fmt.Sprintf("脚本执行失败: %v", err)):
-			default:
-			}
-			return
-		}
+		// 后台执行脚本；主循环继续串行转发输出
+		done := make(chan struct{})
+		var ret map[string]interface{}
+		var execErr error
+		go func() {
+			ret, execErr = engine.Execute(script)
+			close(done)
+		}()
 
-		// 发送执行完成的消息
-		select {
-		case outputChan <- formatMsg("INFO", "Lua脚本执行完成"):
-		default:
-		}
-	}()
-
-	// 在另一个goroutine中转发引擎输出
-	go func() {
-		defer close(outputChan)
-
-		// 监听引擎输出通道
+		engOut := engine.GetOutputChannel()
 		for {
 			select {
-			case msg, ok := <-engine.GetOutputChannel():
+			case msg, ok := <-engOut:
 				if !ok {
-					return
+					engOut = nil
+				} else {
+					outputChan <- msg
 				}
-				select {
-				case outputChan <- msg:
-				default:
+			case <-done:
+				// 关闭引擎，令输出通道完结，然后将剩余日志全部转发，最后输出结果
+				engine.Close()
+				if engOut != nil {
+					for msg := range engOut {
+						outputChan <- msg
+					}
+					engOut = nil
 				}
+				if execErr != nil {
+					outputChan <- formatMsg("ERROR", fmt.Sprintf("脚本执行失败: %v", execErr))
+				} else if ret != nil {
+					if data, mErr := json.MarshalIndent(ret, "", "  "); mErr == nil {
+						outputChan <- fmt.Sprintf("[RESULT] %s", string(data))
+					}
+				}
+				outputChan <- formatMsg("INFO", "Lua脚本执行完成")
+				return
 			case <-ctx.Done():
-				// 客户端中断，关闭引擎与浏览器
-				closeOnce.Do(closeAll)
+				outputChan <- formatMsg("ERROR", "执行已取消")
 				return
 			}
 		}

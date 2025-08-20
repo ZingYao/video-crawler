@@ -1,9 +1,13 @@
 package lua
 
 import (
+	"compress/flate"
+	"compress/gzip"
+	"compress/zlib"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -44,6 +48,40 @@ func NewLuaEngine(browser crawler.BrowserRequest) *LuaEngine {
 	return engine
 }
 
+// 解压响应体，支持 gzip/deflate（若未压缩则直接读取）
+func readDecompressedBody(resp *http.Response) ([]byte, error) {
+	enc := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Encoding")))
+	if enc == "" || enc == "identity" {
+		return io.ReadAll(resp.Body)
+	}
+	// 只取第一个编码
+	if idx := strings.Index(enc, ","); idx >= 0 {
+		enc = strings.TrimSpace(enc[:idx])
+	}
+	switch enc {
+	case "gzip":
+		gr, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer gr.Close()
+		return io.ReadAll(gr)
+	case "deflate":
+		zr, err := zlib.NewReader(resp.Body)
+		if err == nil {
+			defer zr.Close()
+			return io.ReadAll(zr)
+		}
+		// 少数服务端可能返回 raw deflate，尝试 flate
+		fr := flate.NewReader(resp.Body)
+		defer fr.Close()
+		return io.ReadAll(fr)
+	default:
+		// 其他编码（如 br/zstd）暂不引入额外依赖，回退为直接读取
+		return io.ReadAll(resp.Body)
+	}
+}
+
 // GetOutputChannel 获取输出通道
 func (e *LuaEngine) GetOutputChannel() <-chan string {
 	return e.output
@@ -74,6 +112,12 @@ func (e *LuaEngine) registerFunctions() {
 	e.L.SetGlobal("log", e.L.NewFunction(e.luaLog))
 	e.L.SetGlobal("sleep", e.L.NewFunction(e.luaSleep))
 	e.L.SetGlobal("get_user_agent", e.L.NewFunction(e.luaGetUserAgent))
+	// 字符串工具
+	e.L.SetGlobal("split", e.L.NewFunction(e.luaSplit))
+	e.L.SetGlobal("trim", e.L.NewFunction(e.luaTrim))
+	// JSON 编解码
+	e.L.SetGlobal("json_encode", e.L.NewFunction(e.luaJsonEncode))
+	e.L.SetGlobal("json_decode", e.L.NewFunction(e.luaJsonDecode))
 
 	// 链式类型注册
 	e.registerGoqueryTypes()
@@ -214,8 +258,8 @@ func (e *LuaEngine) luaHttpGet(L *lua.LState) int {
 	}
 	defer response.Body.Close()
 
-	// 读取响应体
-	body, err := io.ReadAll(response.Body)
+	// 读取响应体（自动解压）
+	body, err := readDecompressedBody(response)
 	if err != nil {
 		L.Push(lua.LNil)
 		L.Push(lua.LString(fmt.Sprintf("failed to read response body: %v", err)))
@@ -273,15 +317,14 @@ func (e *LuaEngine) luaHttpPost(L *lua.LState) int {
 	}
 	defer response.Body.Close()
 
-	// 读取响应体
-	body, err := io.ReadAll(response.Body)
+	// 读取响应体（自动解压）
+	body, err := readDecompressedBody(response)
 	if err != nil {
 		L.Push(lua.LNil)
 		L.Push(lua.LString(fmt.Sprintf("failed to read response body: %v", err)))
 		return 2
 	}
 
-	// 处理响应体，去除转义
 	bodyStr := string(body)
 
 	// 返回响应表
@@ -361,22 +404,6 @@ func (e *LuaEngine) luaGetUserAgent(L *lua.LState) int {
 	userAgent := e.browser.GetUserAgent()
 	L.Push(lua.LString(userAgent))
 	return 1
-}
-
-// normalizeResponseBody 尝试将响应体以 UTF-8 文本返回，避免出现大量转义显示
-// 1) 如果是 JSON 字节，解码后以紧凑字符串返回
-// 2) 否则按 UTF-8 直接转换为字符串
-func normalizeResponseBody(body []byte) string {
-	var js interface{}
-	if len(body) > 0 && (body[0] == '{' || body[0] == '[') {
-		if err := json.Unmarshal(body, &js); err == nil {
-			b, err := json.Marshal(js)
-			if err == nil {
-				return string(b)
-			}
-		}
-	}
-	return string(body)
 }
 
 // luaParseHtml Lua中的parse_html函数
@@ -655,26 +682,318 @@ func (e *LuaEngine) luaSleep(L *lua.LState) int {
 	return 0
 }
 
-// Execute 执行Lua脚本
-func (e *LuaEngine) Execute(script string) error {
-	// 执行脚本
-	if err := e.L.DoString(script); err != nil {
-		return fmt.Errorf("execute error: %w", err)
+// luaSplit 将字符串按分隔符拆分为数组（1 起始）
+func (e *LuaEngine) luaSplit(L *lua.LState) int {
+	s := L.CheckString(1)
+	sep := L.CheckString(2)
+	// 允许空分隔符：按字符切分（rune 安全）
+	var parts []string
+	if sep == "" {
+		parts = make([]string, 0, len(s))
+		for _, r := range s {
+			parts = append(parts, string(r))
+		}
+	} else {
+		parts = strings.Split(s, sep)
 	}
 
-	return nil
+	tbl := L.NewTable()
+	for i, p := range parts {
+		tbl.RawSetInt(i+1, lua.LString(p))
+	}
+	L.Push(tbl)
+	return 1
 }
 
-// ExecuteFile 执行Lua文件
-func (e *LuaEngine) ExecuteFile(filename string) error {
-	if err := e.L.DoFile(filename); err != nil {
-		return fmt.Errorf("execute file error: %w", err)
+// luaTrim 去除字符串首尾空白
+func (e *LuaEngine) luaTrim(L *lua.LState) int {
+	s := L.CheckString(1)
+	L.Push(lua.LString(strings.TrimSpace(s)))
+	return 1
+}
+
+// luaJsonEncode 将 Lua 值编码为 JSON 字符串
+func (e *LuaEngine) luaJsonEncode(L *lua.LState) int {
+	v := L.CheckAny(1)
+	goVal := luaToInterfaceJSON(v)
+
+	var (
+		data []byte
+		err  error
+	)
+
+	// 可选第二参数：
+	// - boolean: true 使用两个空格缩进；false 使用紧凑模式
+	// - number: 使用给定个数空格缩进
+	// - string: 使用该字符串作为缩进（例如 "\t"）
+	if L.GetTop() >= 2 {
+		opt := L.Get(2)
+		switch opt.Type() {
+		case lua.LTBool:
+			if bool(opt.(lua.LBool)) {
+				data, err = json.MarshalIndent(goVal, "", "  ")
+			} else {
+				data, err = json.Marshal(goVal)
+			}
+		case lua.LTNumber:
+			n := int(opt.(lua.LNumber))
+			if n < 0 {
+				n = 0
+			}
+			indent := strings.Repeat(" ", n)
+			data, err = json.MarshalIndent(goVal, "", indent)
+		case lua.LTString:
+			indent := opt.String()
+			data, err = json.MarshalIndent(goVal, "", indent)
+		default:
+			data, err = json.Marshal(goVal)
+		}
+	} else {
+		data, err = json.Marshal(goVal)
 	}
-	return nil
+
+	if err != nil {
+		L.Push(lua.LNil)
+		L.Push(lua.LString(err.Error()))
+		return 2
+	}
+	L.Push(lua.LString(string(data)))
+	L.Push(lua.LNil)
+	return 2
+}
+
+// luaJsonDecode 将 JSON 字符串解码为 Lua 值
+func (e *LuaEngine) luaJsonDecode(L *lua.LState) int {
+	s := L.CheckString(1)
+	var v interface{}
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		L.Push(lua.LNil)
+		L.Push(lua.LString(err.Error()))
+		return 2
+	}
+	L.Push(interfaceToLua(L, v))
+	L.Push(lua.LNil)
+	return 2
+}
+
+// luaToInterfaceJSON 更宽松地将 Lua 值转为 Go 值用于 JSON 序列化（数组按 1..n 判断）
+func luaToInterfaceJSON(v lua.LValue) interface{} {
+	switch v.Type() {
+	case lua.LTNil:
+		return nil
+	case lua.LTBool:
+		return bool(v.(lua.LBool))
+	case lua.LTNumber:
+		return float64(v.(lua.LNumber))
+	case lua.LTString:
+		return v.String()
+	case lua.LTTable:
+		// 判断是否为顺序数组（1..n）
+		t := v.(*lua.LTable)
+		length := t.Len()
+		if length > 0 {
+			arr := make([]interface{}, 0, length)
+			for i := 1; i <= length; i++ {
+				arr = append(arr, luaToInterfaceJSON(t.RawGetInt(i)))
+			}
+			return arr
+		}
+		// 非顺序数组当作对象处理
+		obj := make(map[string]interface{})
+		t.ForEach(func(k, vv lua.LValue) {
+			obj[k.String()] = luaToInterfaceJSON(vv)
+		})
+		return obj
+	default:
+		return v.String()
+	}
+}
+
+// interfaceToLua 将解码后的 Go 值转为 Lua 值
+func interfaceToLua(L *lua.LState, v interface{}) lua.LValue {
+	switch val := v.(type) {
+	case nil:
+		return lua.LNil
+	case bool:
+		return lua.LBool(val)
+	case float64:
+		return lua.LNumber(val)
+	case float32:
+		return lua.LNumber(val)
+	case int, int8, int16, int32, int64:
+		return lua.LNumber(reflectToFloat64(val))
+	case uint, uint8, uint16, uint32, uint64:
+		return lua.LNumber(reflectToFloat64(val))
+	case string:
+		return lua.LString(val)
+	case []interface{}:
+		tbl := L.NewTable()
+		for i, item := range val {
+			tbl.RawSetInt(i+1, interfaceToLua(L, item))
+		}
+		return tbl
+	case map[string]interface{}:
+		tbl := L.NewTable()
+		for k, item := range val {
+			tbl.RawSetString(k, interfaceToLua(L, item))
+		}
+		return tbl
+	default:
+		// 兜底：尝试 json 再转
+		b, err := json.Marshal(val)
+		if err == nil {
+			var any interface{}
+			if json.Unmarshal(b, &any) == nil {
+				return interfaceToLua(L, any)
+			}
+		}
+		return lua.LString(fmt.Sprintf("%v", val))
+	}
+}
+
+// reflectToFloat64 辅助把整型/无符号整型转为 float64
+func reflectToFloat64(v interface{}) float64 {
+	switch n := v.(type) {
+	case int:
+		return float64(n)
+	case int8:
+		return float64(n)
+	case int16:
+		return float64(n)
+	case int32:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case uint:
+		return float64(n)
+	case uint8:
+		return float64(n)
+	case uint16:
+		return float64(n)
+	case uint32:
+		return float64(n)
+	case uint64:
+		return float64(n)
+	default:
+		return 0
+	}
+}
+
+// Execute 执行Lua脚本，返回顶层 return 的表（map[string]interface{}）。无返回或非表时返回空map。
+func (e *LuaEngine) Execute(script string) (map[string]interface{}, error) {
+	L := e.L
+	fn, err := L.LoadString(script)
+	if err != nil {
+		return nil, fmt.Errorf("compile error: %w", err)
+	}
+	// 将编译后的函数压栈
+	L.Push(fn)
+	base := L.GetTop() - 1 // 函数压栈后，base 为函数之前的位置
+	// 固定接收 1 个返回值
+	if err := L.PCall(0, 1, nil); err != nil {
+		return nil, fmt.Errorf("execute error: %w", err)
+	}
+	top := L.GetTop()
+	nret := top - base
+	var result map[string]interface{}
+	if nret > 0 {
+		if tbl, ok := L.Get(base + 1).(*lua.LTable); ok {
+			result = luaTableToMap(tbl)
+		} else {
+			result = map[string]interface{}{}
+		}
+	}
+	// 清栈，仅保留之前状态
+	L.SetTop(base)
+	if result == nil {
+		result = map[string]interface{}{}
+	}
+	return result, nil
+}
+
+// ExecuteFile 执行Lua文件，返回顶层 return 的表（map[string]interface{}）。
+func (e *LuaEngine) ExecuteFile(filename string) (map[string]interface{}, error) {
+	L := e.L
+	fn, err := L.LoadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("compile file error: %w", err)
+	}
+	L.Push(fn)
+	base := L.GetTop() - 1
+	// 固定接收 1 个返回值
+	if err := L.PCall(0, 1, nil); err != nil {
+		return nil, fmt.Errorf("execute file error: %w", err)
+	}
+	top := L.GetTop()
+	nret := top - base
+	var result map[string]interface{}
+	if nret > 0 {
+		if tbl, ok := L.Get(base + 1).(*lua.LTable); ok {
+			result = luaTableToMap(tbl)
+		} else {
+			result = map[string]interface{}{}
+		}
+	}
+	L.SetTop(base)
+	if result == nil {
+		result = map[string]interface{}{}
+	}
+	return result, nil
+}
+
+// luaTableToMap 将 *lua.LTable 转为 map[string]interface{}
+func luaTableToMap(t *lua.LTable) map[string]interface{} {
+	out := make(map[string]interface{})
+	t.ForEach(func(k, v lua.LValue) {
+		key := k.String()
+		out[key] = luaToGo(v)
+	})
+	return out
+}
+
+// luaToGo 将 LValue 转为 Go 值
+func luaToGo(v lua.LValue) interface{} {
+	switch v.Type() {
+	case lua.LTNil:
+		return nil
+	case lua.LTBool:
+		return bool(v.(lua.LBool))
+	case lua.LTNumber:
+		return float64(v.(lua.LNumber))
+	case lua.LTString:
+		return v.String()
+	case lua.LTTable:
+		m := map[string]interface{}{}
+		arr := []interface{}{}
+		isArray := true
+		idx := 1
+		v.(*lua.LTable).ForEach(func(kk, vv lua.LValue) {
+			// 判断是否为顺序数组（1..n）
+			if isArray && kk.Type() == lua.LTNumber && int(lua.LVAsNumber(kk)) == idx {
+				arr = append(arr, luaToGo(vv))
+				idx++
+			} else {
+				isArray = false
+				m[kk.String()] = luaToGo(vv)
+			}
+		})
+		if isArray {
+			return arr
+		}
+		return m
+	default:
+		return v.String()
+	}
 }
 
 // Close 关闭Lua引擎
 func (e *LuaEngine) Close() {
 	e.CloseOutput()
 	e.L.Close()
+}
+
+// Enqueue 将系统消息写入输出通道，保证顺序（阻塞写入）
+func (e *LuaEngine) Enqueue(msg string) {
+	// 如果有人读取，该写入将按顺序阻塞直到被消费
+	e.output <- msg
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"video-crawler/internal/services"
 	"video-crawler/internal/utils"
 
@@ -155,6 +156,18 @@ func (c *LuaTestController) TestScriptSSE(ctx *gin.Context) {
 				writer.Write([]byte("event: end\ndata: 脚本执行结束\n\n"))
 				flusher.Flush()
 				return
+			}
+
+			// 若是结果行，作为独立 result 事件（支持多行JSON）
+			if strings.HasPrefix(msg, "[RESULT] ") {
+				payload := strings.TrimPrefix(msg, "[RESULT] ")
+				writer.Write([]byte("event: result\n"))
+				for _, line := range strings.Split(payload, "\n") {
+					writer.Write([]byte("data: " + line + "\n"))
+				}
+				writer.Write([]byte("\n"))
+				flusher.Flush()
+				continue
 			}
 
 			// 发送消息事件

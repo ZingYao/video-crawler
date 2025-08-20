@@ -41,6 +41,68 @@ log('step 2 after 300ms')
         </div>
 
         <div class="doc-section">
+          <h3>字符串工具</h3>
+          <div class="doc-item"><b>split(s: string, sep: string)</b> → <code>array</code> 按分隔符切分；当 <code>sep</code> 为空字符串时，按字符切分（rune 安全）。</div>
+          <div class="doc-item"><b>trim(s: string)</b> → <code>string</code> 去除首尾空白。</div>
+          <pre class="doc-code">-- split 示例
+local parts = split('a,b,c', ',')
+print(#parts, parts[1], parts[2], parts[3])  -- 3 a b c
+
+-- 按字符切分（sep 为空串）
+local chars = split('汉字OK', '')
+print(#chars, chars[1], chars[2])  -- 4 汉 字
+
+-- trim 示例
+print('[' .. trim('  hello  ') .. ']')  -- [hello]
+print('[' .. trim('\n\t中文 空格\t') .. ']')
+</pre>
+          <div class="doc-item"><b>参数/返回</b></div>
+          <ul>
+            <li><code>split(s, sep)</code>：<code>s:string</code>、<code>sep:string</code>；返回 <code>array(table)</code></li>
+            <li><code>trim(s)</code>：<code>s:string</code>；返回 <code>string</code></li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>JSON 编解码</h3>
+          <div class="doc-item"><b>json_encode(value[, indent])</b> → <code>string, err</code> 将 Lua 值编码为 JSON 字符串。</div>
+          <div class="doc-item"><b>json_decode(json)</b> → <code>value, err</code> 将 JSON 字符串解码为 Lua 值（对象→table、数组→数组、null→nil）。</div>
+          <pre class="doc-code">-- encode 紧凑
+local obj = { a = 1, b = true, c = {1, 2, 3}, s = '中文' }
+local s1, e1 = json_encode(obj)
+if e1 then log('encode error:', e1) else print('json:', s1) end
+
+-- encode 使用两空格缩进（indent 为 boolean=true）
+local s2 = json_encode(obj, true)
+print(s2)
+
+-- encode 使用 4 空格缩进（indent 为 number）
+local s3 = json_encode(obj, 4)
+print(s3)
+
+-- encode 使用制表符缩进（indent 为 string）
+local s4 = json_encode(obj, "\t")
+print(s4)
+
+-- decode
+local v, derr = json_decode('{"x":10,"y":[1,2,3],"ok":true,"s":"hi","n":null}')
+if derr then
+  log('decode error:', derr)
+else
+  print(v.x, v.ok)       -- 10  true
+  print(#v.y, v.y[1])    -- 3   1
+  print(v.s, v.n == nil) -- hi  true
+end
+</pre>
+          <div class="doc-item"><b>indent 参数说明（可选）</b></div>
+          <ul>
+            <li><b>boolean</b>：<code>true</code> → 两空格缩进；<code>false</code> → 紧凑模式</li>
+            <li><b>number</b>：使用给定数量的空格缩进</li>
+            <li><b>string</b>：使用该字符串作为缩进（如 <code>"\t"</code>）</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
           <h3>HTTP</h3>
           <div class="doc-item"><b>set_user_agent(ua: string)</b> 设置 UA</div>
           <div class="doc-item"><b>set_random_user_agent()</b> 随机 UA</div>

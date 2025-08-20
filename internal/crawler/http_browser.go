@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -27,6 +28,11 @@ func NewHTTPBrowser(config *BrowserConfig) (*HTTPBrowser, error) {
 	// 创建HTTP客户端
 	client := &http.Client{
 		Timeout: config.Timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // 跳过TLS证书验证
+			},
+		},
 	}
 
 	// 设置重定向策略
@@ -46,8 +52,16 @@ func NewHTTPBrowser(config *BrowserConfig) (*HTTPBrowser, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid proxy URL: %w", err)
 		}
-		client.Transport = &http.Transport{
-			Proxy: http.ProxyURL(proxyURL),
+		// 更新现有的 Transport 配置
+		if transport, ok := client.Transport.(*http.Transport); ok {
+			transport.Proxy = http.ProxyURL(proxyURL)
+		} else {
+			client.Transport = &http.Transport{
+				Proxy: http.ProxyURL(proxyURL),
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			}
 		}
 	}
 

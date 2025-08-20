@@ -44,13 +44,14 @@
           />
         </a-form-item>
 
-          <div class="editor-logs-wrap">
+          <div class="editor-logs-wrap" :style="gridStyle">
             <div class="editor-panel">
               <div class="panel-title">
                 <div class="title-left">
                   <span class="title-text">Lua 脚本</span>
                 </div>
                 <div class="title-actions">
+                  <a-button class="teal-btn" size="small" @click="onFillDefault">默认代码</a-button>
                   <a-button class="teal-btn" size="small" @click="openDocs">打开文档</a-button>
                   <a-button class="teal-btn" size="small" @click="onFillDemo">填充完整 Demo</a-button>
                   <a-button class="teal-btn" size="small" :loading="debugLoading" @click="runScript">脚本调试</a-button>
@@ -68,8 +69,16 @@
               </div>
             </div>
 
+            <!-- 可拖拽分隔条（仅PC显示） -->
+            <div class="split-gutter" v-show="isPc" @mousedown="startDrag"></div>
+
             <div class="logs-panel side">
-              <div class="panel-title">调试输出</div>
+              <div class="panel-title">
+                <div class="title-left"><span class="title-text">调试输出</span></div>
+                <div class="title-actions">
+                  <a-button class="teal-btn" size="small" @click="clearLogs">清空</a-button>
+                </div>
+              </div>
               <div class="logs-box gradient scrollable" ref="logsRef">
                 <div v-for="(line, idx) in coloredLines" :key="idx" class="log-line" :class="line.type">
                   {{ line.text }}
@@ -95,6 +104,7 @@ import AppLayout from '@/components/AppLayout.vue'
 import MonacoEditor from '@guolao/vue-monaco-editor'
 import * as monaco from 'monaco-editor'
 import LuaDocs from '@/components/LuaDocs.vue'
+import { defaultTemplateLua, defaultDemo } from '@/constants/luaTemplates'
 
 const router = useRouter()
 const route = useRoute()
@@ -164,6 +174,76 @@ const monacoOptions = {
   stickyScroll: { enabled: false }, // 关闭顶部白色预览条
 }
 
+// 资源编辑默认模板（已抽离常量文件，但保留以避免引用失败时回退）
+/*
+const defaultTemplateLua = `-- 搜索视频结果结构体
+local search_video_result = {
+    ['source_id'] = '', -- 资源ID
+    ['cover'] = '', -- 视频封面
+    ['name'] = '', -- 视频名称
+    ['url'] = '', -- 视频链接
+    ['actor'] = '', -- 演员
+    ['director'] = '', -- 导演
+    ['release_date'] = '', -- 上映日期
+    ['region'] = '', -- 地区
+    ['language'] = '', -- 语言
+    ['description'] = '', -- 描述
+    ['score'] = '', -- 评分
+}
+
+-- 视频详情结构体
+local video_detail_result = {
+    ['source_id'] = '', -- 资源ID
+    ['cover'] = '', -- 视频封面
+    ['name'] = '', -- 视频名称
+    ['url'] = '', -- 视频链接
+    ['actor'] = '', -- 演员
+    ['director'] = '', -- 导演
+    ['release_date'] = '', -- 上映日期
+    ['region'] = '', -- 地区
+    ['language'] = '', -- 语言
+    ['description'] = '', -- 描述
+    ['score'] = '', -- 评分
+    ['source'] = {
+        ['name'] = '', -- 来源名称
+        ['episodes'] = {
+            ['name'] = '', -- 剧集名称
+            ['url'] = '', -- 剧集链接
+        }
+    }
+}
+
+-- 视频播放详情
+local play_video_detail = {
+    ['source_id'] = '', -- 资源ID
+    ['video_url'] = '', -- 视频链接
+}
+
+function search_video(search_content)
+    -- 数组 Array(search_video_result)
+    local result = {}
+    local err = nil
+    -- 完成这个代码
+    return result, err
+end
+
+function get_video_detail(video_url)
+    -- video_detail_result 结构体
+    local result = {}
+    local err = nil
+    -- 完成这个代码
+    return result, err
+end
+
+function get_play_video_detail(video_url)
+    -- play_video_detail 结构体
+    local result = {}
+    local err = nil
+    -- 完成这个代码
+    return result, err
+end
+`
+
 const defaultDemo = `-- 链式调用 Demo：请求页面，querySelector 并读取 attr / text / html
 print('[Demo] 启动')
 set_user_agent('Lua-Demo-Agent/1.0')
@@ -204,13 +284,62 @@ else
 end
 print('[Demo] 完成')
 `
+*/
 
 // 草稿相关
 const DRAFT_KEY = 'video_source_draft'
 const DRAFT_INTERVAL = 3000 // 3秒自动保存
 let draftTimer: number | null = null
-const scriptContent = ref<string>(defaultDemo)
+const scriptContent = ref<string>(defaultTemplateLua)
 const editorRef = ref<any>(null)
+
+// PC下可拖拽分隔条逻辑
+const isPc = ref(true)
+const GUTTER = 8
+const MIN_LOGS = 260
+const MAX_LOGS = 900
+const SPLIT_KEY = 'video_source_editor_logs_width_pc'
+const logsWidth = ref<number>(360)
+const gridStyle = computed(() => {
+  return isPc.value ? { gridTemplateColumns: `1fr ${GUTTER}px ${logsWidth.value}px` } : {}
+})
+let dragging = false
+let startX = 0
+let startLogs = 0
+const applyStoredSplit = () => {
+  try {
+    const v = Number(localStorage.getItem(SPLIT_KEY) || '')
+    if (!Number.isNaN(v) && v >= MIN_LOGS && v <= MAX_LOGS) logsWidth.value = v
+  } catch {}
+}
+const saveSplit = () => {
+  try { localStorage.setItem(SPLIT_KEY, String(logsWidth.value)) } catch {}
+}
+const startDrag = (e: MouseEvent) => {
+  if (!isPc.value) return
+  dragging = true
+  startX = e.clientX
+  startLogs = logsWidth.value
+  document.addEventListener('mousemove', onDrag, { passive: false })
+  document.addEventListener('mouseup', stopDrag, { passive: false })
+}
+const onDrag = (e: MouseEvent) => {
+  if (!dragging) return
+  e.preventDefault()
+  const dx = e.clientX - startX
+  // 向右拖：日志变窄；向左拖：日志变宽
+  let next = startLogs - dx
+  if (next < MIN_LOGS) next = MIN_LOGS
+  if (next > MAX_LOGS) next = MAX_LOGS
+  logsWidth.value = next
+}
+const stopDrag = () => {
+  if (!dragging) return
+  dragging = false
+  document.removeEventListener('mousemove', onDrag as any)
+  document.removeEventListener('mouseup', stopDrag as any)
+  saveSplit()
+}
 
 // 草稿管理函数
 const saveDraft = () => {
@@ -283,6 +412,22 @@ const handleBack = () => {
 const openDocs = () => { docsOpen.value = true }
 const onEditorMount = (editor: any) => { editorRef.value = editor; defineTealTheme() }
 const resetDemo = () => { scriptContent.value = defaultDemo }
+const onFillDefault = () => {
+  const current = scriptContent.value?.trim() || ''
+  if (current.length > 0 && current !== defaultTemplateLua.trim()) {
+    Modal.confirm({ title: '确认覆盖当前脚本？', content: '填充默认代码将覆盖编辑器中的现有内容。', okText: '覆盖', cancelText: '取消', onOk: () => { scriptContent.value = defaultTemplateLua } })
+  } else {
+    scriptContent.value = defaultTemplateLua
+  }
+}
+
+const clearLogs = () => {
+  outputText.value = ''
+  nextTick().then(() => {
+    const el = logsRef.value
+    if (el) el.scrollTop = 0
+  })
+}
 
 // 最大化功能移除，相关重排逻辑一并删去
 
@@ -350,8 +495,9 @@ const fetchVideoSourceDetail = async (id: string) => {
       formData.value.source_type = data.source_type ?? 0
       formData.value.sort = data.sort || 0
       // 加载Lua脚本到编辑器
-      if (data.lua_script) {
-        scriptContent.value = data.lua_script
+      if (typeof data.lua_script === 'string') {
+        if (data.lua_script.trim()) scriptContent.value = data.lua_script
+        else scriptContent.value = defaultTemplateLua
       }
       
       // 检查是否有草稿需要恢复
@@ -376,12 +522,25 @@ const handleSave = async () => {
       sort: formData.value.sort,
       lua_script: scriptContent.value
     }
+    // 必要方法校验
+    const code = String(payload.lua_script || '')
+    const missing: string[] = []
+    if (!/\bfunction\s+search_video\s*\(/.test(code)) missing.push('search_video(search_content)')
+    if (!/\bfunction\s+get_video_detail\s*\(/.test(code)) missing.push('get_video_detail(video_url)')
+    if (!/\bfunction\s+get_play_video_detail\s*\(/.test(code)) missing.push('get_play_video_detail(video_url)')
+    if (missing.length) {
+      message.error('缺少必要方法：' + missing.join('、'))
+      return
+    }
     const response = await videoSourceAPI.saveVideoSource(authStore.token, payload)
     if ((response as any).code === 0) { 
       message.success(isEdit.value ? '保存成功' : '创建成功')
-      if (!isEdit.value) formData.value.id = (response as any).data?.id || ''
       // 保存成功后清除草稿
       clearDraft()
+      // 创建成功后返回列表
+      if (!isEdit.value) {
+        router.push('/video-source-management')
+      }
     }
     else { message.error((response as any).message || '保存失败') }
   } catch (err: any) { message.error(err.message || '网络错误') }
@@ -408,6 +567,13 @@ const runScript = async () => {
 onMounted(() => { 
   // 启动定时保存草稿
   startDraftTimer()
+  // 设备类型与分隔条恢复
+  const mq = window.matchMedia('(max-width: 900px)')
+  const syncPc = () => { isPc.value = !mq.matches }
+  mq.addEventListener?.('change', syncPc)
+  isPc.value = !mq.matches
+  if (isPc.value) applyStoredSplit()
+  // 监听页面离开事件
   
   if (isEdit.value && route.params.id) {
     fetchVideoSourceDetail(route.params.id as string)
@@ -428,19 +594,22 @@ onUnmounted(() => {
   stopDraftTimer()
   // 移除页面离开事件监听
   window.removeEventListener('beforeunload', saveDraft)
+  document.removeEventListener('mousemove', onDrag as any)
+  document.removeEventListener('mouseup', stopDrag as any)
 })
 
 // 全局快捷键：F5 运行脚本；屏蔽 ⌘S / Ctrl+S
 document.addEventListener('keydown', (e: KeyboardEvent) => {
-  const isSave = (e.key.toLowerCase() === 's') && (e.metaKey || e.ctrlKey)
-  if (isSave) { e.preventDefault(); e.stopPropagation() }
-  if (e.key === 'F5') { e.preventDefault(); runScript() }
-})
+  // 仅处理保存与运行，不影响其它系统/编辑器快捷键（如 ⌘A / ⌘Z）
+  const isSave = (e.key && e.key.toLowerCase() === 's') && (e.metaKey || e.ctrlKey)
+  if (isSave) { e.preventDefault(); e.stopPropagation(); return }
+  if (e.key === 'F5') { e.preventDefault(); runScript(); return }
+}, { passive: false })
 </script>
 
 <style scoped>
 .page-wrap { --teal: #10b981; --teal-hover: #34d399; --teal-active: #059669; padding: 12px; }
-.editor-logs-wrap { display: grid; grid-template-columns: 1fr 360px; gap: 12px; align-items: stretch; }
+.editor-logs-wrap { display: grid; grid-template-columns: 1fr 8px 360px; gap: 0; align-items: stretch; }
 .card-header { display: flex; align-items: center; justify-content: space-between; min-width: 0; }
 .header-left { display: flex; align-items: center; gap: 12px; }
 .back-btn { color: var(--teal-active); font-weight: 600; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; }
@@ -449,6 +618,8 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 .header-actions > * { margin-left: 8px; }
 .editor-panel, .logs-panel { background: transparent; border: 1px solid #20c7ab; border-radius: 8px; overflow: hidden; margin-bottom: 12px; min-width: 0; }
 .editor-panel { display: flex; flex-direction: column; height: 620px; }
+.split-gutter { cursor: col-resize; background: linear-gradient(180deg, #14b8a61a, #10b9811a); border-radius: 6px; }
+.split-gutter:hover { background: linear-gradient(180deg, #14b8a638, #10b98138); }
 .panel-title { height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; color: #0a2f28; font-weight: 800; background: linear-gradient(90deg, #99f6e4 0%, #34d399 100%); border-bottom: 1px solid #20c7ab; font-size: 13px; letter-spacing: 0.5px; }
 .title-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .title-actions { display: flex; gap: 8px; align-items: center; }
@@ -533,6 +704,7 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 @media (max-width: 900px) {
   .page-wrap { padding: 8px; }
   .editor-logs-wrap { grid-template-columns: 1fr; gap: 10px; }
+  .split-gutter { display: none; }
   .panel-title { height: 32px; font-size: 12px; }
   .editor-panel { height: 48vh; }
   .logs-panel.side { height: 36vh; }
