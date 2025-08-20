@@ -22,6 +22,10 @@ const apiStatus = ref({
 
 const apiResult = ref<any>(null)
 
+const openGithub = () => {
+  window.open('https://github.com/ZingYao/video-crawler', '_blank')
+}
+
 // 方法
 const testHealth = async () => {
   try {
@@ -79,10 +83,10 @@ onMounted(() => {
         </div>
 
         <div class="feature-grid">
-          <div class="feature-card">
-            <div class="feature-icon">🎬</div>
-            <h3>视频采集</h3>
-            <p>支持多种视频平台的自动化数据采集</p>
+          <div class="feature-card" @click="openGithub" style="cursor:pointer;">
+            <div class="feature-icon">🐙</div>
+            <h3>GitHub 仓库</h3>
+            <p>查看源码、文档与更新日志</p>
           </div>
           <div class="feature-card" @click="$router.push('/history/watch')" style="cursor:pointer;">
             <div class="feature-icon">📺</div>
@@ -104,9 +108,6 @@ onMounted(() => {
         <div class="card-header">
           <h3>系统状态</h3>
           <p>实时监控系统运行状态</p>
-        </div>
-        <div style="margin-bottom:12px; text-align:right;">
-          <a-button type="link" href="https://github.com/ZingYao/video-crawler" target="_blank">GitHub</a-button>
         </div>
         
         <div class="status-grid">
