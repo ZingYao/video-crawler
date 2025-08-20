@@ -156,4 +156,8 @@
     width: 100%;
     justify-content: flex-end;
   }
+  .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
+
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive :deep(.ant-table) { min-width: 700px; }

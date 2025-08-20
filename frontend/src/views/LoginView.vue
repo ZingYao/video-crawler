@@ -76,6 +76,9 @@
           <a-tag color="green">Vite 7.0.6</a-tag>
           <a-tag color="green">Ant Design Vue 4.x</a-tag>
         </div>
+        <div class="open-source">
+          <a-button type="link" href="https://github.com/ZingYao/video-crawler" target="_blank">GitHub</a-button>
+        </div>
       </div>
     </a-card>
   </div>

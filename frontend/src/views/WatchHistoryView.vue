@@ -11,7 +11,8 @@
       <a-spin v-if="loading" />
       <a-result v-else-if="error" status="error" :title="error" />
 
-      <a-table v-else :data-source="rows" :columns="columns" :pagination="false" :row-key="rowKey" :onRow="onRow">
+      <div class="table-responsive" v-else>
+        <a-table :data-source="rows" :columns="columns" :pagination="false" :row-key="rowKey" :onRow="onRow" size="small" :scroll="{ x: 700 }">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'created_at'">
             {{ formatDateTime(record.created_at) }}
@@ -23,7 +24,8 @@
             <a-button type="link" @click.stop="continueWatch(record)">继续观看</a-button>
           </template>
         </template>
-      </a-table>
+        </a-table>
+      </div>
     </a-card>
   </AppLayout>
   
@@ -122,6 +124,8 @@ const continueWatch = (record: VideoHistory) => {
 
 <style scoped>
 @import './UserManagementView.css';
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive :deep(.ant-table) { min-width: 700px; }
 </style>
 
 

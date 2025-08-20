@@ -105,6 +105,9 @@ onMounted(() => {
           <h3>系统状态</h3>
           <p>实时监控系统运行状态</p>
         </div>
+        <div style="margin-bottom:12px; text-align:right;">
+          <a-button type="link" href="https://github.com/ZingYao/video-crawler" target="_blank">GitHub</a-button>
+        </div>
         
         <div class="status-grid">
           <div class="status-card">
