@@ -22,6 +22,13 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 	// 在这里可以记录响应内容
 	w.body.Write(b)
 	// 获取响应信息并记录日志
+	// 当 response header content-type 为 application/json 时，允许打印 body 否则不打印 body
+	var printBody string
+	if w.ctx.Writer.Header().Get("Content-Type") == "application/json" {
+		printBody = string(b)
+	} else {
+		printBody = "not json"
+	}
 	logger.CtxLogger(w.ctx).WithFields(logrus.Fields{
 		"request": map[string]any{
 			"path":   w.ctx.Request.URL.Path,
@@ -31,7 +38,7 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 		},
 		"response": map[string]any{
 			"status_code": w.ctx.Writer.Status(),
-			"body":        string(b),
+			"body":        printBody,
 		},
 		"duration": time.Since(w.beginTime).Milliseconds(),
 	}).Info("request_record")

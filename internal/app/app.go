@@ -12,6 +12,7 @@ import (
 
 	"video-crawler/internal/config"
 	"video-crawler/internal/handler"
+	"video-crawler/internal/logger"
 	"video-crawler/internal/middleware"
 	"video-crawler/internal/services"
 	"video-crawler/internal/static"
@@ -39,6 +40,9 @@ func New(cfg *config.Config) *App {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// 初始化日志
+	logger.Init(cfg)
+
 	// 创建 Gin 引擎
 	engine := gin.New()
 
@@ -50,9 +54,10 @@ func New(cfg *config.Config) *App {
 	userService := services.NewUserService(jwtManager)
 	videoSourceService := services.NewVideoSourceService()
 	historyService := services.GetHistoryService()
+	luaTestService := services.NewLuaTestService()
 	return &App{
 		config:      cfg,
-		httpHandler: handler.New(cfg, userService, videoSourceService, historyService),
+		httpHandler: handler.New(cfg, userService, videoSourceService, historyService, luaTestService),
 		userService: userService,
 		engine:      engine,
 	}
@@ -91,6 +96,10 @@ func (a *App) registerRoutes() {
 			middleware.CustomMiddleware(c, middleware.RequestIdMiddleware(), middleware.LoggerMiddleware(), a.httpHandler.HandleHealth)
 			return
 		} else {
+			// 打印所有请求头
+			for key, values := range c.Request.Header {
+				fmt.Printf("%s: %v\n", key, values)
+			}
 			// 对于所有其他路径，返回 index.html 以支持前端路由
 			c.Header("Content-Type", "text/html; charset=utf-8")
 			c.Status(http.StatusOK)

@@ -38,13 +38,14 @@
         </a-result>
 
         <!-- 用户列表 -->
+        <div class="table-responsive" v-else>
         <a-table
-          v-else
           :data-source="userList"
           :columns="columns"
           :pagination="false"
           :row-key="(record: User) => record.id"
-          size="middle"
+          size="small"
+          :scroll="{ x: 900 }"
         >
           <template #bodyCell="{ column, record }: { column: any, record: User }">
             <template v-if="column.key === 'id'">
@@ -118,6 +119,7 @@
             </template>
           </template>
         </a-table>
+        </div>
 
         <!-- 空状态 -->
         <a-empty v-if="!loading && !error && userList.length === 0" description="暂无用户数据" />

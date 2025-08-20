@@ -93,8 +93,10 @@ func (s *videoSourceService) List() ([]entities.VideoSourceListResponse, error) 
 			Id:         videoSource.Id,
 			Name:       videoSource.Name,
 			Domain:     videoSource.Domain,
+			Sort:       videoSource.Sort,
 			Status:     videoSource.Status,
 			SourceType: videoSource.SourceType,
+			LuaScript:  videoSource.LuaScript,
 		})
 		return true
 	})

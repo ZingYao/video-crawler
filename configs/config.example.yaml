@@ -3,3 +3,4 @@ server:
   port: 8080
   jwt_secret: "your-jwt-secret-here"
   jwt_expire: 72
+env: "dev" # 运行环境: dev 或 prod

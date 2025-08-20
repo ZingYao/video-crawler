@@ -5,6 +5,7 @@
         "domain": "http://example.com/",
         "status": 1,
         "source_type": 0,
+        "lua_script": "-- 示例Lua脚本\nprint('Hello from example site')\nset_user_agent('Example-Site-Agent/1.0')\nlocal resp, err = http_get('https://example.com')\nif err then\n  log('请求失败:', err)\nelse\n  print('状态码:', resp.status_code)\nend",
         "search_config": {
             "search_path": "/search.php",
             "search_method": "get",

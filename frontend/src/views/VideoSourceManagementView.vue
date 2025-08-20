@@ -46,15 +46,16 @@
           </template>
         </a-result>
 
+        <div class="table-responsive" v-else>
         <a-table
-          v-else
           :data-source="videoSourceList"
           :columns="columns"
           :pagination="false"
           :row-key="(record: VideoSource) => record.id"
-          size="middle"
+          size="small"
           :default-sort-order="'descend'"
           :sort-directions="['descend', 'ascend']"
+          :scroll="{ x: 1000 }"
         >
           <template #bodyCell="{ column, record }: { column: any, record: VideoSource }">
             <template v-if="column.key === 'id'">
@@ -132,6 +133,7 @@
             </template>
           </template>
         </a-table>
+        </div>
 
         <a-empty v-if="!loading && !error && videoSourceList.length === 0" description="暂无视频源数据" />
       </div>
@@ -160,6 +162,7 @@ interface VideoSource {
   status: number
   source_type: number
   sort: number
+  lua_script?: string
 }
 
 const router = useRouter()

@@ -1,6 +1,26 @@
 // API 基础配置
 const API_BASE_URL = window.location.origin
 
+import router from '@/router'
+import { useAuthStore } from '@/stores/auth'
+import { message } from 'ant-design-vue'
+
+// 业务码处理
+function handleBusinessCode(result: any) {
+  if (result && typeof result === 'object' && 'code' in result && result.code === 6) {
+    // 登录过期
+    const DURATION = 1.5 // 秒
+    message.error('登录已过期，请重新登录', DURATION)
+    const auth = useAuthStore()
+    const currentPath = router.currentRoute.value.fullPath
+    auth.logout()
+    // 等待提示展示后再跳转
+    setTimeout(() => {
+      router.push({ path: '/login', query: { redirect: currentPath } })
+    }, DURATION * 1000)
+  }
+}
+
 // 通用请求方法
 async function request<T = any>(
   path: string,
@@ -19,7 +39,9 @@ async function request<T = any>(
     throw new Error(`HTTP error! status: ${response.status}`)
   }
 
-  return response.json()
+  const json = await response.json()
+  handleBusinessCode(json)
+  return json as T
 }
 
 // 带认证的请求方法
@@ -142,6 +164,21 @@ export const historyAPI = {
   // 获取登录历史（备用）
   getLoginHistory: (token: string, userId: string) =>
     authenticatedRequest(`/api/history/login?user_id=${encodeURIComponent(userId)}`, token),
+}
+
+// 视频搜索/详情/播放相关API
+export const videoAPI = {
+  // 搜索（按站点）
+  search: (token: string, sourceId: string, keyword: string) =>
+    authenticatedRequest(`/api/video/search?source_id=${encodeURIComponent(sourceId)}&keyword=${encodeURIComponent(keyword)}`, token),
+
+  // 详情
+  detail: (token: string, sourceId: string, url: string) =>
+    authenticatedRequest(`/api/video/detail?source_id=${encodeURIComponent(sourceId)}&url=${encodeURIComponent(url)}`, token),
+
+  // 播放地址
+  playUrl: (token: string, sourceId: string, url: string) =>
+    authenticatedRequest(`/api/video/url?source_id=${encodeURIComponent(sourceId)}&url=${encodeURIComponent(url)}`, token),
 }
 
 // 导出基础请求方法

@@ -10,6 +10,7 @@ import (
 // Config 应用配置结构
 type Config struct {
 	Server ServerConfig `yaml:"server"`
+	Env    string       `yaml:"env"` // 运行环境: dev, prod
 }
 
 // ServerConfig 服务器配置

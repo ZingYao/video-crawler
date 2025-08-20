@@ -76,6 +76,9 @@
           <a-tag color="green">Vite 7.0.6</a-tag>
           <a-tag color="green">Ant Design Vue 4.x</a-tag>
         </div>
+        <div class="open-source">
+          <a-button type="link" href="https://github.com/ZingYao/video-crawler" target="_blank">GitHub</a-button>
+        </div>
       </div>
     </a-card>
   </div>
@@ -115,7 +118,9 @@ const handleLogin = async () => {
   
   try {
     await authStore.login(form.username, form.password)
-    router.push('/')
+    const q = router.currentRoute.value.query
+    const redirect = typeof q.redirect === 'string' ? q.redirect : '/'
+    router.replace(redirect)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '登录失败'
   } finally {

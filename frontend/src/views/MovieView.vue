@@ -1,5 +1,9 @@
 <template>
-    <AppLayout page-title="观影">
+    <AppLayout :page-title="pageTitle">
+    <!-- 全屏 Loading 覆盖 -->
+    <div v-if="searching" class="loading-overlay">
+      <a-spin size="large" tip="搜索中..." />
+    </div>
     <a-card class="content-card">
       <template #title>
         <div class="card-header">
@@ -20,9 +24,10 @@
                 :options="searchHistoryOptions"
                 placeholder="请输入影片名称"
                 size="large"
-                @search="handleSearch"
+                @keydown.enter="handleSearch"
                 @select="handleSelectHistory"
                 @focus="loadSearchHistory"
+                :disabled="searching"
               >
                 <template #suffix>
                   <SearchOutlined />
@@ -35,6 +40,7 @@
                 placeholder="选择站点类型"
                 size="large"
                 style="width: 100%"
+                :disabled="searching"
               >
                 <a-select-option value="">所有</a-select-option>
                 <a-select-option value="0">综合</a-select-option>
@@ -75,7 +81,7 @@
           :lg="6"
           :xl="4"
         >
-          <a-card class="movie-card" hoverable>
+          <a-card class="movie-card" hoverable @click="startWatching(movie)">
             <template #cover>
               <div class="movie-cover">
                 <img :src="movie.cover_url" :alt="movie.title" />
@@ -90,7 +96,7 @@
                     </a-button>
                     <a-button
                       size="small"
-                      @click="goToOriginal(movie)"
+                      @click.stop="goToOriginal(movie)"
                     >
                       原站点
                     </a-button>
@@ -99,34 +105,55 @@
               </div>
             </template>
             
-            <a-card-meta :title="movie.title">
+            <a-card-meta>
+              <template #title>
+                <a-tooltip :title="movie.title" :overlayStyle="tooltipOverlayStyle">
+                  <div class="movie-title">{{ movie.title }}</div>
+                </a-tooltip>
+              </template>
               <template #description>
                 <div class="movie-info">
                   <div class="movie-meta">
                     <div class="meta-item">
                       <span class="label">导演：</span>
-                      <span class="value">{{ movie.director || '未知' }}</span>
+                      <a-tooltip :title="movie.director || '未知'" :overlayStyle="tooltipOverlayStyle">
+                        <span class="value">{{ movie.director || '未知' }}</span>
+                      </a-tooltip>
                     </div>
                     <div class="meta-item">
                       <span class="label">主演：</span>
-                      <span class="value">{{ movie.actors || '未知' }}</span>
+                      <a-tooltip :title="movie.actors || '未知'" :overlayStyle="tooltipOverlayStyle">
+                        <span class="value">{{ movie.actors || '未知' }}</span>
+                      </a-tooltip>
+                    </div>
+                    <div class="meta-item">
+                      <span class="label">类型：</span>
+                      <a-tooltip :title="movie.type || '未知'" :overlayStyle="tooltipOverlayStyle">
+                        <span class="value">{{ movie.type || '未知' }}</span>
+                      </a-tooltip>
                     </div>
                     <div class="meta-item">
                       <span class="label">上映：</span>
-                      <span class="value">{{ movie.release_date || '未知' }}</span>
+                      <a-tooltip :title="movie.release_date || '未知'" :overlayStyle="tooltipOverlayStyle">
+                        <span class="value">{{ movie.release_date || '未知' }}</span>
+                      </a-tooltip>
                     </div>
                     <div class="meta-item">
                       <span class="label">地区：</span>
-                      <span class="value">{{ movie.region || '未知' }}</span>
+                      <a-tooltip :title="movie.region || '未知'" :overlayStyle="tooltipOverlayStyle">
+                        <span class="value">{{ movie.region || '未知' }}</span>
+                      </a-tooltip>
                     </div>
                     <div class="meta-item">
                       <span class="label">来源：</span>
                       <a-tag color="green">{{ movie.source_name }}</a-tag>
                     </div>
                   </div>
-                  <div class="movie-description">
-                    {{ movie.description || '暂无简介' }}
-                  </div>
+                  <a-tooltip :title="movie.description || '暂无简介'" :overlayStyle="tooltipOverlayStyle">
+                    <div class="movie-description">
+                      {{ movie.description || '暂无简介' }}
+                    </div>
+                  </a-tooltip>
                 </div>
               </template>
             </a-card-meta>
@@ -160,10 +187,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
+import { useAuthStore } from '@/stores/auth'
+import { videoSourceAPI, videoAPI } from '@/api'
 
 interface MovieResult {
   id: string
@@ -173,10 +203,12 @@ interface MovieResult {
   actors: string
   release_date: string
   region: string
+  type: string
   source_name: string
   description: string
   video_url: string
   original_url: string
+  source_id: string
 }
 
 // 搜索相关状态
@@ -194,8 +226,59 @@ const searchHistoryOptions = computed(() => {
   }))
 })
 
-// Mock 搜索结果数据
+// 搜索结果数据
 const searchResults = ref<MovieResult[]>([])
+const router = useRouter()
+const auth = useAuthStore()
+
+// Tooltip 弹层样式：限制最大宽度、允许换行/长词换行
+const tooltipOverlayStyle = { maxWidth: '70vw', whiteSpace: 'normal', wordBreak: 'break-word' }
+
+// 页面标题：带上搜索词
+const pageTitle = computed(() => {
+  const q = searchKeyword.value?.trim()
+  return q ? `观影 - ${q}` : '观影'
+})
+
+// 会话缓存键
+const SEARCH_CACHE_KEY = 'movie_search_state'
+
+function saveSearchCache() {
+  try {
+    const payload = {
+      searchKeyword: searchKeyword.value,
+      selectedSourceType: selectedSourceType.value,
+      hasSearched: hasSearched.value,
+      results: searchResults.value,
+      t: Date.now(),
+    }
+    sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(payload))
+  } catch {}
+}
+
+function loadSearchCache(): boolean {
+  try {
+    const raw = sessionStorage.getItem(SEARCH_CACHE_KEY)
+    if (!raw) return false
+    const obj = JSON.parse(raw)
+    if (!obj) return false
+    searchKeyword.value = String(obj.searchKeyword || '')
+    selectedSourceType.value = String(obj.selectedSourceType ?? selectedSourceType.value)
+    hasSearched.value = Boolean(obj.hasSearched)
+    searchResults.value = Array.isArray(obj.results) ? obj.results : []
+    return true
+  } catch {
+    return false
+  }
+}
+
+onMounted(() => {
+  loadSearchCache()
+})
+
+onBeforeUnmount(() => {
+  saveSearchCache()
+})
 
 // 加载搜索历史
 const loadSearchHistory = () => {
@@ -231,49 +314,63 @@ const handleSearch = async () => {
   hasSearched.value = true
   
   try {
-    // 模拟API延迟
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 模拟搜索结果
-    const mockResults: MovieResult[] = [
-      {
-        id: '1',
-        title: '流浪地球2',
-        cover_url: 'https://via.placeholder.com/300x400/52c41a/ffffff?text=流浪地球2',
-        director: '郭帆',
-        actors: '吴京、刘德华、李雪健',
-        release_date: '2023-01-22',
-        region: '中国大陆',
-        source_name: '综合站点',
-        description: '太阳即将毁灭，人类在地球表面建造出巨大的推进器，寻找新的家园。',
-        video_url: 'https://example.com/movie1',
-        original_url: 'https://original-site.com/movie1'
-      },
-      {
-        id: '2',
-        title: '满江红',
-        cover_url: 'https://via.placeholder.com/300x400/1890ff/ffffff?text=满江红',
-        director: '张艺谋',
-        actors: '沈腾、易烊千玺、张译',
-        release_date: '2023-01-22',
-        region: '中国大陆',
-        source_name: '短剧站点',
-        description: '南宋绍兴年间，岳飞死后四年，秦桧率兵与金国会谈。',
-        video_url: 'https://example.com/movie2',
-        original_url: 'https://original-site.com/movie2'
+    // 1) 拉取站点列表并按 sort 降序（越大越靠前）
+    const token = auth.token!
+    const listResp: any = await videoSourceAPI.getVideoSourceList(token)
+    const sources: Array<{ id: string; name: string; sort: number; source_type: number; status: number }>= (listResp?.data || [])
+      // 仅搜索正常状态的站点（status=1）
+      .filter((s: any) => Number(s.status) === 1)
+      // 站点类型过滤（允许“所有”）
+      .filter((s: any) => selectedSourceType.value === '' || String(s.source_type) === String(selectedSourceType.value))
+      // 按 sort 降序
+      .sort((a: any, b: any) => b.sort - a.sort)
+
+    // 2) 并发度=2 线程池，按顺序调度
+    const concurrency = 2
+    const queue = [...sources]
+    const results: MovieResult[] = []
+
+    const runner = async () => {
+      while (queue.length > 0) {
+        const src = queue.shift()!
+        try {
+          const res: any = await videoAPI.search(token, src.id, searchKeyword.value)
+          const items: any[] = Array.isArray(res?.data) ? res.data : []
+          // 统一映射到 MovieResult
+          for (const item of items) {
+            results.push({
+              id: `${src.id}:${item.url || item.name}`,
+              title: String(item.name || ''),
+              cover_url: String(item.cover || ''),
+              director: String(item.director || ''),
+              actors: String(item.actor || ''),
+              release_date: String(item.release_date || ''),
+              region: String(item.region || ''),
+              type: String(item.type || item.category || ''),
+              source_name: String(src.name || ''),
+              description: String(item.description || ''),
+              video_url: String(item.url || ''),
+              original_url: String(item.url || ''),
+              source_id: String(src.id || ''),
+            })
+          }
+        } catch (e) {
+          // 单站点失败不中断
+          console.warn('search failed for source', src?.id, e)
+        }
       }
-    ]
-    
-    // 根据搜索关键词过滤结果
-    const filteredResults = mockResults.filter(movie => 
-      movie.title.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-      movie.director.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-      movie.actors.toLowerCase().includes(searchKeyword.value.toLowerCase())
-    )
-    
-    searchResults.value = filteredResults
+    }
+
+    const workers: Promise<void>[] = []
+    for (let i = 0; i < Math.min(concurrency, queue.length); i++) {
+      workers.push(runner())
+    }
+    await Promise.all(workers)
+
+    searchResults.value = results
+    saveSearchCache()
     saveSearchHistory(searchKeyword.value)
-    message.success(`搜索完成，找到 ${filteredResults.length} 个结果`)
+    message.success(`搜索完成，找到 ${results.length} 个结果`)
   } catch (error) {
     message.error('搜索失败，请重试')
   } finally {
@@ -281,7 +378,7 @@ const handleSearch = async () => {
   }
 }
 
-// 选择搜索历史
+// 选择搜索历史：填充并触发搜索
 const handleSelectHistory = (value: string) => {
   searchKeyword.value = value
   handleSearch()
@@ -289,7 +386,19 @@ const handleSelectHistory = (value: string) => {
 
 // 开始观看
 const startWatching = (movie: MovieResult) => {
-  message.info(`开始观看：${movie.title}`)
+  if (!movie.source_id || !(movie.video_url || movie.original_url)) {
+    message.error('缺少播放所需信息')
+    return
+  }
+  router.push({
+    name: 'watch',
+    params: { sourceId: movie.source_id },
+    query: {
+      url: movie.video_url || movie.original_url,
+      original_url: movie.original_url || movie.video_url,
+      title: movie.title || '',
+    },
+  })
 }
 
 // 跳转原站点
