@@ -231,11 +231,11 @@ const loadUserList = async () => {
   try {
     const response = await userAPI.getUserList(authStore.token)
     const data: User[] = response.data || []
-    // 按注册时间升序（早到晚）
+    // 按注册时间降序（新到旧）
     userList.value = data.sort((a: User, b: User) => {
       const ta = a.created_at ? Date.parse(a.created_at) : 0
       const tb = b.created_at ? Date.parse(b.created_at) : 0
-      return ta - tb
+      return tb - ta
     })
   } catch (err: any) {
     error.value = err.message || '加载用户列表失败'

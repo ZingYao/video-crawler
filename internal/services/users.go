@@ -291,7 +291,9 @@ func (s *userService) Register(ctx *gin.Context, username string, password strin
 	userId := uuid.New().String()
 	salt := uuid.New().String()
 	password = utils.SaltedMd5Password(password, salt)
-	if nickname == "" { nickname = username }
+	if nickname == "" {
+		nickname = username
+	}
 	userEntity := entities.UserEntity{
 		Id:          userId,
 		Username:    username,

@@ -213,6 +213,15 @@ function bindPlayerEvents() {
       }
     } catch {}
   })
+  // 在尝试进入全屏的瞬间（按钮点击）提前锁定，兼容部分浏览器必须在用户手势中调用 lock()
+  try {
+    const fsBtn = player.controlBar?.fullscreenToggle?.el?.() as HTMLElement | undefined
+    if (fsBtn) {
+      fsBtn.addEventListener('click', async () => {
+        try { await handleEnterFullscreen() } catch {}
+      }, { passive: true })
+    }
+  } catch {}
   // iOS Safari 原生全屏事件（通过原生 video 元素）
   try {
     const videoEl: any = player.el()?.querySelector?.('video')
