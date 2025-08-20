@@ -198,6 +198,19 @@ onMounted(() => {
               <span class="tech-tag">Logrus</span>
             </div>
           </div>
+
+          <div class="tech-card">
+            <div class="tech-icon">🧩</div>
+            <h4>Lua 引擎与解析</h4>
+            <div class="tech-tags">
+              <span class="tech-tag">Lua (gopher-lua)</span>
+              <span class="tech-tag">链式 HTML (goquery)</span>
+              <span class="tech-tag">SSE/Chunked 流</span>
+              <span class="tech-tag">json_encode/json_decode</span>
+              <span class="tech-tag">sleep/split/trim</span>
+              <span class="tech-tag">http_get/http_post</span>
+            </div>
+          </div>
           
           <div class="tech-card">
             <div class="tech-icon">🎨</div>
