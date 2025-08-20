@@ -12,10 +12,11 @@ function handleBusinessCode(result: any) {
     const DURATION = 1.5 // 秒
     message.error('登录已过期，请重新登录', DURATION)
     const auth = useAuthStore()
+    const currentPath = router.currentRoute.value.fullPath
     auth.logout()
     // 等待提示展示后再跳转
     setTimeout(() => {
-      router.push('/login')
+      router.push({ path: '/login', query: { redirect: currentPath } })
     }, DURATION * 1000)
   }
 }

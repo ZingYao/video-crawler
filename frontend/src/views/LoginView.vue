@@ -115,7 +115,9 @@ const handleLogin = async () => {
   
   try {
     await authStore.login(form.username, form.password)
-    router.push('/')
+    const q = router.currentRoute.value.query
+    const redirect = typeof q.redirect === 'string' ? q.redirect : '/'
+    router.replace(redirect)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '登录失败'
   } finally {

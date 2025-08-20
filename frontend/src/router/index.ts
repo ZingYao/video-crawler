@@ -10,6 +10,7 @@ import VideoSourceEditView from '../views/VideoSourceEditView.vue'
 // 懒加载观看历史页面（新增）
 const WatchHistoryView = () => import('../views/WatchHistoryView.vue')
 import MovieView from '../views/MovieView.vue'
+const NotFoundView = () => import('../views/NotFoundView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -74,6 +75,12 @@ const router = createRouter({
       component: MovieView,
       meta: { requiresAuth: true }
     },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
+      meta: { requiresAuth: false }
+    },
   ]
 })
 
@@ -85,8 +92,8 @@ router.beforeEach((to, from, next) => {
   authStore.initAuth()
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // 需要认证但未登录，重定向到登录页
-    next('/login')
+    // 需要认证但未登录，重定向到登录页，并带回跳转
+    next({ path: '/login', query: { redirect: to.fullPath } })
   } else if (to.meta.requiresAdmin && !authStore.user?.isAdmin) {
     // 需要管理员权限但用户不是管理员，重定向到首页
     next('/')
