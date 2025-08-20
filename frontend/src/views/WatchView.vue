@@ -144,9 +144,10 @@ const displayTitle = computed(() => {
 })
 
 const cacheKey = computed(() => `watch_detail:${sourceId.value}:${encodeURIComponent(videoUrl.value)}`)
+// 使用 sourceId + original_url 作为进度键，避免标题变化导致无法命中
 const playStateKey = computed(() => {
-  const baseName = (detailData.value?.name || detailData.value?.title || route.query.title || '') as string
-  return `watch_state:${sourceId.value}:${encodeURIComponent(baseName)}`
+  const keyUrl = String(route.query.original_url || videoUrl.value || '')
+  return `watch_state:${sourceId.value}:${encodeURIComponent(keyUrl)}`
 })
 
  
@@ -503,10 +504,13 @@ async function resolvePlayUrl() {
     if (player) {
       try { player.src({ src: url, type: 'application/x-mpegURL' }) } catch {}
       try { player.playbackRate(rate.value) } catch {}
-      // 恢复进度：如果有缓存并且匹配当前初始链接
+      // 等待 metadata 再恢复进度，避免 duration 为 0 导致 seek 失败
       const state = loadPlayState()
-      if (state && state.url && (state.url === currentPlayUrl.value || state.url === videoUrl.value)) {
-        try { player.currentTime(state.currentTime || 0) } catch {}
+      const seekTo = state?.currentTime || 0
+      if (seekTo > 0) {
+        const doSeek = () => { try { player.currentTime(seekTo) } catch {} }
+        if (player.readyState() >= 1) doSeek()
+        else player.one('loadedmetadata', doSeek)
       }
       try { player.play() } catch {}
       bindPlayerEvents()
