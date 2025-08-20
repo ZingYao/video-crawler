@@ -5,27 +5,49 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
-    vueDevTools(),
+    ...(mode === 'development' ? [vueDevTools()] : []),
   ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  // 开发阶段则由 esbuild 移除日志；生产使用 terser 做更强压缩
   esbuild: {
-    drop: ['console', 'debugger'],
+    drop: mode === 'production' ? [] : ['console', 'debugger'],
   },
   build: {
     rollupOptions: {
       output: {
-        manualChunks: undefined
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('video.js') || id.includes('@videojs-player')) return 'videojs'
+            if (id.includes('ant-design-vue')) return 'antd'
+            // 仅当访问编辑页时才会通过 loader.init() 加载 monaco，此处避免入口预加载
+            if (id.includes('@guolao/vue-monaco-editor')) return 'monaco'
+            if (id.includes('vue')) return 'vue'
+            return 'vendor'
+          }
+        },
       }
     },
-    minify: 'esbuild',
+    // 生产环境使用 terser，通常体积更小
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        passes: 2,
+        pure_getters: true,
+      },
+      mangle: true,
+    },
+    cssCodeSplit: true,
     sourcemap: false, // 不生成sourcemap
-    reportCompressedSize: false // 不报告压缩大小
+    reportCompressedSize: false, // 不报告压缩大小
+    chunkSizeWarningLimit: 1000,
   }
-})
+}))

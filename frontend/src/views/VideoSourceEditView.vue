@@ -94,17 +94,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { videoSourceAPI } from '@/api'
 import { message, Modal } from 'ant-design-vue'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
-import MonacoEditor from '@guolao/vue-monaco-editor'
-import * as monaco from 'monaco-editor'
 import LuaDocs from '@/components/LuaDocs.vue'
 import { defaultTemplateLua, defaultDemo } from '@/constants/luaTemplates'
+
+import MonacoEditor, { loader } from '@guolao/vue-monaco-editor'
+
+// 配置 Monaco 静态资源路径
+loader.config({ paths: { vs: '/monaco/vs' } })
+
+let monaco: any = null
 
 const router = useRouter()
 const route = useRoute()
@@ -141,7 +146,10 @@ const sourceTypeOptions = [
 
 // 自定义 Monaco 主题（偏亮青绿）
 const monacoTheme = ref('teal-light')
-const defineTealTheme = () => {
+const defineTealTheme = async () => {
+  if (!monaco) {
+    monaco = await loader.init()
+  }
   monaco.editor.defineTheme('teal-light', {
     base: 'vs-dark', inherit: true,
     rules: [ { token: '', foreground: 'F1FFFB' } ],
@@ -410,7 +418,10 @@ const handleBack = () => {
 }
 
 const openDocs = () => { docsOpen.value = true }
-const onEditorMount = (editor: any) => { editorRef.value = editor; defineTealTheme() }
+const onEditorMount = async (editor: any) => {
+  editorRef.value = editor
+  await defineTealTheme()
+}
 const resetDemo = () => { scriptContent.value = defaultDemo }
 const onFillDefault = () => {
   const current = scriptContent.value?.trim() || ''

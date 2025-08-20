@@ -1,5 +1,9 @@
 <template>
     <AppLayout :page-title="pageTitle">
+    <!-- 全屏 Loading 覆盖 -->
+    <div v-if="searching" class="loading-overlay">
+      <a-spin size="large" tip="搜索中..." />
+    </div>
     <a-card class="content-card">
       <template #title>
         <div class="card-header">
@@ -23,6 +27,7 @@
                 @keydown.enter="handleSearch"
                 @select="handleSelectHistory"
                 @focus="loadSearchHistory"
+                :disabled="searching"
               >
                 <template #suffix>
                   <SearchOutlined />
@@ -35,6 +40,7 @@
                 placeholder="选择站点类型"
                 size="large"
                 style="width: 100%"
+                :disabled="searching"
               >
                 <a-select-option value="">所有</a-select-option>
                 <a-select-option value="0">综合</a-select-option>
