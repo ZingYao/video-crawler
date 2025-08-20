@@ -1,4 +1,4 @@
-export const defaultTemplateLua = `local domain = 'https://www.hongling8.com'
+export const defaultTemplateLua = `local domain = ''
 
 -- 深拷贝函数
 function deep_copy(orig)
@@ -97,46 +97,8 @@ function search_video(search_content)
     local result = {}
     local err = nil
 
-    local doc, derr = request_get_html_doc(domain .. '/yhsearch/-------------.html?wd=' .. search_content .. '&submit=')
-    if derr then
-        log('请求查询视频失败:', derr)
-        return result, derr
-    end
+    -- 实现搜索视频
 
-    local items = doc:select('ul > li.searchlist_item')
-    local index = 0
-    while true do
-        local elem = items:eq(index)
-        if not elem or elem:html() == '' then
-            log('查找元素结束')
-            break
-        end
-        log('查找元素', index)
-
-        local result_item = new_search_video_result()
-        local title_dom = elem:select_one('div.searchlist_titbox > h4.vodlist_title > a')
-        if title_dom then
-            result_item.name = title_dom:attr('title')
-            result_item.type = title_dom:select_one('span.info_right'):text()
-
-            local cover_dom = elem:select_one('div.searchlist_img > a.vodlist_thumb')
-            result_item.cover = cover_dom:attr('data-original')
-            result_item.url = domain .. cover_dom:attr('href')
-            result_item.score = cover_dom:select_one('span:last-child'):text()
-
-            local actor_dom = elem:select_one('div.searchlist_titbox > p:nth-child(2)')
-            result_item.actor = actor_dom:text():gsub('主演：', '')
-
-            local director_dom = elem:select_one('div.searchlist_titbox > p:nth-child(3)')
-            result_item.director = director_dom:text():gsub('导演：', '')
-
-            local description_dom = elem:select_one('div.searchlist_titbox > p:nth-child(4)')
-            result_item.description = description_dom:text():gsub('简介：', '')
-
-            table.insert(result, result_item)
-        end
-        index = index + 1
-    end
     return result, err
 end
 
@@ -145,101 +107,7 @@ function get_video_detail(video_url)
     local result = new_video_detail_result()
     local err = nil
 
-    local doc, derr = request_get_html_doc(video_url)
-    if derr then
-        log('请求视频详情失败:', derr)
-        return result, derr
-    end
-
-    local video_detail_dom = doc:select_one('div.detail_list > div.content_box')
-    if video_detail_dom then
-        local cover_dom = video_detail_dom:select_one('div:nth-child(1) > a')
-        if cover_dom then
-            result.cover = cover_dom:attr('data-original')
-            result.name = cover_dom:attr('title')
-            result.url = domain .. cover_dom:attr('href')
-        end
-
-        local score_dom = video_detail_dom:select_one('div:nth-child(2) > span.star_tips')
-        if score_dom then result.score = score_dom:text() end
-
-        local description_dom = video_detail_dom:select_one('div:nth-child(3) > ul')
-        if description_dom then
-            local li_dom = description_dom:select_one('li:nth-child(4)')
-            if li_dom then
-                local result_arr = split(li_dom:html(), 'split_line')
-                for _, v in pairs(result_arr) do
-                    local str = ''
-                    for s in v:gmatch('>(.-)<') do
-                        str = str .. s
-                    end
-                    if str:find('上映') then
-                        result.release_date = str:match('(%d+)')
-                    elseif str:find('地区') then
-                        result.region = trim(str:gsub('地区：', ''))
-                    elseif str:find('类型') then
-                        result.type = trim(str:gsub('类型：', ''))
-                    end
-                end
-            end
-
-            local actor_dom = description_dom:select_one('li:nth-child(6)')
-            if actor_dom then
-                local actor_text = actor_dom:text()
-                result.actor = trim(actor_text:gsub('演员：', ''))
-            end
-
-            local director_dom = description_dom:select_one('li:nth-child(7)')
-            if director_dom then
-                local director_text = director_dom:text()
-                result.director = trim(director_text:gsub('导演：', ''))
-            end
-        end
-    end
-
-    local resource_dom = doc:select_one('div.play_source')
-    if not resource_dom then
-        err = '解析视频详情失败: 没有找到资源 Dom'
-        log(err)
-        return result, err
-    end
-
-    local source_list = resource_dom:select('div.play_source_tab > a')
-    if not source_list then
-        err = '解析视频详情失败: 没有找到资源站点'
-        log(err)
-        return result, err
-    end
-
-    local index = 0
-    while true do
-        local source_item = source_list:eq(index)
-        if not source_item or source_item:html() == '' then break end
-        local source_item_result = {
-            ['name'] = source_item:attr('alt'),
-            ['episodes'] = {}
-        }
-
-        local episode_list = doc:select('div.play_list_box:nth-child(' .. index + 2 .. ') > div.playlist_full > ul > li')
-        if episode_list then
-            local episode_index = 0
-            while true do
-                local episode_item = episode_list:eq(episode_index)
-                if not episode_item or (episode_item:html() == '' and episode_index >= 10) then
-                    break
-                end
-                if episode_item:html() ~= '' then
-                    local episode_name = episode_item:select_one('a'):text()
-                    local episode_url = domain .. episode_item:select_one('a'):attr('href')
-                    table.insert(source_item_result.episodes, { ['name'] = episode_name, ['url'] = episode_url })
-                end
-                episode_index = episode_index + 1
-            end
-        end
-
-        table.insert(result.source, source_item_result)
-        index = index + 1
-    end
+    -- 实现获取视频详情
 
     return result, err
 end
@@ -249,18 +117,7 @@ function get_play_video_detail(video_url)
     local result = new_play_video_detail()
     local err = nil
 
-    local body, derr = request_get_response_body(video_url)
-    if derr then
-        log('请求视频详情失败:', derr)
-        return result, derr
-    end
-
-    -- 查找 body 中带有视频地址的 json 串
-    local video_url_json = body:match('<script .-aaaa=(.-)</script>')
-    if video_url_json then
-        local json_obj = json_decode(video_url_json)
-        result.video_url = json_obj and json_obj.url or ''
-    end
+    -- 实现获取视频播放详情
 
     return result, err
 end

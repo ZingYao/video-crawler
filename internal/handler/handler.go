@@ -32,6 +32,7 @@ func New(cfg *config.Config, userService services.UserServiceInterface, videoSou
 func (h *Handler) HandleApi(c *gin.Context) {
 	userController := controllers.NewUserController(h.userService, h.historyService)
 	videoSourceController := controllers.NewVideoSourceController(h.videoSourceService)
+	videoController := controllers.NewVideoController(h.videoSourceService)
 	historyController := controllers.NewHistoryController(h.historyService, h.userService)
 	switch c.Request.URL.Path {
 	case "/api":
@@ -78,10 +79,13 @@ func (h *Handler) HandleApi(c *gin.Context) {
 		videoSourceController.CheckStatus(c)
 	case "/api/video/search":
 		// 视频搜索
+		videoController.Search(c)
 	case "/api/video/detail":
 		// 视频详情
+		videoController.Detail(c)
 	case "/api/video/url":
 		// 视频URL
+		videoController.PlayURL(c)
 	case "/api/history/search":
 		// 历史搜索
 		historyController.GetSearchHistory(c)

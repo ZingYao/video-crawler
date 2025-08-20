@@ -11,7 +11,7 @@
               </template>
               返回
             </a-button>
-            <h2>{{ isEdit ? '编辑视频源' : '添加视频源' }}</h2>
+          <h2>{{ isEdit ? '编辑视频源' : '添加视频源' }}</h2>
           </div>
           <div class="header-actions">
             <a-button type="primary" class="teal-btn" @click="handleSave" :loading="saveLoading">{{ isEdit ? '保存' : '创建' }}</a-button>
@@ -28,9 +28,9 @@
             style="width: 100%"
           />
         </a-form-item>
-        <a-form-item label="站点名称" name="name">
+            <a-form-item label="站点名称" name="name">
           <a-input v-model:value="formData.name" placeholder="请输入站点名称，例如：示例影视站" />
-        </a-form-item>
+            </a-form-item>
         <a-form-item label="站点域名" name="domain">
           <a-input v-model:value="formData.domain" placeholder="请输入站点域名，如：http://example.com" />
         </a-form-item>
@@ -42,7 +42,7 @@
             :max="9999"
             style="width: 100%"
           />
-        </a-form-item>
+            </a-form-item>
 
           <div class="editor-logs-wrap" :style="gridStyle">
             <div class="editor-panel">
@@ -121,7 +121,7 @@ const isEdit = computed(() => !!route.params.id)
 
 const formData = ref({ id: '', name: '', domain: '', source_type: 0, sort: 0 })
 
-const rules = { 
+const rules = {
   source_type: [{ required: true, message: '请选择资源类型', trigger: 'change' }],
   name: [{ required: true, message: '请输入站点名称', trigger: 'blur' }],
   domain: [{ required: true, message: '请输入站点域名', trigger: 'blur' }],
@@ -564,7 +564,7 @@ const runScript = async () => {
   finally { debugLoading.value = false }
 }
 
-onMounted(() => { 
+onMounted(() => {
   // 启动定时保存草稿
   startDraftTimer()
   // 设备类型与分隔条恢复

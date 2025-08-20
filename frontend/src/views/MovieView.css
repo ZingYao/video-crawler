@@ -74,6 +74,15 @@
   padding: 8px 0;
 }
 
+.movie-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .movie-meta {
   margin-bottom: 12px;
 }

@@ -166,5 +166,20 @@ export const historyAPI = {
     authenticatedRequest(`/api/history/login?user_id=${encodeURIComponent(userId)}`, token),
 }
 
+// 视频搜索/详情/播放相关API
+export const videoAPI = {
+  // 搜索（按站点）
+  search: (token: string, sourceId: string, keyword: string) =>
+    authenticatedRequest(`/api/video/search?source_id=${encodeURIComponent(sourceId)}&keyword=${encodeURIComponent(keyword)}`, token),
+
+  // 详情
+  detail: (token: string, sourceId: string, url: string) =>
+    authenticatedRequest(`/api/video/detail?source_id=${encodeURIComponent(sourceId)}&url=${encodeURIComponent(url)}`, token),
+
+  // 播放地址
+  playUrl: (token: string, sourceId: string, url: string) =>
+    authenticatedRequest(`/api/video/url?source_id=${encodeURIComponent(sourceId)}&url=${encodeURIComponent(url)}`, token),
+}
+
 // 导出基础请求方法
 export { request, authenticatedRequest }
