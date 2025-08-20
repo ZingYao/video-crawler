@@ -20,7 +20,7 @@ import (
 
 type UserServiceInterface interface {
 	Login(ctx *gin.Context, username string, password string) (user *entities.UserEntity, token string, err error)
-	Register(ctx *gin.Context, username string, password string) (err error)
+	Register(ctx *gin.Context, username string, password string, nickname string) (err error)
 	UserDetail(ctx *gin.Context, userId string) (userInfo entities.UserDetailResponse, err error)
 	UserDetailInner(userId string) (userInfo entities.UserEntity, exist bool)
 	Save(ctx *gin.Context, userId string, userInfo *entities.UserEntity)
@@ -279,7 +279,7 @@ func (s *userService) Login(ctx *gin.Context, username string, password string) 
 }
 
 // Register implements UserServiceInterface.
-func (s *userService) Register(ctx *gin.Context, username string, password string) (err error) {
+func (s *userService) Register(ctx *gin.Context, username string, password string, nickname string) (err error) {
 	// 判断用户名是否存在
 	_, ok := s.userName2IdMap.Load(username)
 	if ok {
@@ -291,13 +291,14 @@ func (s *userService) Register(ctx *gin.Context, username string, password strin
 	userId := uuid.New().String()
 	salt := uuid.New().String()
 	password = utils.SaltedMd5Password(password, salt)
+	if nickname == "" { nickname = username }
 	userEntity := entities.UserEntity{
 		Id:          userId,
 		Username:    username,
 		Password:    password,
 		IsAdmin:     false,
 		Salt:        salt,
-		Nickname:    username,
+		Nickname:    nickname,
 		AllowLogin:  false,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),

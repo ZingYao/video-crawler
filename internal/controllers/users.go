@@ -54,7 +54,7 @@ func (c *UserController) Register(ctx *gin.Context) {
 	if registerRequest.Nickname == "" {
 		registerRequest.Nickname = registerRequest.Username
 	}
-	err := c.userService.Register(ctx, registerRequest.Username, registerRequest.Password)
+	err := c.userService.Register(ctx, registerRequest.Username, registerRequest.Password, registerRequest.Nickname)
 	if err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeRegisterFailed, "register failed", nil)
 		return
