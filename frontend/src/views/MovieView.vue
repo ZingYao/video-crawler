@@ -101,7 +101,7 @@
             
             <a-card-meta>
               <template #title>
-                <a-tooltip :title="movie.title">
+                <a-tooltip :title="movie.title" :overlayStyle="tooltipOverlayStyle">
                   <div class="movie-title">{{ movie.title }}</div>
                 </a-tooltip>
               </template>
@@ -110,25 +110,25 @@
                   <div class="movie-meta">
                     <div class="meta-item">
                       <span class="label">导演：</span>
-                      <a-tooltip :title="movie.director || '未知'">
+                      <a-tooltip :title="movie.director || '未知'" :overlayStyle="tooltipOverlayStyle">
                         <span class="value">{{ movie.director || '未知' }}</span>
                       </a-tooltip>
                     </div>
                     <div class="meta-item">
                       <span class="label">主演：</span>
-                      <a-tooltip :title="movie.actors || '未知'">
+                      <a-tooltip :title="movie.actors || '未知'" :overlayStyle="tooltipOverlayStyle">
                         <span class="value">{{ movie.actors || '未知' }}</span>
                       </a-tooltip>
                     </div>
                     <div class="meta-item">
                       <span class="label">上映：</span>
-                      <a-tooltip :title="movie.release_date || '未知'">
+                      <a-tooltip :title="movie.release_date || '未知'" :overlayStyle="tooltipOverlayStyle">
                         <span class="value">{{ movie.release_date || '未知' }}</span>
                       </a-tooltip>
                     </div>
                     <div class="meta-item">
                       <span class="label">地区：</span>
-                      <a-tooltip :title="movie.region || '未知'">
+                      <a-tooltip :title="movie.region || '未知'" :overlayStyle="tooltipOverlayStyle">
                         <span class="value">{{ movie.region || '未知' }}</span>
                       </a-tooltip>
                     </div>
@@ -137,7 +137,7 @@
                       <a-tag color="green">{{ movie.source_name }}</a-tag>
                     </div>
                   </div>
-                  <a-tooltip :title="movie.description || '暂无简介'">
+                  <a-tooltip :title="movie.description || '暂无简介'" :overlayStyle="tooltipOverlayStyle">
                     <div class="movie-description">
                       {{ movie.description || '暂无简介' }}
                     </div>
@@ -176,6 +176,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
@@ -194,6 +195,7 @@ interface MovieResult {
   description: string
   video_url: string
   original_url: string
+  source_id: string
 }
 
 // 搜索相关状态
@@ -213,7 +215,11 @@ const searchHistoryOptions = computed(() => {
 
 // 搜索结果数据
 const searchResults = ref<MovieResult[]>([])
+const router = useRouter()
 const auth = useAuthStore()
+
+// Tooltip 弹层样式：限制最大宽度、允许换行/长词换行
+const tooltipOverlayStyle = { maxWidth: '70vw', whiteSpace: 'normal', wordBreak: 'break-word' }
 
 // 加载搜索历史
 const loadSearchHistory = () => {
@@ -285,6 +291,7 @@ const handleSearch = async () => {
               description: String(item.description || ''),
               video_url: String(item.url || ''),
               original_url: String(item.url || ''),
+              source_id: String(src.id || ''),
             })
           }
         } catch (e) {
@@ -318,7 +325,18 @@ const handleSelectHistory = (value: string) => {
 
 // 开始观看
 const startWatching = (movie: MovieResult) => {
-  message.info(`开始观看：${movie.title}`)
+  if (!movie.source_id || !(movie.video_url || movie.original_url)) {
+    message.error('缺少播放所需信息')
+    return
+  }
+  router.push({
+    name: 'watch',
+    query: {
+      source_id: movie.source_id,
+      url: movie.video_url || movie.original_url,
+      title: movie.title || '',
+    },
+  })
 }
 
 // 跳转原站点

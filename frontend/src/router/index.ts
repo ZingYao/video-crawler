@@ -10,6 +10,7 @@ import VideoSourceEditView from '../views/VideoSourceEditView.vue'
 // 懒加载观看历史页面（新增）
 const WatchHistoryView = () => import('../views/WatchHistoryView.vue')
 import MovieView from '../views/MovieView.vue'
+const WatchView = () => import('../views/WatchView.vue')
 const NotFoundView = () => import('../views/NotFoundView.vue')
 
 const router = createRouter({
@@ -73,6 +74,12 @@ const router = createRouter({
       path: '/movie',
       name: 'movie',
       component: MovieView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/watch',
+      name: 'watch',
+      component: WatchView,
       meta: { requiresAuth: true }
     },
     {
