@@ -37,7 +37,6 @@
                 :options="playerOptions"
                 ref="playerRef"
               />
-              <div v-if="isScrubbing" class="scrub-overlay">{{ scrubLabel }}</div>
             </div>
             <div class="player-actions">
               <a-space wrap>
@@ -179,12 +178,6 @@ let playerBound = false
 let lastVideoW = 0
 let lastVideoH = 0
 let orientationLocked = false
-// 拖动进度条（视频区域手势）
-const isScrubbing = ref(false)
-const scrubLabel = ref('00:00 / 00:00')
-let startX = 0
-let startTime = 0
-let totalDur = 0
 
 watch(rate, (v) => {
   const player = playerRef.value?.player
@@ -216,7 +209,6 @@ function bindPlayerEvents() {
       const vw = typeof player.videoWidth === 'function' ? player.videoWidth() : 0
       const vh = typeof player.videoHeight === 'function' ? player.videoHeight() : 0
       if (vw && vh) { lastVideoW = vw; lastVideoH = vh }
-      totalDur = Math.floor(player.duration() || 0)
     } catch {}
   })
   // 全屏切换监听（大多数安卓/部分浏览器）
@@ -247,8 +239,6 @@ function bindPlayerEvents() {
       })
       videoEl.addEventListener('webkitbeginfullscreen', handleEnterFullscreen as any)
       videoEl.addEventListener('webkitendfullscreen', handleExitFullscreen as any)
-      // 绑定横向滑动快进/快退
-      bindScrubGesture(videoEl)
     }
   } catch {}
 }
@@ -296,44 +286,7 @@ async function unlockOrientation() {
   orientationLocked = false
 }
 
-function bindScrubGesture(videoEl: HTMLElement) {
-  const fmt = (sec: number) => new Date(Math.max(sec,0)*1000).toISOString().substring(11,19)
-  const onTouchStart = (e: TouchEvent) => {
-    if (!playerRef.value?.player) return
-    if ((playerRef.value.player as any).paused && e.touches.length === 1) {
-      // 保持原行为
-    }
-    startX = e.touches[0].clientX
-    startTime = Math.floor(playerRef.value.player.currentTime() || 0)
-    totalDur = Math.floor(playerRef.value.player.duration() || 0)
-    scrubLabel.value = `${fmt(startTime)} / ${fmt(totalDur)}`
-    isScrubbing.value = true
-  }
-  const onTouchMove = (e: TouchEvent) => {
-    if (!isScrubbing.value) return
-    const dx = e.touches[0].clientX - startX
-    const el = playerRef.value?.player?.el?.() as HTMLElement
-    const width = el?.clientWidth || window.innerWidth
-    const deltaSec = Math.floor((dx / Math.max(width,1)) * (totalDur || 0))
-    const next = Math.min(Math.max(startTime + deltaSec, 0), totalDur)
-    scrubLabel.value = `${fmt(next)} / ${fmt(totalDur)}`
-  }
-  const onTouchEnd = (e: TouchEvent) => {
-    if (!isScrubbing.value) return
-    const dx = (e.changedTouches?.[0]?.clientX || startX) - startX
-    const el = playerRef.value?.player?.el?.() as HTMLElement
-    const width = el?.clientWidth || window.innerWidth
-    const deltaSec = Math.floor((dx / Math.max(width,1)) * (totalDur || 0))
-    const next = Math.min(Math.max(startTime + deltaSec, 0), totalDur)
-    try { playerRef.value?.player?.currentTime(next) } catch {}
-    savePlayState({ currentTime: next })
-    isScrubbing.value = false
-  }
-  videoEl.addEventListener('touchstart', onTouchStart, { passive: true })
-  videoEl.addEventListener('touchmove', onTouchMove, { passive: true })
-  videoEl.addEventListener('touchend', onTouchEnd, { passive: true })
-  videoEl.addEventListener('touchcancel', onTouchEnd, { passive: true })
-}
+
 
 // 站点与剧集（source -> episodes）
 const activeSourceKey = ref('0')
@@ -563,34 +516,7 @@ function goOriginal() {
 
  
 
-// 移动端长按：2 倍速（绑定到原生 video，更可靠）
-let touchTimer: any = null
-let longPressActive = false
-function bindLongPress() {
-  const videoEl: any = playerRef.value?.player?.el()?.querySelector?.('video')
-  if (!videoEl) return
-  const start = () => {
-    if (touchTimer) clearTimeout(touchTimer)
-    touchTimer = setTimeout(() => {
-      const player = playerRef.value?.player
-      if (!player) return
-      try { player.playbackRate(2) } catch {}
-      longPressActive = true
-    }, 350)
-  }
-  const end = () => {
-    const player = playerRef.value?.player
-    if (!player) return
-    if (touchTimer) clearTimeout(touchTimer)
-    if (longPressActive) {
-      try { player.playbackRate(rate.value) } catch {}
-      longPressActive = false
-    }
-  }
-  videoEl.addEventListener('touchstart', start, { passive: true })
-  videoEl.addEventListener('touchend', end, { passive: true })
-  videoEl.addEventListener('touchcancel', end, { passive: true })
-}
+
 
 onMounted(async () => {
   // 初始化移动设备检测
@@ -611,8 +537,6 @@ onMounted(async () => {
   currentPlayUrl.value = loadPlayState()?.url || currentPlayUrl.value || videoUrl.value
   const idx = sourcesByTab.value.findIndex(s => s.episodes.some(e => e.url === currentPlayUrl.value))
   if (idx >= 0) activeSourceKey.value = String(idx)
-  // 绑定长按 2x
-  bindLongPress()
 })
 
 // 清理事件监听
@@ -770,7 +694,6 @@ onUnmounted(() => {
   }
 }
 .player-actions { margin-top: 8px; }
-.scrub-overlay { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:6px 10px; background:rgba(0,0,0,.6); color:#fff; border-radius:6px; font-size:12px; }
 .detail-layout {
   display: flex;
   gap: 16px;
