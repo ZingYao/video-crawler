@@ -118,14 +118,16 @@ func (e *LuaEngine) registerFunctions() {
 	// JSON 编解码
 	e.L.SetGlobal("json_encode", e.L.NewFunction(e.luaJsonEncode))
 	e.L.SetGlobal("json_decode", e.L.NewFunction(e.luaJsonDecode))
-	
+
 	// 禁用危险的系统函数
 	e.L.SetGlobal("io", lua.LNil)
-	e.L.SetGlobal("os", lua.LNil)
 	e.L.SetGlobal("package", lua.LNil)
 	e.L.SetGlobal("require", lua.LNil)
 	e.L.SetGlobal("dofile", lua.LNil)
 	e.L.SetGlobal("loadfile", lua.LNil)
+	
+	// 保留安全的 os 函数，禁用危险的 os 函数
+	e.L.SetGlobal("os", e.L.NewFunction(e.luaSafeOs))
 
 	// 链式类型注册
 	e.registerGoqueryTypes()
@@ -1004,4 +1006,25 @@ func (e *LuaEngine) Close() {
 func (e *LuaEngine) Enqueue(msg string) {
 	// 如果有人读取，该写入将按顺序阻塞直到被消费
 	e.output <- msg
+}
+
+// luaSafeOs 提供安全的 os 函数
+func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
+	// 创建安全的 os 表
+	osTable := L.CreateTable(0, 2)
+	
+	// 只允许安全的函数
+	osTable.RawSetString("time", L.NewFunction(func(L *lua.LState) int {
+		L.Push(lua.LNumber(time.Now().Unix()))
+		return 1
+	}))
+	
+	osTable.RawSetString("exit", L.NewFunction(func(L *lua.LState) int {
+		// 安全的退出，不传递退出码给系统
+		L.Close()
+		return 0
+	}))
+	
+	L.Push(osTable)
+	return 1
 }
