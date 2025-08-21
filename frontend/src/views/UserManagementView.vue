@@ -59,8 +59,8 @@
             </template>
 
             <template v-else-if="column.key === 'role'">
-              <a-tag :color="record.is_admin ? 'red' : 'blue'">
-                {{ record.is_admin ? '管理员' : '普通用户' }}
+              <a-tag :color="record.is_admin ? 'red' : (record.is_site_admin ? 'purple' : 'blue')">
+                {{ record.is_admin ? '管理员' : (record.is_site_admin ? '资源站点管理员' : '普通用户') }}
               </a-tag>
             </template>
 
@@ -147,6 +147,7 @@ interface User {
   username: string
   nickname?: string
   is_admin?: boolean
+  is_site_admin?: boolean
   allow_login?: boolean
   created_at?: string
   last_login_at?: string

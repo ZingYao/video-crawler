@@ -63,7 +63,7 @@
                 </div>
                 <div class="user-details">
                   <div class="user-name">{{ authStore.user?.nickname || authStore.user?.username || '用户' }}</div>
-                  <div class="user-role">{{ authStore.user?.isAdmin ? '管理员' : (authStore.user?.isSiteAdmin ? '站点管理员' : '普通用户') }}</div>
+                  <div class="user-role">{{ authStore.user?.isAdmin ? '管理员' : (authStore.user?.isSiteAdmin ? '资源站点管理员' : '普通用户') }}</div>
                 </div>
                 <DownOutlined class="dropdown-arrow" />
               </div>

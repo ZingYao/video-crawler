@@ -78,7 +78,7 @@
                 管理员权限
               </a-checkbox>
               <a-checkbox v-model:checked="formData.isSiteAdmin">
-                站点管理员（可管理站点列表/编辑/调试）
+                资源站点管理员（可管理站点列表/编辑/调试）
               </a-checkbox>
               <a-checkbox v-model:checked="formData.allowLogin">
                 允许登录
