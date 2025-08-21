@@ -125,7 +125,7 @@ func (e *LuaEngine) registerFunctions() {
 	e.L.SetGlobal("require", lua.LNil)
 	e.L.SetGlobal("dofile", lua.LNil)
 	e.L.SetGlobal("loadfile", lua.LNil)
-	
+
 	// 保留安全的 os 函数，禁用危险的 os 函数
 	e.L.SetGlobal("os", e.L.NewFunction(e.luaSafeOs))
 
@@ -1011,14 +1011,113 @@ func (e *LuaEngine) Enqueue(msg string) {
 // luaSafeOs 提供安全的 os 函数
 func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 	// 创建安全的 os 表
-	osTable := L.CreateTable(0, 2)
+	osTable := L.CreateTable(0, 3)
 	
-	// 只允许安全的函数
+	// os.time([t]) - 获取当前时间戳或从表创建时间戳
 	osTable.RawSetString("time", L.NewFunction(func(L *lua.LState) int {
-		L.Push(lua.LNumber(time.Now().Unix()))
+		if L.GetTop() == 0 {
+			// 无参数：返回当前时间戳
+			L.Push(lua.LNumber(time.Now().Unix()))
+		} else {
+			// 有参数：从表创建时间戳
+			tbl := L.CheckTable(1)
+			tm := time.Now()
+			
+			// 从表中读取时间字段
+			if year := tbl.RawGetString("year"); year != lua.LNil {
+				if y, ok := year.(lua.LNumber); ok {
+					tm = time.Date(int(y), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), 0, tm.Location())
+				}
+			}
+			if month := tbl.RawGetString("month"); month != lua.LNil {
+				if m, ok := month.(lua.LNumber); ok {
+					tm = time.Date(tm.Year(), time.Month(int(m)), tm.Day(), tm.Hour(), tm.Minute(), tm.Second(), 0, tm.Location())
+				}
+			}
+			if day := tbl.RawGetString("day"); day != lua.LNil {
+				if d, ok := day.(lua.LNumber); ok {
+					tm = time.Date(tm.Year(), tm.Month(), int(d), tm.Hour(), tm.Minute(), tm.Second(), 0, tm.Location())
+				}
+			}
+			if hour := tbl.RawGetString("hour"); hour != lua.LNil {
+				if h, ok := hour.(lua.LNumber); ok {
+					tm = time.Date(tm.Year(), tm.Month(), tm.Day(), int(h), tm.Minute(), tm.Second(), 0, tm.Location())
+				}
+			}
+			if min := tbl.RawGetString("min"); min != lua.LNil {
+				if m, ok := min.(lua.LNumber); ok {
+					tm = time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), int(m), tm.Second(), 0, tm.Location())
+				}
+			}
+			if sec := tbl.RawGetString("sec"); sec != lua.LNil {
+				if s, ok := sec.(lua.LNumber); ok {
+					tm = time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), int(s), 0, tm.Location())
+				}
+			}
+			
+			L.Push(lua.LNumber(tm.Unix()))
+		}
 		return 1
 	}))
 	
+	// os.date([format, t]) - 格式化时间
+	osTable.RawSetString("date", L.NewFunction(func(L *lua.LState) int {
+		var format string
+		var timestamp int64
+		
+		top := L.GetTop()
+		if top == 0 {
+			// 无参数：使用默认格式和当前时间
+			format = "%c"
+			timestamp = time.Now().Unix()
+		} else if top == 1 {
+			// 一个参数：可能是格式或时间戳
+			arg1 := L.Get(1)
+			if formatStr, ok := arg1.(lua.LString); ok {
+				// 第一个参数是格式字符串
+				format = string(formatStr)
+				timestamp = time.Now().Unix()
+			} else if timeNum, ok := arg1.(lua.LNumber); ok {
+				// 第一个参数是时间戳
+				format = "%c"
+				timestamp = int64(timeNum)
+			} else {
+				L.Push(lua.LString(""))
+				return 1
+			}
+		} else {
+			// 两个参数：格式和时间戳
+			format = L.CheckString(1)
+			timestamp = int64(L.CheckNumber(2))
+		}
+		
+		// 转换时间戳为时间
+		t := time.Unix(timestamp, 0)
+		
+		// 根据格式返回结果
+		switch format {
+		case "*t":
+			// 返回时间表
+			timeTable := L.CreateTable(0, 8)
+			timeTable.RawSetString("year", lua.LNumber(t.Year()))
+			timeTable.RawSetString("month", lua.LNumber(t.Month()))
+			timeTable.RawSetString("day", lua.LNumber(t.Day()))
+			timeTable.RawSetString("hour", lua.LNumber(t.Hour()))
+			timeTable.RawSetString("min", lua.LNumber(t.Minute()))
+			timeTable.RawSetString("sec", lua.LNumber(t.Second()))
+			timeTable.RawSetString("wday", lua.LNumber(int(t.Weekday())+1)) // Lua 中周日是1
+			timeTable.RawSetString("yday", lua.LNumber(t.YearDay()))
+			L.Push(timeTable)
+		default:
+			// 简单格式化（支持基本格式）
+			result := t.Format("2006-01-02 15:04:05")
+			L.Push(lua.LString(result))
+		}
+		
+		return 1
+	}))
+	
+	// os.exit([code]) - 安全退出
 	osTable.RawSetString("exit", L.NewFunction(func(L *lua.LState) int {
 		// 安全的退出，不传递退出码给系统
 		L.Close()
