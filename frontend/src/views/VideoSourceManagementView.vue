@@ -35,104 +35,84 @@
 
         <a-spin v-if="loading" size="large" />
 
-        <a-result
-          v-else-if="error"
-          status="error"
-          :title="error"
-          :sub-title="'请检查网络连接或联系管理员'"
-        >
+        <a-result v-else-if="error" status="error" :title="error" :sub-title="'请检查网络连接或联系管理员'">
           <template #extra>
             <a-button type="primary" @click="refreshVideoSourceList">重试</a-button>
           </template>
         </a-result>
 
         <div class="table-responsive" v-else>
-        <a-table
-          :data-source="videoSourceList"
-          :columns="columns"
-          :pagination="false"
-          :row-key="(record: VideoSource) => record.id"
-          size="small"
-          :default-sort-order="'descend'"
-          :sort-directions="['descend', 'ascend']"
-          :scroll="{ x: 1000 }"
-        >
-          <template #bodyCell="{ column, record }: { column: any, record: VideoSource }">
-            <template v-if="column.key === 'id'">
-              <a-typography-text
-                copyable
-                :copy-text="record.id"
-                @copy="() => message.success('站点ID已复制到剪贴板')"
-              >
-                {{ truncateId(record.id) }}
-              </a-typography-text>
-            </template>
+          <a-table :data-source="videoSourceList" :columns="columns" :pagination="false"
+            :row-key="(record: VideoSource) => record.id" size="small" :default-sort-order="'descend'"
+            :sort-directions="['descend', 'ascend']" :scroll="{ x: 1000 }">
+            <template #bodyCell="{ column, record }: { column: any, record: VideoSource }">
+              <template v-if="column.key === 'id'">
+                <a-typography-text copyable :copy-text="record.id" @copy="() => message.success('站点ID已复制到剪贴板')">
+                  {{ truncateId(record.id) }}
+                </a-typography-text>
+              </template>
 
-            <template v-else-if="column.key === 'status'">
-              <a-tag :color="getStatusColor(record.status)">
-                {{ getStatusText(record.status) }}
-              </a-tag>
-            </template>
+              <template v-else-if="column.key === 'status'">
+                <template v-if="editingStatusId === record.id">
+                  <a-select size="small" style="width:140px" :value="record.status"
+                    @change="(v: number) => onStatusChange(record, v)" @blur="onStatusBlur">
+                    <a-select-option :value="0">禁用</a-select-option>
+                    <a-select-option :value="1">正常</a-select-option>
+                    <a-select-option :value="2">维护中</a-select-option>
+                    <a-select-option :value="3">不可用</a-select-option>
+                  </a-select>
+                </template>
+                <template v-else>
+                  <a-tag :color="getStatusColor(record.status)" @click="() => (editingStatusId = record.id)"
+                    style="cursor: pointer">
+                    {{ getStatusText(record.status) }}
+                  </a-tag>
+                </template>
+              </template>
 
-            <template v-else-if="column.key === 'domain'">
-              <a-typography-text copyable :copy-text="record.domain">
-                {{ record.domain }}
-              </a-typography-text>
-            </template>
+              <template v-else-if="column.key === 'domain'">
+                <a-typography-text copyable :copy-text="record.domain">
+                  {{ record.domain }}
+                </a-typography-text>
+              </template>
 
-            <template v-else-if="column.key === 'source_type'">
-              <a-tag :color="getSourceTypeColor(record.source_type)">
-                {{ getSourceTypeText(record.source_type) }}
-              </a-tag>
-            </template>
+              <template v-else-if="column.key === 'source_type'">
+                <a-tag :color="getSourceTypeColor(record.source_type)">
+                  {{ getSourceTypeText(record.source_type) }}
+                </a-tag>
+              </template>
 
-            <template v-else-if="column.key === 'sort'">
-              <span class="sort-value">{{ record.sort || 0 }}</span>
-            </template>
+              <template v-else-if="column.key === 'sort'">
+                <span class="sort-value">{{ record.sort || 0 }}</span>
+              </template>
 
-            <template v-else-if="column.key === 'actions'">
-              <a-space>
-                <a-button
-                  type="primary"
-                  size="small"
-                  @click="editVideoSource(record.id)"
-                >
-                  <template #icon>
-                    <EditOutlined />
-                  </template>
-                  编辑
-                </a-button>
-                <a-popconfirm
-                  title="确定要删除这个视频源站点吗？"
-                  description="此操作不可恢复"
-                  @confirm="deleteVideoSource(record.id)"
-                  ok-text="确定"
-                  cancel-text="取消"
-                >
-                  <a-button
-                    type="primary"
-                    danger
-                    size="small"
-                  >
+              <template v-else-if="column.key === 'actions'">
+                <a-space>
+                  <a-button type="primary" size="small" @click="editVideoSource(record.id)">
                     <template #icon>
-                      <DeleteOutlined />
+                      <EditOutlined />
                     </template>
-                    删除
+                    编辑
                   </a-button>
-                </a-popconfirm>
-                <a-button
-                  size="small"
-                  @click="checkStatus(record)"
-                >
-                  <template #icon>
-                    <ReloadOutlined />
-                  </template>
-                  检查
-                </a-button>
-              </a-space>
+                  <a-popconfirm title="确定要删除这个视频源站点吗？" description="此操作不可恢复" @confirm="deleteVideoSource(record.id)"
+                    ok-text="确定" cancel-text="取消">
+                    <a-button type="primary" danger size="small">
+                      <template #icon>
+                        <DeleteOutlined />
+                      </template>
+                      删除
+                    </a-button>
+                  </a-popconfirm>
+                  <a-button size="small" @click="checkStatus(record)">
+                    <template #icon>
+                      <ReloadOutlined />
+                    </template>
+                    检查
+                  </a-button>
+                </a-space>
+              </template>
             </template>
-          </template>
-        </a-table>
+          </a-table>
         </div>
 
         <a-empty v-if="!loading && !error && videoSourceList.length === 0" description="暂无视频源数据" />
@@ -171,6 +151,12 @@ const error = ref('')
 const videoSourceList = ref<VideoSource[]>([])
 const checking = ref(false)
 const checkingIds = ref<Set<string>>(new Set())
+const editingStatusId = ref<string>('')
+async function onStatusChange(record: VideoSource, v: number) {
+  await updateStatus(record.id, v)
+  editingStatusId.value = ''
+}
+function onStatusBlur() { editingStatusId.value = '' }
 
 const columns = [
   {
@@ -221,9 +207,9 @@ const truncateId = (id: string) => {
   return id.length > 8 ? `${id.substring(0, 8)}...` : id
 }
 
-const normalizeStatus = (status: any): 0|1|2|3 => {
+const normalizeStatus = (status: any): 0 | 1 | 2 | 3 => {
   const n = Number(status)
-  if (n === 0 || n === 1 || n === 2 || n === 3) return n as 0|1|2|3
+  if (n === 0 || n === 1 || n === 2 || n === 3) return n as 0 | 1 | 2 | 3
   // 超出范围一律按不可用处理
   return 3
 }
@@ -240,6 +226,21 @@ const getStatusText = (status: number) => {
   return texts[s]
 }
 
+async function updateStatus(id: string, status: number) {
+  if (!token.value) { message.error('未登录'); return }
+  try {
+    const resp = await videoSourceAPI.setStatus(token.value, id, status)
+    if (resp && resp.code === 0) {
+      message.success('状态已更新')
+      await refreshVideoSourceList()
+    } else {
+      message.error(resp?.message || '更新失败')
+    }
+  } catch (e: any) {
+    message.error(e?.message || '网络错误')
+  }
+}
+
 const getSourceTypeColor = (sourceType: number) => {
   const colors = ['blue', 'purple', 'red', 'orange', 'green', 'cyan', 'geekblue', 'default']
   return colors[sourceType] || 'default'
@@ -252,10 +253,10 @@ const getSourceTypeText = (sourceType: number) => {
 
 const fetchVideoSourceList = async () => {
   if (!token.value) return
-  
+
   loading.value = true
   error.value = ''
-  
+
   try {
     const response = await videoSourceAPI.getVideoSourceList(token.value)
     if (response.code === 0) {
@@ -286,7 +287,7 @@ const editVideoSource = (id: string) => {
 
 const deleteVideoSource = async (id: string) => {
   if (!token.value) return
-  
+
   try {
     const response = await videoSourceAPI.deleteVideoSource(token.value, id)
     if (response.code === 0) {
@@ -339,7 +340,7 @@ const checkStatus = async (item: VideoSource) => {
     item.status = newStatus
     const texts = ['禁用', '正常', '维护中', '不可用']
     const statusText = typeof newStatus === 'number' ? (texts[newStatus] || '未知') : '已完成'
-    const notify = (type: 'success'|'info'|'warning'|'error') =>
+    const notify = (type: 'success' | 'info' | 'warning' | 'error') =>
       notification[type]({
         message: `检查完成 - ${item.name}`,
         description: `状态：${statusText}`,
@@ -361,7 +362,6 @@ const checkStatus = async (item: VideoSource) => {
   }
 }
 
-// 强制样式覆盖
 const forceStyles = `
   .card-header h2 {
     text-align: center !important;

@@ -2,32 +2,35 @@
 
 [English README](README_EN.md) | 中文说明
 
-一个基于 Go + Vue3 的可视化视频爬虫/脚本运行平台，支持 Lua 实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力，并内置基于 video.js 的 HLS 播放器与观影页。
+一个基于 Go + Vue3 的可视化视频爬虫/脚本运行平台，支持 Lua 与 JavaScript 两种脚本引擎、实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力，并内置基于 Plyr + hls.js 的 HLS 播放器与观影页。
 
 ## 技术栈（已更新）
 
 - 后端（Go）
   - Gin（HTTP 服务）
   - 原生 net/http 爬虫（返回 *http.Response），默认模拟浏览器请求头；支持转发前端请求头（跳过 Cookie/Host/Content-Length）
-  - gopher-lua（Lua 引擎）：
-    - 流式输出通道，`print`/`log` 均带时间戳
-    - 捕获顶层 `return`，转 `map[string]interface{}` 并格式化 JSON 以 `[RESULT]` 顺序输出
-    - 注入函数：
-      - HTTP：`http_get`、`http_post`、`set_headers`、`set_cookies`、`set_user_agent`、`set_random_user_agent`、`get_user_agent`、`set_ua_2_current_request_ua`
-      - HTML 链式：`parse_html`，并在 `Document/Selection` 上提供 `select/select_one/first/eq/parent/children/next/prev/attr/text/html`
-      - 工具：`sleep(ms)`、`split(s, sep)`、`trim(s)`、`json_encode(value, indent?)`（支持布尔/数字/字符串缩进）、`json_decode(json)`
-    - 响应体自动解压 `gzip/deflate`
-  - goquery（HTML 解析，Lua 侧以 userdata 暴露链式 API）
+  - Lua 引擎（gopher-lua）：
+    - 注入：`http_get/http_post/set_headers/set_cookies/set_user_agent/set_random_user_agent/get_user_agent/set_ua_2_current_request_ua`
+    - HTML 解析：`parse_html` 与链式选择器（`select/select_one/first/eq/parent/children/next/prev/attr/text/html`）
+    - 工具：`sleep/trim/split` 与 `json_encode/json_decode`
+    - 安全：禁用 `io/os/package` 危险能力，仅允许 `os.time/os.exit/os.clock` 等安全方法，危险方法返回禁用提示
+  - JavaScript 引擎（goja）：
+    - 同步 `fetch(url, { method, headers, body, timeout, redirect })`，返回 Response：`ok/status/statusText/url/headers/text()/json()/arrayBuffer()/clone()`；Headers：`get/has/keys/values/entries/forEach`
+    - HTTP/UA：`httpGet/httpPost/setHeaders/setCookies/setUserAgent/setRandomUserAgent/getUserAgent/setUaToCurrentRequestUa`
+    - DOM：`parseHtml(html)` → Document/Element，支持 `querySelector/querySelectorAll/getElementById/getElementsByTagName/getElementsByClassName/text()/html()/attr()/innerText/innerHTML/getAttribute`
+    - Console：完整 `console` API（`log/info/warn/error/debug/trace/time/timeEnd/assert/group/groupCollapsed/groupEnd/count/countReset/table/dir/dirxml/clear`）并流式回传前端
+    - 安全：沙箱环境，无 `os/fs/child_process` 等本地能力
+  - goquery（HTML 解析）
   - github.com/lib4u/fake-useragent（随机 UA）
   - 日志：按 `env=dev` 输出到控制台
 
 - 前端（Vue3 + TS + Vite）
   - Ant Design Vue、Pinia
-  - @guolao/vue-monaco-editor + 本地 Monaco 资源（无 CDN）
-  - 播放器：video.js + @videojs-player/vue，支持 m3u8（HLS）、倍速、长按 2x、上一集/下一集、剧集 Tab、进度本地缓存与续播
+  - @guolao/vue-monaco-editor + 本地 Monaco 资源（无 CDN，按需加载，绝对路径 Worker 修复）
+  - 播放器：Plyr + hls.js，支持 m3u8（HLS）、倍速选择（移动端下拉）、上下集、剧集 Tab、进度缓存与续播、移动端全屏自动横竖屏
   - 统一绿色主题；编辑器/日志并排、支持拖拽分栏宽度与持久化、日志彩色高亮、清空日志、F5 调试、禁用 Cmd/Ctrl+S
   - 全局请求拦截：`code === 6` 提示登录过期并延迟跳转到登录页
-  - Lua 文档组件（右侧抽屉，无遮罩，可同时编辑）
+  - 文档组件：LuaDocs 与 JSDocs，随脚本类型自动切换
 
 ## 项目结构（已精简）
 
@@ -84,10 +87,12 @@ go run cmd/video-crawler/main.go
 - 结果卡片：整卡可点击开始观看，保留“原站点”按钮
 - 播放页：自动选第一源第一集（若无缓存），支持切源/切集、自动播放与续播
 
-## Lua 调试接口
+## 调试接口
 
-- Chunked：`POST /api/lua/test`
-- SSE：`POST /api/lua/test-sse`
+- Lua (Chunked)：`POST /api/lua/test`
+- Lua (SSE)：`POST /api/lua/test-sse`
+- JavaScript (Chunked)：`POST /api/js/test`
+- JavaScript (SSE)：`POST /api/js/test-sse`
 
 请求体：
 ```json
@@ -98,10 +103,19 @@ go run cmd/video-crawler/main.go
 
 ## 前端编辑页（视频源）
 
-- 字段：站点名称、站点域名、排序值、资源类型
-- Lua 编辑：默认模板、必需函数校验（`search_video`/`get_video_detail`/`get_play_video_detail`）
+- 字段：站点名称、站点域名、排序值、资源类型、爬虫引擎（Lua/JavaScript）与状态
+- 脚本类型：Lua / JavaScript；编辑器语言与文档随引擎自动切换
+- 模板：Lua 与 JS 均提供默认模板与 Demo，可一键填充；切换语言可自动填充 Demo（当该语言无历史草稿/脚本）
+- 必需函数校验：`search_video` / `get_video_detail` / `get_play_video_detail`
 - 草稿：定时保存、进入页提示恢复/删除（删除二次确认）
 - 交互：F5 调试、Cmd/Ctrl+S 禁用、可拖拽分栏并持久化、清空日志、自动滚动
+
+### JavaScript 脚本规范
+
+- 全局方法（驼峰命名）：`httpGet`、`httpPost`、`setHeaders`、`setCookies`、`setUserAgent`、`setRandomUserAgent`、`getUserAgent`、`setUaToCurrentRequestUa`、`fetch`
+- DOM：`parseHtml(html)` → `Document`/`Element`，提供 `querySelector/querySelectorAll/.../text/html/attr` 等
+- Console：完整 `console` API，输出回流到调试面板
+- Demo：在“填充完整 Demo”按钮中包含所有 API 的调用示例
 
 ## 配置
 

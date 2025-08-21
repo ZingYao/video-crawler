@@ -71,6 +71,42 @@ func NewHTTPBrowser(config *BrowserConfig) (*HTTPBrowser, error) {
 	}, nil
 }
 
+// Do 发送任意方法请求（headers 将覆盖全局；body 为原始字节）
+func (c *HTTPBrowser) Do(method string, rawURL string, body []byte, headers map[string]string) (*http.Response, error) {
+	req, err := http.NewRequest(method, rawURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// 设置User-Agent
+	if c.config.UserAgent != "" {
+		req.Header.Set("User-Agent", c.config.UserAgent)
+	}
+
+	// 先写入全局 header，再覆盖
+	for key, value := range c.config.Headers {
+		req.Header.Set(key, value)
+	}
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	// 设置Cookie
+	if len(c.config.Cookies) > 0 {
+		cookieStrings := make([]string, 0, len(c.config.Cookies))
+		for key, value := range c.config.Cookies {
+			cookieStrings = append(cookieStrings, fmt.Sprintf("%s=%s", key, value))
+		}
+		req.Header.Set("Cookie", strings.Join(cookieStrings, "; "))
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	return resp, nil
+}
+
 // Get 发送GET请求
 func (c *HTTPBrowser) Get(url string) (*http.Response, error) {
 	var response *http.Response
@@ -92,37 +128,7 @@ func (c *HTTPBrowser) Get(url string) (*http.Response, error) {
 
 // doGet 执行GET请求
 func (c *HTTPBrowser) doGet(url string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// 设置User-Agent
-	if c.config.UserAgent != "" {
-		req.Header.Set("User-Agent", c.config.UserAgent)
-	}
-
-	// 设置请求头
-	for key, value := range c.config.Headers {
-		req.Header.Set(key, value)
-	}
-
-	// 设置Cookie
-	if len(c.config.Cookies) > 0 {
-		cookieStrings := make([]string, 0, len(c.config.Cookies))
-		for key, value := range c.config.Cookies {
-			cookieStrings = append(cookieStrings, fmt.Sprintf("%s=%s", key, value))
-		}
-		req.Header.Set("Cookie", strings.Join(cookieStrings, "; "))
-	}
-
-	// 执行请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
-	}
-
-	return resp, nil
+	return c.Do("GET", url, nil, nil)
 }
 
 // Post 发送POST请求
@@ -131,41 +137,7 @@ func (c *HTTPBrowser) Post(url string, data map[string]interface{}) (*http.Respo
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal data: %w", err)
 	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// 设置Content-Type
-	req.Header.Set("Content-Type", "application/json")
-
-	// 设置User-Agent
-	if c.config.UserAgent != "" {
-		req.Header.Set("User-Agent", c.config.UserAgent)
-	}
-
-	// 设置请求头
-	for key, value := range c.config.Headers {
-		req.Header.Set(key, value)
-	}
-
-	// 设置Cookie
-	if len(c.config.Cookies) > 0 {
-		cookieStrings := make([]string, 0, len(c.config.Cookies))
-		for key, value := range c.config.Cookies {
-			cookieStrings = append(cookieStrings, fmt.Sprintf("%s=%s", key, value))
-		}
-		req.Header.Set("Cookie", strings.Join(cookieStrings, "; "))
-	}
-
-	// 执行请求
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
-	}
-
-	return resp, nil
+	return c.Do("POST", url, jsonData, map[string]string{"Content-Type": "application/json"})
 }
 
 // SetHeaders 设置请求头
@@ -188,6 +160,11 @@ func (c *HTTPBrowser) SetCookies(cookies map[string]string) {
 func (c *HTTPBrowser) SetTimeout(timeout time.Duration) {
 	c.config.Timeout = timeout
 	c.client.Timeout = timeout
+}
+
+// GetTimeout 获取当前超时时间
+func (c *HTTPBrowser) GetTimeout() time.Duration {
+	return c.config.Timeout
 }
 
 // SetProxy 设置代理
@@ -229,6 +206,21 @@ func (c *HTTPBrowser) SetRandomUserAgent() {
 // GetUserAgent 获取当前User-Agent
 func (c *HTTPBrowser) GetUserAgent() string {
 	return c.config.UserAgent
+}
+
+// SetFollowRedirects 设置是否跟随重定向
+func (c *HTTPBrowser) SetFollowRedirects(follow bool) {
+	c.config.FollowRedirects = follow
+	if follow {
+		c.client.CheckRedirect = func(req *http.Request, via []*http.Request) error { return nil }
+	} else {
+		c.client.CheckRedirect = func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }
+	}
+}
+
+// GetFollowRedirects 获取是否跟随重定向
+func (c *HTTPBrowser) GetFollowRedirects() bool {
+	return c.config.FollowRedirects
 }
 
 // Close 关闭浏览器实例

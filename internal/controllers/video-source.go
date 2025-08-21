@@ -172,3 +172,35 @@ func (c *VideoSourceController) CheckStatus(ctx *gin.Context) {
 	}
 	utils.SuccessResponse(ctx, videoSource.Status)
 }
+
+// SetStatus 手动设置站点状态
+func (c *VideoSourceController) SetStatus(ctx *gin.Context) {
+	// 站点管理：管理员或站点管理员可操作
+	isAdmin := ctx.GetBool("is_admin")
+	isSiteAdmin := ctx.GetBool("is_site_admin")
+	if !(isAdmin || isSiteAdmin) {
+		utils.SendResponse(ctx, consts.ResponseCodeNoPermission, "no permission", nil)
+		return
+	}
+	var req struct {
+		Id     string `json:"id"`
+		Status int    `json:"status"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeParamError, "参数错误: "+err.Error(), nil)
+		return
+	}
+	if strings.TrimSpace(req.Id) == "" {
+		utils.SendResponse(ctx, consts.ResponseCodeParamError, "站点ID不能为空", nil)
+		return
+	}
+	if req.Status < 0 || req.Status > 3 {
+		utils.SendResponse(ctx, consts.ResponseCodeParamError, "状态取值范围 0~3", nil)
+		return
+	}
+	if err := c.videoSourceService.UpdateStatus(req.Id, req.Status); err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeSaveVideoSourceFailed, err.Error(), nil)
+		return
+	}
+	utils.SuccessResponse(ctx, gin.H{"id": req.Id, "status": req.Status})
+}

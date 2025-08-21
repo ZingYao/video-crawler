@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 	"video-crawler/internal/crawler"
+	"video-crawler/internal/entities"
+	"video-crawler/internal/jsengine"
 	"video-crawler/internal/lua"
 	"video-crawler/internal/services"
 	"video-crawler/internal/utils"
@@ -41,7 +43,7 @@ func (c *VideoController) Search(ctx *gin.Context) {
 		return
 	}
 
-	data, err := executeLuaFunction(ctx, videoSource.LuaScript, "search_video", keyword)
+	data, err := c.executeByEngine(ctx, &videoSource, "search_video", keyword)
 	if err != nil {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -65,7 +67,7 @@ func (c *VideoController) Detail(ctx *gin.Context) {
 		return
 	}
 
-	data, err := executeLuaFunction(ctx, videoSource.LuaScript, "get_video_detail", url)
+	data, err := c.executeByEngine(ctx, &videoSource, "get_video_detail", url)
 	if err != nil {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -126,7 +128,7 @@ func (c *VideoController) PlayURL(ctx *gin.Context) {
 		return
 	}
 
-	data, err := executeLuaFunction(ctx, videoSource.LuaScript, "get_play_video_detail", url)
+	data, err := c.executeByEngine(ctx, &videoSource, "get_play_video_detail", url)
 	if err != nil {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -185,4 +187,36 @@ func executeLuaFunction(ctx *gin.Context, baseScript string, funcName string, ar
 		return nil, fmt.Errorf("脚本返回错误: %v", v)
 	}
 	return ret["data"], nil
+}
+
+// executeByEngine 根据站点 engine_type 调用 Lua 或 JS 引擎
+func (c *VideoController) executeByEngine(ctx *gin.Context, src *entities.VideoSourceEntity, funcName string, arg string) (interface{}, error) {
+	if src.EngineType == 1 {
+		// JS 引擎
+		browser, err := crawler.NewDefaultBrowser()
+		if err != nil {
+			return nil, fmt.Errorf("创建浏览器实例失败: %w", err)
+		}
+		defer browser.Close()
+		if ua := ctx.GetHeader("User-Agent"); ua != "" {
+			browser.SetUserAgent(ua)
+		} else {
+			browser.SetRandomUserAgent()
+		}
+		e := jsengine.New(browser)
+		argLiteral := strconv.Quote(arg)
+		wrapped := src.JsScript + "\n\n" +
+			fmt.Sprintf("var __ret = (function(){ try { var r = %s(%s); return {data: r, err: null}; } catch(e){ return {data:null, err: String(e)} } })(); __ret;", funcName, argLiteral)
+		fmt.Println("js script:", wrapped)
+		m, err := e.ExecuteWrapped(wrapped)
+		if err != nil {
+			return nil, err
+		}
+		if v, ok := m["err"]; ok && v != nil && fmt.Sprint(v) != "" {
+			return nil, fmt.Errorf("脚本返回错误: %v", v)
+		}
+		return m["data"], nil
+	}
+	// 默认 Lua
+	return executeLuaFunction(ctx, src.LuaScript, funcName, arg)
 }

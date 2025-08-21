@@ -163,3 +163,87 @@ else
 end
 print('[Demo] 完成')
 `
+
+export const defaultTemplateJS = `// 默认 JS 模板（已内置 DOM 能力）：实现三个必须方法
+// 可用：httpGet(url), setHeaders(h), setUserAgent(ua), setRandomUserAgent(), parseHtml(html)
+
+function search_video(keyword) {
+  // TODO: 实现站点搜索逻辑
+  // 示例：
+  // const r = httpGet('https://example.com/?q=' + encodeURIComponent(keyword))
+  // const doc = parseHtml(r.body)
+  // const items = doc.querySelectorAll('ul > li.searchlist_item')
+  // return [...Array(items.length)].map((_, i) => {
+  //   const el = items[i]
+  //   return { name: el.querySelector('h4.vodlist_title a').attr('title') || '', url: '' }
+  // })
+  return []
+}
+
+function get_video_detail(video_url) {
+  // TODO: 使用 DOM 提取详情，返回 { name, description, sources: [{name, episodes:[{name,url}]}] }
+  return { name: '', description: '', sources: [] }
+}
+
+function get_play_video_detail(video_url) {
+  // TODO: 返回 { video_url }
+  return { video_url }
+}
+`
+
+export const demoTemplateJS = `// Demo JS：使用 parseHtml 的 DOM 解析示例
+setRandomUserAgent()
+
+function search_video(keyword) {
+  const url = 'https://example.com/search?q=' + encodeURIComponent(keyword)
+  const r = httpGet(url)
+  const html = r.body || ''
+  const doc = parseHtml(html)
+  const nodes = doc.querySelectorAll('ul > li.searchlist_item')
+  const out = []
+  for (let i = 0; i < (nodes.length || 0); i++) {
+    const el = nodes[i]
+    const a = el.querySelector('h4.vodlist_title a')
+    const name = a ? (a.attr('title') || a.text()) : ''
+    const coverA = el.querySelector('a.vodlist_thumb')
+    const cover = coverA ? (coverA.attr('data-original') || '') : ''
+    const href = coverA ? (coverA.attr('href') || '') : ''
+    const scoreSpan = el.querySelector('a.vodlist_thumb span:last-child')
+    const score = scoreSpan ? scoreSpan.text() : ''
+    out.push({ name, cover, url: href, score })
+  }
+  return out
+}
+
+function get_video_detail(video_url) {
+  const r = httpGet(video_url)
+  const doc = parseHtml(r.body || '')
+  const res = { name: '', description: '', sources: [] }
+  const topA = doc.querySelector('div.detail_list div.content_box div:nth-child(1) > a')
+  if (topA) {
+    res.name = topA.attr('title') || ''
+  }
+  // 源与剧集（示例选择器，按站点实际调整）
+  const tabs = doc.querySelectorAll('div.play_source_tab > a')
+  const lists = doc.querySelectorAll('div.play_list_box')
+  for (let i = 0; i < (tabs.length || 0); i++) {
+    const src = { name: tabs[i].attr('alt') || ('来源' + (i + 1)), episodes: [] }
+    const box = lists[i]
+    if (box) {
+      const lis = box.querySelectorAll('ul > li')
+      for (let j = 0; j < (lis.length || 0); j++) {
+        const a = lis[j].querySelector('a')
+        if (!a) continue
+        src.episodes.push({ name: a.text(), url: a.attr('href') || '' })
+      }
+    }
+    res.sources.push(src)
+  }
+  return res
+}
+
+function get_play_video_detail(video_url) {
+  // 站点若需解析中转，可在此请求并解析；否则直接返回
+  return { video_url }
+}
+`

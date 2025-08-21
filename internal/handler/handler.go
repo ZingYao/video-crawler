@@ -46,6 +46,7 @@ func (h *Handler) HandleApi(c *gin.Context) {
 				"GET /api/video-source/detail - 站点详情",
 				"POST /api/video-source/save - 保存站点",
 				"POST /api/video-source/delete - 删除站点",
+				"POST /api/video-source/set-status - 设置站点状态",
 				"GET /api/video/home/list - 视频首页推荐",
 				"GET /api/video/search - 视频搜索",
 				"GET /api/video/detail - 视频详情",
@@ -77,6 +78,9 @@ func (h *Handler) HandleApi(c *gin.Context) {
 	case "/api/video-source/check-status":
 		// 检查站点状态
 		videoSourceController.CheckStatus(c)
+	case "/api/video-source/set-status":
+		// 设置站点状态
+		videoSourceController.SetStatus(c)
 	case "/api/video/search":
 		// 视频搜索
 		videoController.Search(c)
@@ -124,6 +128,10 @@ func (h *Handler) HandleApi(c *gin.Context) {
 		// Lua脚本测试(SSE)
 		luaTestController := controllers.NewLuaTestController(h.luaTestService)
 		luaTestController.TestScriptSSE(c)
+	case "/api/js/test":
+		// JS脚本测试(流式)
+		luaTestController := controllers.NewLuaTestController(h.luaTestService)
+		luaTestController.TestJSScript(c)
 	}
 }
 

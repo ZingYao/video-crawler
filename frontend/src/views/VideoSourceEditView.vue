@@ -28,6 +28,9 @@
             style="width: 100%"
           />
         </a-form-item>
+        <a-form-item label="脚本类型" name="engine_type">
+          <a-select v-model:value="formData.engine_type" :options="engineTypeOptions" style="width: 100%" />
+        </a-form-item>
             <a-form-item label="站点名称" name="name">
           <a-input v-model:value="formData.name" placeholder="请输入站点名称，例如：示例影视站" />
             </a-form-item>
@@ -42,13 +45,21 @@
             :max="9999"
             style="width: 100%"
           />
-            </a-form-item>
+        </a-form-item>
+        <a-form-item label="状态" name="status">
+          <a-select v-model:value="formData.status" style="width: 100%">
+            <a-select-option :value="0">禁用</a-select-option>
+            <a-select-option :value="1">正常</a-select-option>
+            <a-select-option :value="2">维护中</a-select-option>
+            <a-select-option :value="3">不可用</a-select-option>
+          </a-select>
+        </a-form-item>
 
           <div class="editor-logs-wrap" :style="gridStyle">
             <div class="editor-panel">
               <div class="panel-title">
                 <div class="title-left">
-                  <span class="title-text">Lua 脚本</span>
+                  <span class="title-text">{{ formData.engine_type === 1 ? 'JavaScript 脚本' : 'Lua 脚本' }}</span>
                 </div>
                 <div class="title-actions">
                   <a-button class="teal-btn" size="small" @click="onFillDefault">默认代码</a-button>
@@ -61,7 +72,7 @@
                 <MonacoEditor
                   class="monaco"
                   :theme="monacoTheme"
-                  language="lua"
+                  :language="formData.engine_type === 1 ? 'javascript' : 'lua'"
                   :options="monacoOptions"
                   v-model:value="scriptContent"
                   @mount="onEditorMount"
@@ -88,7 +99,7 @@
         </div>
       </a-form>
     </a-card>
-      <LuaDocs v-model:open="docsOpen" />
+      <component :is="formData.engine_type === 1 ? JSDocs : LuaDocs" v-model:open="docsOpen" />
     </div>
   </AppLayout>
 </template>
@@ -102,12 +113,20 @@ import { message, Modal } from 'ant-design-vue'
 import { ArrowLeftOutlined } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
 import LuaDocs from '@/components/LuaDocs.vue'
-import { defaultTemplateLua, defaultDemo } from '@/constants/luaTemplates'
+import JSDocs from '@/components/JSDocs.vue'
+import { defaultTemplateLua, defaultDemo, defaultTemplateJS, demoTemplateJS } from '@/constants/scriptTemplates'
 
 import MonacoEditor, { loader } from '@guolao/vue-monaco-editor'
 
-// 配置 Monaco 静态资源路径
-loader.config({ paths: { vs: '/monaco/vs' } })
+// 配置 Monaco 静态资源路径（使用绝对地址，避免 Worker 环境相对路径解析失败）
+const vsBase = `${window.location.origin}/monaco/vs`
+loader.config({ paths: { vs: vsBase } })
+;(window as any).MonacoEnvironment = {
+  baseUrl: `${window.location.origin}/monaco/`,
+  getWorkerUrl: function (_moduleId: string, _label: string) {
+    return `${window.location.origin}/monaco/vs/base/worker/workerMain.js`
+  }
+}
 
 let monaco: any = null
 
@@ -124,13 +143,15 @@ const logsRef = ref<HTMLDivElement | null>(null)
 
 const isEdit = computed(() => !!route.params.id)
 
-const formData = ref({ id: '', name: '', domain: '', source_type: 0, sort: 0 })
+const formData = ref({ id: '', name: '', domain: '', source_type: 0, sort: 0, engine_type: 0, status: 0 })
 
 const rules = {
   source_type: [{ required: true, message: '请选择资源类型', trigger: 'change' }],
+  engine_type: [{ required: true, message: '请选择脚本类型', trigger: 'change' }],
   name: [{ required: true, message: '请输入站点名称', trigger: 'blur' }],
   domain: [{ required: true, message: '请输入站点域名', trigger: 'blur' }],
-  sort: [{ required: true, message: '请输入排序值', trigger: 'blur' }]
+  sort: [{ required: true, message: '请输入排序值', trigger: 'blur' }],
+  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
 }
 
 const sourceTypeOptions = [
@@ -142,6 +163,11 @@ const sourceTypeOptions = [
   { label: '动漫', value: 5 },
   { label: '纪录片', value: 6 },
   { label: '其他', value: 7 },
+]
+
+const engineTypeOptions = [
+  { label: 'Lua', value: 0 },
+  { label: 'JavaScript', value: 1 },
 ]
 
 // 自定义 Monaco 主题（浅色背景深色文字）
@@ -212,6 +238,9 @@ const DRAFT_INTERVAL = 3000 // 3秒自动保存
 let draftTimer: number | null = null
 const scriptContent = ref<string>(defaultTemplateLua)
 const editorRef = ref<any>(null)
+// 缓存两种脚本各自的代码，切换语言时优先使用已有内容
+const luaCode = ref<string>('')
+const jsCode = ref<string>('')
 
 // PC下可拖拽分隔条逻辑
 const isPc = ref(true)
@@ -267,7 +296,9 @@ const saveDraft = () => {
     name: formData.value.name,
     domain: formData.value.domain,
     source_type: formData.value.source_type,
+    engine_type: formData.value.engine_type,
     sort: formData.value.sort,
+    status: formData.value.status,
     script: scriptContent.value,
     timestamp: Date.now()
   }
@@ -295,7 +326,7 @@ const hasDraft = () => {
 }
 
 const isDraftDifferent = (draft: any) => {
-  return draft.name !== formData.value.name || draft.domain !== formData.value.domain || draft.source_type !== formData.value.source_type || draft.sort !== formData.value.sort || draft.script !== scriptContent.value
+  return draft.name !== formData.value.name || draft.domain !== formData.value.domain || draft.source_type !== formData.value.source_type || draft.engine_type !== formData.value.engine_type || draft.sort !== formData.value.sort || draft.status !== formData.value.status || draft.script !== scriptContent.value
 }
 
 // 定时保存草稿
@@ -329,18 +360,25 @@ const handleBack = () => {
   }
 }
 
-const openDocs = () => { docsOpen.value = true }
+const openDocs = () => {
+  console.log('[Docs] open clicked. engine_type=', formData.value.engine_type)
+  docsOpen.value = true
+}
+watch(docsOpen, (v) => {
+  console.log('[Docs] docsOpen changed:', v, 'engine_type=', formData.value.engine_type)
+})
 const onEditorMount = async (editor: any) => {
   editorRef.value = editor
   await defineLightHighContrastTheme()
 }
-const resetDemo = () => { scriptContent.value = defaultDemo }
+const resetDemo = () => { scriptContent.value = (formData.value.engine_type === 1 ? demoTemplateJS : defaultDemo) }
 const onFillDefault = () => {
   const current = scriptContent.value?.trim() || ''
-  if (current.length > 0 && current !== defaultTemplateLua.trim()) {
-    Modal.confirm({ title: '确认覆盖当前脚本？', content: '填充默认代码将覆盖编辑器中的现有内容。', okText: '覆盖', cancelText: '取消', onOk: () => { scriptContent.value = defaultTemplateLua } })
+  const tpl = formData.value.engine_type === 1 ? defaultTemplateJS : defaultTemplateLua
+  if (current.length > 0 && current !== tpl.trim()) {
+    Modal.confirm({ title: '确认覆盖当前脚本？', content: '填充默认代码将覆盖编辑器中的现有内容。', okText: '覆盖', cancelText: '取消', onOk: () => { scriptContent.value = tpl } })
   } else {
-    scriptContent.value = defaultTemplateLua
+    scriptContent.value = tpl
   }
 }
 
@@ -356,10 +394,21 @@ const clearLogs = () => {
 
 const onFillDemo = () => {
   const current = scriptContent.value?.trim() || ''
-  if (current.length > 0 && current !== defaultDemo.trim()) {
+  const demo = formData.value.engine_type === 1 ? demoTemplateJS : defaultDemo
+  if (current.length > 0 && current !== demo.trim()) {
     Modal.confirm({ title: '确认覆盖当前脚本？', content: '填充 Demo 将覆盖编辑器中的现有内容。', okText: '覆盖', cancelText: '取消', onOk: () => resetDemo() })
   } else { resetDemo() }
 }
+
+// 同步当前脚本到对应语言的缓存
+watch(scriptContent, (val) => {
+  const code = String(val ?? '')
+  if (formData.value.engine_type === 1) {
+    jsCode.value = code
+  } else {
+    luaCode.value = code
+  }
+})
 
 // 草稿恢复弹窗
 const showDraftRestoreDialog = (draft: any) => {
@@ -372,7 +421,9 @@ const showDraftRestoreDialog = (draft: any) => {
       formData.value.name = draft.name || ''
       formData.value.domain = draft.domain
       formData.value.source_type = draft.source_type ?? 0
+      formData.value.engine_type = draft.engine_type ?? 0
       formData.value.sort = draft.sort || 0
+      formData.value.status = draft.status ?? 0
       scriptContent.value = draft.script
       clearDraft()
       message.success('草稿已恢复')
@@ -416,11 +467,24 @@ const fetchVideoSourceDetail = async (id: string) => {
       formData.value.name = data.name || ''
       formData.value.domain = data.domain || ''
       formData.value.source_type = data.source_type ?? 0
+      formData.value.engine_type = data.engine_type ?? 0
       formData.value.sort = data.sort || 0
+      formData.value.status = data.status ?? 0
       // 加载Lua脚本到编辑器
-      if (typeof data.lua_script === 'string') {
-        if (data.lua_script.trim()) scriptContent.value = data.lua_script
-        else scriptContent.value = defaultTemplateLua
+      if (formData.value.engine_type === 1) {
+        // JS 脚本
+        if (typeof (data as any).js_script === 'string' && (data as any).js_script.trim()) {
+          jsCode.value = (data as any).js_script
+          scriptContent.value = jsCode.value
+        } else {
+          jsCode.value = '// TODO: implement search_video, get_video_detail, get_play_video_detail in JS\n'
+          scriptContent.value = jsCode.value
+        }
+      } else {
+        if (typeof data.lua_script === 'string') {
+          luaCode.value = data.lua_script.trim() ? data.lua_script : defaultTemplateLua
+          scriptContent.value = luaCode.value
+        }
       }
       
       // 检查是否有草稿需要恢复
@@ -442,11 +506,14 @@ const handleSave = async () => {
       name: formData.value.name,
       domain: formData.value.domain,
       source_type: formData.value.source_type,
+      engine_type: formData.value.engine_type,
       sort: formData.value.sort,
-      lua_script: scriptContent.value
+      status: formData.value.status,
+      lua_script: formData.value.engine_type === 0 ? scriptContent.value : '',
+      js_script: formData.value.engine_type === 1 ? scriptContent.value : ''
     }
     // 必要方法校验
-    const code = String(payload.lua_script || '')
+    const code = String(scriptContent.value || '')
     const missing: string[] = []
     if (!/\bfunction\s+search_video\s*\(/.test(code)) missing.push('search_video(search_content)')
     if (!/\bfunction\s+get_video_detail\s*\(/.test(code)) missing.push('get_video_detail(video_url)')
@@ -476,7 +543,9 @@ const runScript = async () => {
   debugLoading.value = true
   await nextTick(); logsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   try {
-    const resp = await fetch(`${window.location.origin}/api/lua/test`, {
+    const isJS = formData.value.engine_type === 1
+    const endpoint = isJS ? '/api/js/test' : '/api/lua/test'
+    const resp = await fetch(`${window.location.origin}${endpoint}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authStore.token}` }, body: JSON.stringify({ script: scriptContent.value }),
     })
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -486,6 +555,30 @@ const runScript = async () => {
   } catch (err: any) { outputText.value += `\n[ERROR] ${err?.message || String(err)}` }
   finally { debugLoading.value = false }
 }
+
+// 切换脚本语言类型时：若已有对应类型代码则使用该代码，否则才填充 Demo，并清理草稿
+watch(() => formData.value.engine_type, (val, oldVal) => {
+  if (val === oldVal) return
+  if (val === 1) {
+    if (jsCode.value && jsCode.value.trim()) {
+      scriptContent.value = jsCode.value
+      message.success('已切换到 JavaScript（使用现有代码）')
+    } else {
+      scriptContent.value = demoTemplateJS
+      clearDraft()
+      message.success('已切换到 JavaScript（填充 Demo 代码）')
+    }
+  } else {
+    if (luaCode.value && luaCode.value.trim()) {
+      scriptContent.value = luaCode.value
+      message.success('已切换到 Lua（使用现有代码）')
+    } else {
+      scriptContent.value = defaultDemo
+      clearDraft()
+      message.success('已切换到 Lua（填充 Demo 代码）')
+    }
+  }
+})
 
 onMounted(() => {
   // 启动定时保存草稿
