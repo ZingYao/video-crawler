@@ -191,7 +191,8 @@ const loginHistoryColumns = [
 ]
 
 // 表格 rowKey（提供显式类型，避免隐式 any）
-const rowKey = (_: UserLoginHistory, index: number): string => String(index)
+// 使用稳定主键：时间 + IP（避免使用 index，解决弃用警告）
+const rowKey = (r: UserLoginHistory): string => `${r.login_at}-${r.ip}`
 
 // 计算属性
 const isEdit = computed(() => {

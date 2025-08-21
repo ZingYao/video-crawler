@@ -18,6 +18,7 @@ type VideoSourceService interface {
 	Detail(videoSourceId string) (entities.VideoSourceEntity, error)
 	Save(videoSource entities.VideoSourceEntity) error
 	Delete(videoSourceId string) error
+	UpdateStatus(videoSourceId string, status int) error
 }
 
 type videoSourceService struct {
@@ -197,6 +198,17 @@ func (s *videoSourceService) Delete(videoSourceId string) error {
 	}
 
 	return nil
+}
+
+func (s *videoSourceService) UpdateStatus(videoSourceId string, status int) error {
+	val, ok := s.videoSourceMap.Load(videoSourceId)
+	if !ok {
+		return errors.New("video source not found")
+	}
+	vs := val.(entities.VideoSourceEntity)
+	vs.Status = status
+	s.videoSourceMap.Store(videoSourceId, vs)
+	return s.saveToFile()
 }
 
 func (s *videoSourceService) saveToFile() error {

@@ -164,6 +164,13 @@ export const videoSourceAPI = {
   // 检查视频源资源状态（单个）
   checkStatus: (token: string, id: string) =>
     authenticatedRequest(`/api/video-source/check-status?id=${encodeURIComponent(id)}`, token),
+
+  // 设置视频源状态
+  setStatus: (token: string, id: string, status: number) =>
+    authenticatedRequest('/api/video-source/set-status', token, {
+      method: 'POST',
+      body: JSON.stringify({ id, status }),
+    }),
 }
 
 // 历史相关API

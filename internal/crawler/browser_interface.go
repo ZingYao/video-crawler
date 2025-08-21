@@ -15,6 +15,9 @@ type BrowserRequest interface {
 	// Post 发送POST请求
 	Post(url string, data map[string]interface{}) (*http.Response, error)
 
+	// Do 发送任意方法请求（headers 将覆盖全局同名 header；body 为原始字节）
+	Do(method string, url string, body []byte, headers map[string]string) (*http.Response, error)
+
 	// SetHeaders 设置请求头
 	SetHeaders(headers map[string]string)
 
@@ -23,6 +26,9 @@ type BrowserRequest interface {
 
 	// SetTimeout 设置超时时间
 	SetTimeout(timeout time.Duration)
+
+	// GetTimeout 获取当前超时时间
+	GetTimeout() time.Duration
 
 	// SetProxy 设置代理
 	SetProxy(proxy string)
@@ -35,6 +41,12 @@ type BrowserRequest interface {
 
 	// GetUserAgent 获取当前User-Agent
 	GetUserAgent() string
+
+	// SetFollowRedirects 设置是否跟随重定向
+	SetFollowRedirects(follow bool)
+
+	// GetFollowRedirects 获取是否跟随重定向
+	GetFollowRedirects() bool
 
 	// Close 关闭浏览器实例
 	Close() error

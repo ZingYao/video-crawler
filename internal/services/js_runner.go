@@ -37,13 +37,22 @@ func (s *jsTestService) ExecuteScript(ctx context.Context, script string) (<-cha
 
 	eng := jsengine.New(browser)
 
-	out := make(chan string, 100)
+	out := make(chan string, 200)
+	// 将 console.* 输出回流到前端
+	eng.SetLogSink(func(line string) {
+		select {
+		case out <- line:
+		default:
+			// 避免阻塞：丢弃超量日志
+		}
+	})
+
 	go func() {
 		defer close(out)
 		defer browser.Close()
 		out <- fmt.Sprintf("[INFO][%s] 开始执行JS脚本...", time.Now().Format(time.RFC3339Nano))
-		wrapped := script + "\n; (function(){ return {data: null, err: null} })();" // ensure a value
-		m, err := eng.ExecuteWrapped(wrapped)
+		// 直接执行脚本，保留调用方在结尾 return 的 {data, err}
+		m, err := eng.ExecuteWrapped(script)
 		if err != nil {
 			out <- fmt.Sprintf("[ERROR] %v", err)
 			out <- "[END] 脚本执行结束"
@@ -51,7 +60,6 @@ func (s *jsTestService) ExecuteScript(ctx context.Context, script string) (<-cha
 		}
 		// 输出结果
 		if m != nil {
-			// 简单序列化
 			out <- fmt.Sprintf("[RESULT] %v", m)
 		}
 		out <- "[INFO] JS脚本执行完成"

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"video-crawler/internal/crawler"
+	"video-crawler/internal/entities"
 	"video-crawler/internal/jsengine"
 	"video-crawler/internal/lua"
 	"video-crawler/internal/services"
@@ -189,10 +190,7 @@ func executeLuaFunction(ctx *gin.Context, baseScript string, funcName string, ar
 }
 
 // executeByEngine 根据站点 engine_type 调用 Lua 或 JS 引擎
-func (c *VideoController) executeByEngine(ctx *gin.Context, src *services_entitiesAlias, funcName string, arg string) (interface{}, error) {
-	// 为了少改 import，定义一个别名类型，直接使用传入的实体字段
-	// 这里用实际类型替换：entities.VideoSourceEntity，但当前文件未导入 entities 包
-	// 简化处理：在本文件顶部不引入，直接复制 lua 执行逻辑并添加 js 分支
+func (c *VideoController) executeByEngine(ctx *gin.Context, src *entities.VideoSourceEntity, funcName string, arg string) (interface{}, error) {
 	if src.EngineType == 1 {
 		// JS 引擎
 		browser, err := crawler.NewDefaultBrowser()
@@ -209,6 +207,7 @@ func (c *VideoController) executeByEngine(ctx *gin.Context, src *services_entiti
 		argLiteral := strconv.Quote(arg)
 		wrapped := src.JsScript + "\n\n" +
 			fmt.Sprintf("var __ret = (function(){ try { var r = %s(%s); return {data: r, err: null}; } catch(e){ return {data:null, err: String(e)} } })(); __ret;", funcName, argLiteral)
+		fmt.Println("js script:", wrapped)
 		m, err := e.ExecuteWrapped(wrapped)
 		if err != nil {
 			return nil, err
