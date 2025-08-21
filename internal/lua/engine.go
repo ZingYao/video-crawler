@@ -1008,7 +1008,7 @@ func (e *LuaEngine) Enqueue(msg string) {
 	e.output <- msg
 }
 
-// luaDisabledFunction 返回一个函数，用于输出禁用信息并结束调用
+// luaDisabledFunction 返回一个函数，用于输出禁用信息并返回错误值
 func (e *LuaEngine) luaDisabledFunction(funcName string) func(*lua.LState) int {
 	return func(L *lua.LState) int {
 		errorMsg := fmt.Sprintf("[SECURITY] 函数 '%s' 已被禁用，出于安全考虑不允许执行", funcName)
@@ -1018,9 +1018,10 @@ func (e *LuaEngine) luaDisabledFunction(funcName string) func(*lua.LState) int {
 		default:
 			// 如果通道满了，丢弃消息
 		}
-		// 抛出错误，结束脚本执行
-		L.RaiseError(errorMsg)
-		return 0
+		// 返回 nil 和错误信息，而不是抛出错误
+		L.Push(lua.LNil)
+		L.Push(lua.LString(errorMsg))
+		return 2
 	}
 }
 
@@ -1133,20 +1134,20 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 		return 1
 	}))
 
-		// os.exit([code]) - 安全退出
+	// os.exit([code]) - 安全退出
 	osTable.RawSetString("exit", L.NewFunction(func(L *lua.LState) int {
 		// 安全的退出，不传递退出码给系统
 		L.Close()
 		return 0
 	}))
-	
+
 	// os.clock() - 获取程序运行时间（秒）
 	osTable.RawSetString("clock", L.NewFunction(func(L *lua.LState) int {
 		// 返回程序启动以来的CPU时间（秒）
 		L.Push(lua.LNumber(float64(time.Now().UnixNano()) / 1e9))
 		return 1
 	}))
-	
+
 	// 为不安全的 os 方法提供禁用提示
 	osTable.RawSetString("execute", e.L.NewFunction(e.luaDisabledFunction("os.execute")))
 	osTable.RawSetString("remove", e.L.NewFunction(e.luaDisabledFunction("os.remove")))

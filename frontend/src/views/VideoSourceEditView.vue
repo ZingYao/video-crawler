@@ -144,18 +144,18 @@ const sourceTypeOptions = [
   { label: '其他', value: 7 },
 ]
 
-// 自定义 Monaco 主题（高对比度深色主题）
-const monacoTheme = ref('high-contrast-dark')
-const defineHighContrastTheme = async () => {
+// 自定义 Monaco 主题（深色高对比度主题）
+const monacoTheme = ref('deep-dark')
+const defineDeepDarkTheme = async () => {
   if (!monaco) {
     monaco = await loader.init()
   }
-  monaco.editor.defineTheme('high-contrast-dark', {
+  monaco.editor.defineTheme('deep-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: [
       { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-      { token: 'keyword', foreground: 'C586C0', fontStyle: 'bold' },
+      { token: 'keyword', foreground: '569CD6', fontStyle: 'bold' },
       { token: 'string', foreground: 'CE9178' },
       { token: 'number', foreground: 'B5CEA8' },
       { token: 'operator', foreground: 'D4D4D4' },
@@ -163,27 +163,34 @@ const defineHighContrastTheme = async () => {
       { token: 'variable', foreground: '9CDCFE' },
       { token: 'type', foreground: '4EC9B0' },
       { token: 'constant', foreground: '4FC1FF' },
-      { token: 'punctuation', foreground: 'D4D4D4' }
+      { token: 'punctuation', foreground: 'D4D4D4' },
+      { token: 'delimiter', foreground: 'D4D4D4' },
+      { token: 'identifier', foreground: '9CDCFE' }
     ],
     colors: {
-      'editor.background': '#1E1E1E',
-      'editor.foreground': '#D4D4D4',
-      'editorLineNumber.foreground': '#858585',
-      'editorLineNumber.activeForeground': '#C6C6C6',
-      'editorGutter.background': '#1E1E1E',
+      'editor.background': '#0D1117',
+      'editor.foreground': '#F0F6FC',
+      'editorLineNumber.foreground': '#7D8590',
+      'editorLineNumber.activeForeground': '#F0F6FC',
+      'editorGutter.background': '#0D1117',
       'editor.selectionBackground': '#264F78',
-      'editor.inactiveSelectionBackground': '#3A3D41',
-      'editorCursor.foreground': '#FFFFFF',
-      'editorLineHighlightBackground': '#2A2D2E',
-      'editorLineHighlightBorder': '#454545',
-      'minimap.background': '#1E1E1E',
+      'editor.inactiveSelectionBackground': '#21262D',
+      'editorCursor.foreground': '#F0F6FC',
+      'editorLineHighlightBackground': '#161B22',
+      'editorLineHighlightBorder': '#30363D',
+      'minimap.background': '#0D1117',
       'minimap.selectionBackground': '#264F78',
-      'scrollbarSlider.background': '#424242',
-      'scrollbarSlider.hoverBackground': '#4F4F4F',
-      'scrollbarSlider.activeBackground': '#686868'
+      'scrollbarSlider.background': '#30363D',
+      'scrollbarSlider.hoverBackground': '#484F58',
+      'scrollbarSlider.activeBackground': '#656D76',
+      'editorWidget.background': '#161B22',
+      'editorWidget.border': '#30363D',
+      'editorSuggestWidget.background': '#161B22',
+      'editorSuggestWidget.border': '#30363D',
+      'editorSuggestWidget.selectedBackground': '#21262D'
     }
   })
-  monaco.editor.setTheme('high-contrast-dark')
+  monaco.editor.setTheme('deep-dark')
 }
 
 const monacoOptions = {
@@ -437,7 +444,7 @@ const handleBack = () => {
 const openDocs = () => { docsOpen.value = true }
 const onEditorMount = async (editor: any) => {
   editorRef.value = editor
-  await defineHighContrastTheme()
+  await defineDeepDarkTheme()
 }
 const resetDemo = () => { scriptContent.value = defaultDemo }
 const onFillDefault = () => {
