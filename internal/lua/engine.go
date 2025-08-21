@@ -118,6 +118,14 @@ func (e *LuaEngine) registerFunctions() {
 	// JSON 编解码
 	e.L.SetGlobal("json_encode", e.L.NewFunction(e.luaJsonEncode))
 	e.L.SetGlobal("json_decode", e.L.NewFunction(e.luaJsonDecode))
+	
+	// 禁用危险的系统函数
+	e.L.SetGlobal("io", lua.LNil)
+	e.L.SetGlobal("os", lua.LNil)
+	e.L.SetGlobal("package", lua.LNil)
+	e.L.SetGlobal("require", lua.LNil)
+	e.L.SetGlobal("dofile", lua.LNil)
+	e.L.SetGlobal("loadfile", lua.LNil)
 
 	// 链式类型注册
 	e.registerGoqueryTypes()

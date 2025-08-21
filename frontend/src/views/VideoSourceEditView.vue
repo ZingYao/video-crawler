@@ -144,29 +144,46 @@ const sourceTypeOptions = [
   { label: '其他', value: 7 },
 ]
 
-// 自定义 Monaco 主题（偏亮青绿）
-const monacoTheme = ref('teal-light')
-const defineTealTheme = async () => {
+// 自定义 Monaco 主题（高对比度深色主题）
+const monacoTheme = ref('high-contrast-dark')
+const defineHighContrastTheme = async () => {
   if (!monaco) {
     monaco = await loader.init()
   }
-  monaco.editor.defineTheme('teal-light', {
-    base: 'vs-dark', inherit: true,
-    rules: [ { token: '', foreground: 'F1FFFB' } ],
+  monaco.editor.defineTheme('high-contrast-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+      { token: 'keyword', foreground: 'C586C0', fontStyle: 'bold' },
+      { token: 'string', foreground: 'CE9178' },
+      { token: 'number', foreground: 'B5CEA8' },
+      { token: 'operator', foreground: 'D4D4D4' },
+      { token: 'function', foreground: 'DCDCAA' },
+      { token: 'variable', foreground: '9CDCFE' },
+      { token: 'type', foreground: '4EC9B0' },
+      { token: 'constant', foreground: '4FC1FF' },
+      { token: 'punctuation', foreground: 'D4D4D4' }
+    ],
     colors: {
-      'editor.background': '#00000000',
-      'editor.foreground': '#0b2e2a',
-      'editorLineNumber.foreground': '#0f766e',
-      'editorLineNumber.activeForeground': '#064e3b',
-      'editorGutter.background': '#00000000',
-      'editor.selectionBackground': '#1cc8a066',
-      'editor.inactiveSelectionBackground': '#12a88a55',
-      'editorCursor.foreground': '#065f46',
-      'editorLineHighlightBackground': '#10b98144',
-      'minimap.background': '#00000000'
+      'editor.background': '#1E1E1E',
+      'editor.foreground': '#D4D4D4',
+      'editorLineNumber.foreground': '#858585',
+      'editorLineNumber.activeForeground': '#C6C6C6',
+      'editorGutter.background': '#1E1E1E',
+      'editor.selectionBackground': '#264F78',
+      'editor.inactiveSelectionBackground': '#3A3D41',
+      'editorCursor.foreground': '#FFFFFF',
+      'editorLineHighlightBackground': '#2A2D2E',
+      'editorLineHighlightBorder': '#454545',
+      'minimap.background': '#1E1E1E',
+      'minimap.selectionBackground': '#264F78',
+      'scrollbarSlider.background': '#424242',
+      'scrollbarSlider.hoverBackground': '#4F4F4F',
+      'scrollbarSlider.activeBackground': '#686868'
     }
   })
-  monaco.editor.setTheme('teal-light')
+  monaco.editor.setTheme('high-contrast-dark')
 }
 
 const monacoOptions = {
@@ -420,7 +437,7 @@ const handleBack = () => {
 const openDocs = () => { docsOpen.value = true }
 const onEditorMount = async (editor: any) => {
   editorRef.value = editor
-  await defineTealTheme()
+  await defineHighContrastTheme()
 }
 const resetDemo = () => { scriptContent.value = defaultDemo }
 const onFillDefault = () => {
