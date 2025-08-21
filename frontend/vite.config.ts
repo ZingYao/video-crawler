@@ -15,6 +15,16 @@ export default defineConfig(({ mode }) => ({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
+      }
+    }
+  },
   // 开发阶段则由 esbuild 移除日志；生产使用 terser 做更强压缩
   esbuild: {
     drop: mode === 'production' ? [] : ['console', 'debugger'],
