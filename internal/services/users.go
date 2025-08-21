@@ -26,6 +26,7 @@ type UserServiceInterface interface {
 	Save(ctx *gin.Context, userId string, userInfo *entities.UserEntity)
 	UserList() (userList []entities.UserList)
 	Delete(ctx *gin.Context, userId string)
+	GenerateToken(user *entities.UserEntity) (string, error)
 }
 
 func NewUserService(jwtManager *utils.JWTManager) UserServiceInterface {
@@ -319,7 +320,6 @@ func (s *userService) Register(ctx *gin.Context, username string, password strin
 func (s *userService) Save(ctx *gin.Context, userId string, userInfo *entities.UserEntity) {
 	s.userMap.Store(userId, *userInfo)
 	s.saveMapChange(ctx)
-	return
 }
 
 // UserDetail implements UserServiceInterface.
@@ -365,4 +365,8 @@ func (s *userService) UserDetailInner(userId string) (userInfo entities.UserEnti
 		userInfo, _ = user.(entities.UserEntity)
 	}
 	return userInfo, ok
+}
+
+func (s *userService) GenerateToken(user *entities.UserEntity) (string, error) {
+	return s.jwtManager.GenerateToken(user.Id, user.Username, user.IsAdmin, user.IsSiteAdmin)
 }

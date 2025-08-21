@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"time"
 	"video-crawler/internal/consts"
 	"video-crawler/internal/entities"
 	"video-crawler/internal/services"
@@ -198,10 +197,8 @@ func (c *UserController) AdminImpersonateLogin(ctx *gin.Context) {
 		utils.SendResponse(ctx, consts.ResponseCodeUserDetailFailed, "user not exists", nil)
 		return
 	}
-	// 生成 token（不记录登录历史）
-	// 注意：此处直接创建 JWTManager，密钥与有效期需要与应用保持一致
-	jm := utils.NewJWTManager("video-crawler-secret", 72*time.Hour)
-	token, err := jm.GenerateToken(user.Id, user.Username, user.IsAdmin, user.IsSiteAdmin)
+	// 生成 token（不记录登录历史），使用与系统一致的 jwtManager
+	token, err := c.userService.GenerateToken(&user)
 	if err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeLoginFailed, err.Error(), nil)
 		return
