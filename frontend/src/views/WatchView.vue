@@ -21,7 +21,7 @@
           <a-alert v-if="fromCache" type="info" show-icon message="已使用本地缓存数据" style="margin-bottom: 12px;" />
 
           <!-- 播放器区域 -->
-          <a-card size="small" class="player-card" :bordered="true" style="margin-bottom: 12px;">
+          <div class="player-container">
             <div class="player-wrap">
               <VideoPlayer
                 v-if="playerSource"
@@ -45,7 +45,7 @@
                 <a-button size="small" @click="playNext" :disabled="!canNext">下一集</a-button>
               </a-space>
             </div>
-          </a-card>
+          </div>
 
           <div class="detail-layout">
             <div class="detail-main">
@@ -680,8 +680,33 @@ onUnmounted(() => {
   color: #fff;
 }
 
+/* 播放器容器样式 */
+.player-container {
+  margin-bottom: 12px;
+}
+
+.player-wrap {
+  position: relative;
+  width: 100%;
+}
+
 /* 确保播放器控件在移动端也能正常显示 */
 @media (max-width: 768px) {
+  .player-container {
+    margin: 0 -12px 12px -12px; /* 负边距让播放器延伸到容器边缘 */
+  }
+  
+  .player-wrap {
+    width: 100vw; /* 占满视口宽度 */
+    margin-left: calc(-50vw + 50%); /* 居中显示 */
+  }
+  
+  .video-player {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16/9; /* 保持16:9比例 */
+  }
+  
   .video-player :deep(.vjs-control-bar) {
     height: 40px;
   }
