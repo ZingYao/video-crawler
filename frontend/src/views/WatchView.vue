@@ -42,6 +42,15 @@
               <a-space wrap>
                 <a-button size="small" @click="playPrev" :disabled="!canPrev">上一集</a-button>
                 <a-button size="small" @click="playNext" :disabled="!canNext">下一集</a-button>
+                <!-- 移动端播放速率选择器 -->
+                <a-select
+                  v-if="isMobile"
+                  v-model:value="rate"
+                  size="small"
+                  style="width: 80px;"
+                  :options="rateOptions"
+                  @change="handleRateChange"
+                />
               </a-space>
             </div>
           </div>
@@ -146,6 +155,26 @@ const basePoster = computed(() => String((detailData.value?.cover || detailData.
 const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3]
 const rate = ref(1)
 
+// 播放速率选项
+const rateOptions = computed(() => {
+  return rates.map(r => ({
+    label: `${r}x`,
+    value: r
+  }))
+})
+
+// 处理播放速率变化
+function handleRateChange(value: number) {
+  rate.value = value
+  const player = playerRef.value?.player
+  if (player) {
+    try { 
+      player.playbackRate(value)
+      savePlayState({ rate: value })
+    } catch {}
+  }
+}
+
 // 检测是否为移动设备
 const isMobile = ref(false)
 const checkMobile = () => {
@@ -168,8 +197,12 @@ const playerOptions = computed(() => {
     }
   }
   
-  // 统一使用 playbackRateMenuButton，通过 CSS 控制移动端显示为下拉菜单
-  baseOptions.controlBar.children.splice(6, 0, 'playbackRateMenuButton')
+  // 移动端使用自定义播放速率选择器，桌面端使用默认组件
+  if (isMobile.value) {
+    // 移动端不添加 playbackRateMenuButton，使用外部选择器
+  } else {
+    baseOptions.controlBar.children.splice(6, 0, 'playbackRateMenuButton')
+  }
   
   return baseOptions
 })
@@ -633,64 +666,6 @@ onUnmounted(() => {
   .video-player :deep(.vjs-playback-rate-menu-button) {
     font-size: 12px;
     padding: 0 4px;
-  }
-  
-  /* 移动端倍速菜单优化 - 强制显示为下拉菜单 */
-  .video-player :deep(.vjs-playback-rate-menu-button) {
-    min-width: 44px;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  /* 强制移动端显示下拉菜单而不是切换按钮 */
-  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu) {
-    display: block !important;
-    position: absolute !important;
-    bottom: 100% !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    background: rgba(0, 0, 0, 0.9) !important;
-    border-radius: 4px !important;
-    padding: 4px 0 !important;
-    min-width: 80px !important;
-    max-height: 200px !important;
-    overflow-y: auto !important;
-    z-index: 1000 !important;
-  }
-  
-  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-content) {
-    min-width: 80px !important;
-    max-height: 200px !important;
-    overflow-y: auto !important;
-    background: transparent !important;
-  }
-  
-  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item) {
-    padding: 8px 12px !important;
-    font-size: 14px !important;
-    text-align: center !important;
-    min-height: 36px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: #fff !important;
-    cursor: pointer !important;
-  }
-  
-  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item:hover) {
-    background: rgba(255, 255, 255, 0.1) !important;
-  }
-  
-  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item.vjs-selected) {
-    background: #1890ff !important;
-    color: #fff !important;
-  }
-  
-  /* 确保菜单在点击时显示 */
-  .video-player :deep(.vjs-playback-rate-menu-button.vjs-menu-button-open .vjs-menu) {
-    display: block !important;
   }
 }
 .player-actions { margin-top: 8px; }
