@@ -169,13 +169,8 @@ const playerOptions = computed(() => {
     }
   }
   
-  if (isMobile.value) {
-    // 移动端：使用切换按钮而不是下拉菜单
-    baseOptions.controlBar.children.splice(6, 0, 'playbackRateMenuButton')
-  } else {
-    // 桌面端：使用下拉菜单
-    baseOptions.controlBar.children.splice(6, 0, 'playbackRateMenuButton')
-  }
+  // 统一使用 playbackRateMenuButton，通过 CSS 控制移动端显示为下拉菜单
+  baseOptions.controlBar.children.splice(6, 0, 'playbackRateMenuButton')
   
   return baseOptions
 })
@@ -716,30 +711,62 @@ onUnmounted(() => {
     padding: 0 4px;
   }
   
-  /* 移动端倍速菜单优化 */
-  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-content) {
-    min-width: 80px;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-  
-  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item) {
-    padding: 8px 12px;
-    font-size: 14px;
-    text-align: center;
-    min-height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  /* 确保倍速按钮在移动端更容易点击 */
+  /* 移动端倍速菜单优化 - 强制显示为下拉菜单 */
   .video-player :deep(.vjs-playback-rate-menu-button) {
     min-width: 44px;
     min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  
+  /* 强制移动端显示下拉菜单而不是切换按钮 */
+  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu) {
+    display: block !important;
+    position: absolute !important;
+    bottom: 100% !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    border-radius: 4px !important;
+    padding: 4px 0 !important;
+    min-width: 80px !important;
+    max-height: 200px !important;
+    overflow-y: auto !important;
+    z-index: 1000 !important;
+  }
+  
+  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-content) {
+    min-width: 80px !important;
+    max-height: 200px !important;
+    overflow-y: auto !important;
+    background: transparent !important;
+  }
+  
+  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item) {
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+    text-align: center !important;
+    min-height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #fff !important;
+    cursor: pointer !important;
+  }
+  
+  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item:hover) {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item.vjs-selected) {
+    background: #1890ff !important;
+    color: #fff !important;
+  }
+  
+  /* 确保菜单在点击时显示 */
+  .video-player :deep(.vjs-playback-rate-menu-button.vjs-menu-button-open .vjs-menu) {
+    display: block !important;
   }
 }
 .player-actions { margin-top: 8px; }
