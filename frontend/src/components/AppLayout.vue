@@ -128,6 +128,7 @@ interface MenuItem {
   description: string
   requiresAdmin: boolean
   route: string
+  requiresSiteAdmin?: boolean
 }
 
 // 菜单项配置
@@ -169,7 +170,8 @@ const menuItems: MenuItem[] = [
     icon: '🎬',
     label: '视频资源管理',
     description: '管理视频资源站点',
-    requiresAdmin: true,
+    requiresAdmin: false,
+    requiresSiteAdmin: true,
     route: '/video-source-management'
   }
 ]
@@ -178,7 +180,11 @@ const menuItems: MenuItem[] = [
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
     if (item.requiresAdmin) {
-      // 管理员 或 站点管理员 都能看到站点管理菜单
+      // 仅管理员
+      return authStore.user?.isAdmin === true
+    }
+    if (item.requiresSiteAdmin) {
+      // 管理员或资源站点管理员
       return authStore.user?.isAdmin === true || authStore.user?.isSiteAdmin === true
     }
     return true
