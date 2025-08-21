@@ -119,13 +119,13 @@ func (e *LuaEngine) registerFunctions() {
 	e.L.SetGlobal("json_encode", e.L.NewFunction(e.luaJsonEncode))
 	e.L.SetGlobal("json_decode", e.L.NewFunction(e.luaJsonDecode))
 
-	// 禁用危险的系统函数
-	e.L.SetGlobal("io", lua.LNil)
-	e.L.SetGlobal("package", lua.LNil)
-	e.L.SetGlobal("require", lua.LNil)
-	e.L.SetGlobal("dofile", lua.LNil)
-	e.L.SetGlobal("loadfile", lua.LNil)
-
+		// 禁用危险的系统函数，并提供禁用信息
+	e.L.SetGlobal("io", e.L.NewFunction(e.luaDisabledFunction("io")))
+	e.L.SetGlobal("package", e.L.NewFunction(e.luaDisabledFunction("package")))
+	e.L.SetGlobal("require", e.L.NewFunction(e.luaDisabledFunction("require")))
+	e.L.SetGlobal("dofile", e.L.NewFunction(e.luaDisabledFunction("dofile")))
+	e.L.SetGlobal("loadfile", e.L.NewFunction(e.luaDisabledFunction("loadfile")))
+	
 	// 保留安全的 os 函数，禁用危险的 os 函数
 	e.L.SetGlobal("os", e.L.NewFunction(e.luaSafeOs))
 
@@ -1008,11 +1008,27 @@ func (e *LuaEngine) Enqueue(msg string) {
 	e.output <- msg
 }
 
+// luaDisabledFunction 返回一个函数，用于输出禁用信息并结束调用
+func (e *LuaEngine) luaDisabledFunction(funcName string) func(*lua.LState) int {
+	return func(L *lua.LState) int {
+		errorMsg := fmt.Sprintf("[SECURITY] 函数 '%s' 已被禁用，出于安全考虑不允许执行", funcName)
+		// 发送错误信息到输出通道
+		select {
+		case e.output <- fmt.Sprintf("[ERROR] %s", errorMsg):
+		default:
+			// 如果通道满了，丢弃消息
+		}
+		// 抛出错误，结束脚本执行
+		L.RaiseError(errorMsg)
+		return 0
+	}
+}
+
 // luaSafeOs 提供安全的 os 函数
 func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 	// 创建安全的 os 表
 	osTable := L.CreateTable(0, 3)
-	
+
 	// os.time([t]) - 获取当前时间戳或从表创建时间戳
 	osTable.RawSetString("time", L.NewFunction(func(L *lua.LState) int {
 		if L.GetTop() == 0 {
@@ -1022,7 +1038,7 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 			// 有参数：从表创建时间戳
 			tbl := L.CheckTable(1)
 			tm := time.Now()
-			
+
 			// 从表中读取时间字段
 			if year := tbl.RawGetString("year"); year != lua.LNil {
 				if y, ok := year.(lua.LNumber); ok {
@@ -1054,17 +1070,17 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 					tm = time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), int(s), 0, tm.Location())
 				}
 			}
-			
+
 			L.Push(lua.LNumber(tm.Unix()))
 		}
 		return 1
 	}))
-	
+
 	// os.date([format, t]) - 格式化时间
 	osTable.RawSetString("date", L.NewFunction(func(L *lua.LState) int {
 		var format string
 		var timestamp int64
-		
+
 		top := L.GetTop()
 		if top == 0 {
 			// 无参数：使用默认格式和当前时间
@@ -1090,10 +1106,10 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 			format = L.CheckString(1)
 			timestamp = int64(L.CheckNumber(2))
 		}
-		
+
 		// 转换时间戳为时间
 		t := time.Unix(timestamp, 0)
-		
+
 		// 根据格式返回结果
 		switch format {
 		case "*t":
@@ -1113,17 +1129,17 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 			result := t.Format("2006-01-02 15:04:05")
 			L.Push(lua.LString(result))
 		}
-		
+
 		return 1
 	}))
-	
+
 	// os.exit([code]) - 安全退出
 	osTable.RawSetString("exit", L.NewFunction(func(L *lua.LState) int {
 		// 安全的退出，不传递退出码给系统
 		L.Close()
 		return 0
 	}))
-	
+
 	L.Push(osTable)
 	return 1
 }
