@@ -34,6 +34,20 @@
                 :playbackRates="rates"
                 :fluid="true"
                 :autoplay="false"
+                :options="{
+                  controlBar: {
+                    children: [
+                      'playToggle',
+                      'volumePanel',
+                      'currentTimeDisplay',
+                      'timeDivider',
+                      'durationDisplay',
+                      'progressControl',
+                      'playbackRateMenuButton',
+                      'fullscreenToggle'
+                    ]
+                  }
+                }"
                 ref="playerRef"
               />
               <div v-if="isScrubbing" class="scrub-overlay">{{ scrubLabel }}</div>
@@ -42,19 +56,6 @@
               <a-space wrap>
                 <a-button size="small" @click="playPrev" :disabled="!canPrev">上一集</a-button>
                 <a-button size="small" @click="playNext" :disabled="!canNext">下一集</a-button>
-                <a-dropdown>
-                  <a-button size="small">剧集列表</a-button>
-                  <template #overlay>
-                    <a-menu>
-                      <a-menu-item v-for="(ep, idx) in flatEpisodes" :key="idx" @click="playEpisode(ep)">
-                        {{ ep.name }}
-                      </a-menu-item>
-                    </a-menu>
-                  </template>
-                </a-dropdown>
-                <a-select size="small" v-model:value="rate" style="width:120px">
-                  <a-select-option v-for="r in rates" :key="r" :value="r">{{ r }}x</a-select-option>
-                </a-select>
               </a-space>
             </div>
           </a-card>
@@ -621,6 +622,45 @@ onMounted(async () => {
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
+}
+
+/* 优化倍速菜单显示 */
+.video-player :deep(.vjs-playback-rate-menu-button) {
+  margin-right: 8px;
+}
+
+.video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-content) {
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 4px;
+  padding: 4px 0;
+}
+
+.video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item) {
+  padding: 8px 16px;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+
+.video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item:hover) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item.vjs-selected) {
+  background: #1890ff;
+  color: #fff;
+}
+
+/* 确保播放器控件在移动端也能正常显示 */
+@media (max-width: 768px) {
+  .video-player :deep(.vjs-control-bar) {
+    height: 40px;
+  }
+  
+  .video-player :deep(.vjs-playback-rate-menu-button) {
+    font-size: 12px;
+    padding: 0 4px;
+  }
 }
 .player-actions { margin-top: 8px; }
 .scrub-overlay { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:6px 10px; background:rgba(0,0,0,.6); color:#fff; border-radius:6px; font-size:12px; }
