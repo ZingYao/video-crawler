@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
+    host: '0.0.0.0', // 监听所有IP地址，支持局域网访问
+    port: 5173, // 明确指定端口
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
