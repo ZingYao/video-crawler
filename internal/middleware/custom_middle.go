@@ -11,4 +11,3 @@ func CustomMiddleware(ctx *gin.Context, middle ...func(ctx *gin.Context)) {
 		}
 	}
 }
-
