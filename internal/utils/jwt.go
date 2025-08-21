@@ -10,10 +10,10 @@ import (
 
 // JWTClaims 自定义 JWT 声明结构
 type JWTClaims struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
-	IsAdmin  *bool  `json:"is_admin,omitempty"`
-	IsSiteAdmin *bool `json:"is_site_admin,omitempty"`
+	UserID      string `json:"user_id"`
+	Username    string `json:"username"`
+	IsAdmin     *bool  `json:"is_admin,omitempty"`
+	IsSiteAdmin *bool  `json:"is_site_admin,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -42,9 +42,9 @@ func (j *JWTManager) GenerateToken(userID, username string, isAdmin bool, isSite
 		isSiteAdminPtr = nil
 	}
 	claims := &JWTClaims{
-		UserID:   userID,
-		Username: username,
-		IsAdmin:  isAdminPtr,
+		UserID:      userID,
+		Username:    username,
+		IsAdmin:     isAdminPtr,
 		IsSiteAdmin: isSiteAdminPtr,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.tokenDuration)),
@@ -118,14 +118,14 @@ func (j *JWTManager) GetTokenInfo(tokenString string) (map[string]interface{}, e
 	}
 
 	return map[string]interface{}{
-		"user_id":  claims.UserID,
-		"username": claims.Username,
-		"is_admin": claims.IsAdmin,
+		"user_id":       claims.UserID,
+		"username":      claims.Username,
+		"is_admin":      claims.IsAdmin,
 		"is_site_admin": claims.IsSiteAdmin,
-		"exp":      claims.ExpiresAt.Time,
-		"iat":      claims.IssuedAt.Time,
-		"iss":      claims.Issuer,
-		"sub":      claims.Subject,
+		"exp":           claims.ExpiresAt.Time,
+		"iat":           claims.IssuedAt.Time,
+		"iss":           claims.Issuer,
+		"sub":           claims.Subject,
 	}, nil
 }
 

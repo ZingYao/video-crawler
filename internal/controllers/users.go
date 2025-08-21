@@ -42,10 +42,10 @@ func (c *UserController) Login(ctx *gin.Context) {
 		isSiteAdmin = &user.IsSiteAdmin
 	}
 	utils.SuccessResponse(ctx, entities.LoginResponse{
-		Id:       user.Id,
-		Nickname: user.Nickname,
-		Token:    token,
-		IsAdmin:  isAdmin,
+		Id:          user.Id,
+		Nickname:    user.Nickname,
+		Token:       token,
+		IsAdmin:     isAdmin,
 		IsSiteAdmin: isSiteAdmin,
 	})
 }
