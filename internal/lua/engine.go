@@ -1030,7 +1030,7 @@ func (e *LuaEngine) luaDisabledTable(tableName string) func(*lua.LState) int {
 	return func(L *lua.LState) int {
 		// 创建一个表，包含所有被禁用的方法
 		table := L.CreateTable(0, 10)
-		
+
 		// 为每个可能的方法添加禁用函数
 		disabledMethods := []string{"open", "popen", "close", "read", "write", "flush", "seek", "lines", "input", "output"}
 		for _, method := range disabledMethods {
@@ -1048,7 +1048,7 @@ func (e *LuaEngine) luaDisabledTable(tableName string) func(*lua.LState) int {
 				return 2
 			}))
 		}
-		
+
 		L.Push(table)
 		return 1
 	}
