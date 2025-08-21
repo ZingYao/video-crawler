@@ -132,6 +132,12 @@ const displayTitle = computed(() => {
   if (ep) return `${base.value.name || ''} - ${ep.name}`.trim()
   return String(route.query.title || base.value.name || '')
 })
+// 同步 HTML 标题与页面标题一致
+watch(displayTitle, (t) => {
+  const baseTitle = 'Video Crawler'
+  const full = t ? `播放 - ${t}` : '播放'
+  document.title = [full, baseTitle].filter(Boolean).join(' | ')
+}, { immediate: true })
 
 const cacheKey = computed(() => `watch_detail:${sourceId.value}:${encodeURIComponent(videoUrl.value)}`)
 // 使用 sourceId + original_url 作为进度键，避免标题变化导致无法命中
@@ -291,7 +297,7 @@ async function handleEnterFullscreen() {
         lastVideoH = vh
         try { console.log(`[Fullscreen] 重新获取视频尺寸: ${vw}x${vh}`) } catch {}
       }
-    } catch (e) {
+    } catch (e: any) {
       try { console.log('[Fullscreen] 获取视频尺寸失败:', e) } catch {}
     }
   }
@@ -398,7 +404,7 @@ const currentSource = computed(() => {
   return found || active
 })
 const currentSourceEpisodes = computed(() => currentSource.value ? currentSource.value.episodes : [])
-const currentIndex = computed(() => currentSourceEpisodes.value.findIndex(e => e.url === currentPlayUrl.value))
+const currentIndex = computed(() => currentSourceEpisodes.value.findIndex((e: any) => e.url === currentPlayUrl.value))
 const canPrev = computed(() => currentIndex.value > 0)
 // 仅判断“当前来源”是否还有下一集
 const canNext = computed(() => currentIndex.value >= 0 && currentIndex.value < currentSourceEpisodes.value.length - 1)
@@ -606,7 +612,7 @@ async function resolvePlayUrl() {
             try { 
               if (videoRef.value) videoRef.value.currentTime = seekTo
               console.log(`跳转到缓存进度: ${seekTo}秒`)
-            } catch (e) {
+            } catch (e: any) {
               console.log('跳转进度失败:', e)
             } 
           }
@@ -618,13 +624,13 @@ async function resolvePlayUrl() {
         } else {
           console.log('没有缓存进度，从头开始播放')
         }
-        try { console.log('[HLS] call video.play()'); await videoRef.value.play() } catch (e) { try { console.log('[HLS] play() error', e) } catch {} }
+        try { console.log('[HLS] call video.play()'); await videoRef.value.play() } catch (e: any) { try { console.log('[HLS] play() error', e) } catch {} }
         bindPlayerEvents()
       } catch {}
     }
     // 初始化情况下，将当前播放 url 与初始 url 对齐
     if (!currentPlayUrl.value) currentPlayUrl.value = videoUrl.value
-  } catch (e) {
+  } catch (e: any) {
     // 忽略错误，保留空源
   }
 }
@@ -791,8 +797,9 @@ onUnmounted(() => {
 .ep-btn { max-width: 100%; }
 
 @media (max-width: 768px) {
+  .card-header { flex-direction: column; align-items: flex-start; }
   .kv-list { grid-template-columns: 1fr; }
-  .card-header h2 { white-space: normal; }
+  .card-header h2 { white-space: normal; font-size: 18px; }
 }
 </style>
 

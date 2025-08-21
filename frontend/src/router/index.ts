@@ -120,9 +120,10 @@ router.afterEach((to) => {
   const t = typeof to.meta.title === 'function' ? (to.meta.title as any)(to) : (to.meta.title as string)
   const dynamic =
     to.name === 'watch' && to.query?.title
-      ? String(to.query.title)
+      ? `播放 - ${String(to.query.title)}`
       : to.name === 'movie'
       ? (to.query?.q ? `观影 - ${String(to.query.q)}` : '观影')
       : undefined
-  document.title = [t || dynamic, baseTitle].filter(Boolean).join(' | ')
+  const finalTitle = dynamic ?? t
+  document.title = [finalTitle, baseTitle].filter(Boolean).join(' | ')
 })
