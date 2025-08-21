@@ -1028,7 +1028,7 @@ func (e *LuaEngine) luaDisabledFunction(funcName string) func(*lua.LState) int {
 func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 	// 创建安全的 os 表
 	osTable := L.CreateTable(0, 10)
-	
+
 	// os.time([t]) - 获取当前时间戳或从表创建时间戳
 	osTable.RawSetString("time", L.NewFunction(func(L *lua.LState) int {
 		if L.GetTop() == 0 {
@@ -1038,7 +1038,7 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 			// 有参数：从表创建时间戳
 			tbl := L.CheckTable(1)
 			tm := time.Now()
-			
+
 			// 从表中读取时间字段
 			if year := tbl.RawGetString("year"); year != lua.LNil {
 				if y, ok := year.(lua.LNumber); ok {
@@ -1070,17 +1070,17 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 					tm = time.Date(tm.Year(), tm.Month(), tm.Day(), tm.Hour(), tm.Minute(), int(s), 0, tm.Location())
 				}
 			}
-			
+
 			L.Push(lua.LNumber(tm.Unix()))
 		}
 		return 1
 	}))
-	
+
 	// os.date([format, t]) - 格式化时间
 	osTable.RawSetString("date", L.NewFunction(func(L *lua.LState) int {
 		var format string
 		var timestamp int64
-		
+
 		top := L.GetTop()
 		if top == 0 {
 			// 无参数：使用默认格式和当前时间
@@ -1106,10 +1106,10 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 			format = L.CheckString(1)
 			timestamp = int64(L.CheckNumber(2))
 		}
-		
+
 		// 转换时间戳为时间
 		t := time.Unix(timestamp, 0)
-		
+
 		// 根据格式返回结果
 		switch format {
 		case "*t":
@@ -1129,15 +1129,22 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 			result := t.Format("2006-01-02 15:04:05")
 			L.Push(lua.LString(result))
 		}
-		
+
 		return 1
 	}))
-	
-	// os.exit([code]) - 安全退出
+
+		// os.exit([code]) - 安全退出
 	osTable.RawSetString("exit", L.NewFunction(func(L *lua.LState) int {
 		// 安全的退出，不传递退出码给系统
 		L.Close()
 		return 0
+	}))
+	
+	// os.clock() - 获取程序运行时间（秒）
+	osTable.RawSetString("clock", L.NewFunction(func(L *lua.LState) int {
+		// 返回程序启动以来的CPU时间（秒）
+		L.Push(lua.LNumber(float64(time.Now().UnixNano()) / 1e9))
+		return 1
 	}))
 	
 	// 为不安全的 os 方法提供禁用提示
@@ -1147,8 +1154,7 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 	osTable.RawSetString("tmpname", e.L.NewFunction(e.luaDisabledFunction("os.tmpname")))
 	osTable.RawSetString("getenv", e.L.NewFunction(e.luaDisabledFunction("os.getenv")))
 	osTable.RawSetString("setlocale", e.L.NewFunction(e.luaDisabledFunction("os.setlocale")))
-	osTable.RawSetString("clock", e.L.NewFunction(e.luaDisabledFunction("os.clock")))
-	
+
 	L.Push(osTable)
 	return 1
 }
