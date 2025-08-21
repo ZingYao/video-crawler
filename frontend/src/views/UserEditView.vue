@@ -99,24 +99,27 @@
         <a-divider />
         <div class="login-history-section">
           <h3>登录历史</h3>
-          <a-table
-            :data-source="loginHistory"
-            :columns="loginHistoryColumns"
-            :pagination="false"
-            :row-key="rowKey"
-            size="small"
-          >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'login_at'">
-                {{ formatDateTime(record.login_at) }}
+          <div class="table-responsive">
+            <a-table
+              :data-source="loginHistory"
+              :columns="loginHistoryColumns"
+              :pagination="false"
+              :row-key="rowKey"
+              size="small"
+              :scroll="{ x: 700 }"
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'login_at'">
+                  {{ formatDateTime(record.login_at) }}
+                </template>
+                <template v-else-if="column.key === 'success'">
+                  <a-tag :color="record.success ? 'green' : 'red'">
+                    {{ record.success ? '成功' : '失败' }}
+                  </a-tag>
+                </template>
               </template>
-              <template v-else-if="column.key === 'success'">
-                <a-tag :color="record.success ? 'green' : 'red'">
-                  {{ record.success ? '成功' : '失败' }}
-                </a-tag>
-              </template>
-            </template>
-          </a-table>
+            </a-table>
+          </div>
         </div>
       </a-card>
     </template>

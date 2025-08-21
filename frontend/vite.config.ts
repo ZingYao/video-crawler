@@ -27,9 +27,9 @@ export default defineConfig(({ mode }) => ({
       }
     }
   },
-  // 开发阶段则由 esbuild 移除日志；生产使用 terser 做更强压缩
+  // 仅生产环境移除 console/debugger；开发环境保留日志便于调试
   esbuild: {
-    drop: mode === 'production' ? [] : ['console', 'debugger'],
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
   },
   build: {
     rollupOptions: {

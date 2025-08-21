@@ -57,6 +57,17 @@
   font-style: italic;
 }
 
+/* 表格容器，移动端横向滚动 */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 保证表格最小宽度，避免列挤压 */
+.login-history-section :deep(.ant-table) {
+  min-width: 680px;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .content-card {

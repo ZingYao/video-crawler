@@ -23,20 +23,13 @@
           <!-- 播放器区域 -->
           <div class="player-container">
             <div class="player-wrap">
-              <VideoPlayer
-                v-if="playerSource"
-                class="video-player vjs-default-skin"
-                :src="playerSource"
+              <video
+                ref="videoRef"
+                class="plyr-video"
                 :poster="basePoster"
-                :playsinline="true"
-                :controls="true"
-                :volume="1"
-                :playbackRates="rates"
-                :fluid="true"
-                :autoplay="false"
-                :options="playerOptions"
-                ref="playerRef"
-              />
+                playsinline
+                controls
+              ></video>
             </div>
             <div class="player-actions">
               <a-space wrap>
@@ -117,8 +110,9 @@ import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { videoAPI } from '@/api'
-import { VideoPlayer } from '@videojs-player/vue'
-import 'video.js/dist/video-js.css'
+import Plyr from 'plyr'
+import Hls from 'hls.js'
+import 'plyr/dist/plyr.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -149,8 +143,10 @@ const playStateKey = computed(() => {
  
 
 // 播放器相关
-const playerRef = ref()
+const videoRef = ref<HTMLVideoElement | null>(null)
 const playerSource = ref('')
+let plyr: any = null
+let hls: any = null
 const basePoster = computed(() => String((detailData.value?.cover || detailData.value?.poster || ''))) 
 const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3]
 const rate = ref(1)
@@ -166,13 +162,16 @@ const rateOptions = computed(() => {
 // 处理播放速率变化
 function handleRateChange(value: number) {
   rate.value = value
-  const player = playerRef.value?.player
-  if (player) {
-    try { 
-      player.playbackRate(value)
+  try {
+    if (plyr) {
+      plyr.speed = value
       savePlayState({ rate: value })
-    } catch {}
-  }
+    } else if (videoRef.value) {
+      // 原生 video 兜底
+      ;(videoRef.value as any).playbackRate = value as any
+      savePlayState({ rate: value })
+    }
+  } catch {}
 }
 
 // 检测是否为移动设备
@@ -181,117 +180,139 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth <= 768
 }
 
-// 根据设备类型生成播放器配置
-const playerOptions = computed(() => {
-  const baseOptions = {
-    controlBar: {
-      children: [
-        'playToggle',
-        'volumePanel',
-        'currentTimeDisplay',
-        'timeDivider',
-        'durationDisplay',
-        'progressControl',
-        'fullscreenToggle'
-      ]
-    }
-  }
-  
-  // 移动端使用自定义播放速率选择器，桌面端使用默认组件
-  if (isMobile.value) {
-    // 移动端不添加 playbackRateMenuButton，使用外部选择器
-  } else {
-    baseOptions.controlBar.children.splice(6, 0, 'playbackRateMenuButton')
-  }
-  
-  return baseOptions
-})
+// 初始化 Plyr 实例
+function ensurePlyr() {
+  if (plyr || !videoRef.value) return
+  plyr = new Plyr(videoRef.value!, {
+    controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+    settings: ['speed'],
+    speed: { selected: rate.value, options: rates },
+  })
+  bindPlayerEvents()
+}
 let lastSavedSecond = 0
 let playerBound = false
 let lastVideoW = 0
 let lastVideoH = 0
 let orientationLocked = false
+// 获取当前应播放的剧集 URL：优先 currentPlayUrl，其次当前来源的第一集，再次所有剧集第一集，最后回退 original_url
+function getSelectedEpisodeUrl(): string {
+  let url = String(currentPlayUrl.value || '')
+  if (!url) {
+    const idx = Number(activeSourceKey.value || 0)
+    const src = sourcesByTab.value[idx]
+    if (src && Array.isArray(src.episodes) && src.episodes.length > 0) {
+      url = String(src.episodes[0]?.url || '')
+    }
+  }
+  if (!url && flatEpisodes.value.length > 0) {
+    url = String(flatEpisodes.value[0]?.url || '')
+  }
+  if (!url) {
+    url = String(videoUrl.value || '')
+  }
+  try { console.log('[Play] getSelectedEpisodeUrl =>', url) } catch {}
+  return url
+}
+
 
 watch(rate, (v) => {
-  const player = playerRef.value?.player
-  if (player && typeof v === 'number') {
-    try { player.playbackRate(v) } catch {}
-  }
+  try { if (plyr) plyr.speed = v } catch {}
 })
 
 function bindPlayerEvents() {
-  const player = playerRef.value?.player
-  if (!player || playerBound) return
+  if (!videoRef.value || playerBound) return
   playerBound = true
-  player.on('timeupdate', () => {
+  // 进度保存
+  const v = videoRef.value!
+  v.addEventListener('timeupdate', () => {
     try {
-      const ct = Math.floor(player.currentTime() || 0)
-      const dur = Math.floor(player.duration() || 0)
+      const ct = Math.floor(v.currentTime || 0)
+      const dur = Math.floor(v.duration || 0)
       if (dur > 0 && Math.abs(ct - lastSavedSecond) >= 5) {
         lastSavedSecond = ct
         savePlayState({ currentTime: ct })
       }
     } catch {}
   })
-  player.on('ratechange', () => {
-    try { savePlayState({ rate: player.playbackRate() }) } catch {}
-  })
-  // 元数据就绪时记录视频宽高
-  player.on('loadedmetadata', () => {
+  // 倍速变更（通过 plyr 统一）
+  // 元数据
+  v.addEventListener('loadedmetadata', () => {
     try {
-      const vw = typeof player.videoWidth === 'function' ? player.videoWidth() : 0
-      const vh = typeof player.videoHeight === 'function' ? player.videoHeight() : 0
-      if (vw && vh) { lastVideoW = vw; lastVideoH = vh }
+      if (v.videoWidth && v.videoHeight) { lastVideoW = v.videoWidth; lastVideoH = v.videoHeight }
     } catch {}
   })
-  // 全屏切换监听（大多数安卓/部分浏览器）
-  player.on('fullscreenchange', async () => {
-    try {
-      if (typeof player.isFullscreen === 'function' && player.isFullscreen()) {
-        await handleEnterFullscreen()
+  // 容器与 document 级别全屏事件
+  try {
+    const container = v.parentElement
+    const handleFs = () => {
+      try { console.log('[Fullscreen] document/container fullscreenchange') } catch {}
+      const d: any = document as any
+      const fsEl = d.fullscreenElement || d.webkitFullscreenElement || d.mozFullScreenElement || d.msFullscreenElement
+      if (fsEl) {
+        void handleEnterFullscreen()
       } else {
-        await handleExitFullscreen()
+        void handleExitFullscreen()
       }
-    } catch {}
-  })
-  // 在尝试进入全屏的瞬间（按钮点击）提前锁定，兼容部分浏览器必须在用户手势中调用 lock()
-  try {
-    const fsBtn = player.controlBar?.fullscreenToggle?.el?.() as HTMLElement | undefined
-    if (fsBtn) {
-      fsBtn.addEventListener('click', async () => {
-        try { await handleEnterFullscreen() } catch {}
-      }, { passive: true })
     }
+    if (container) {
+      container.addEventListener('fullscreenchange', handleFs)
+      container.addEventListener('webkitfullscreenchange', handleFs as any)
+    }
+    document.addEventListener('fullscreenchange', handleFs)
+    document.addEventListener('webkitfullscreenchange', handleFs as any)
+    document.addEventListener('mozfullscreenchange', handleFs as any)
+    document.addEventListener('MSFullscreenChange', handleFs as any)
   } catch {}
-  // iOS Safari 原生全屏事件（通过原生 video 元素）
+  // iOS webkit 原生事件
   try {
-    const videoEl: any = player.el()?.querySelector?.('video')
-    if (videoEl) {
-      videoEl.addEventListener('loadedmetadata', () => {
-        if (videoEl.videoWidth && videoEl.videoHeight) { lastVideoW = videoEl.videoWidth; lastVideoH = videoEl.videoHeight }
-      })
-      videoEl.addEventListener('webkitbeginfullscreen', handleEnterFullscreen as any)
-      videoEl.addEventListener('webkitendfullscreen', handleExitFullscreen as any)
-    }
+    const handleElFs = (_e: Event) => { void handleEnterFullscreen() }
+    const handleElExit = (_e: Event) => { void handleExitFullscreen() }
+    v.addEventListener('fullscreenchange', handleElFs)
+    v.addEventListener('webkitfullscreenchange', handleElFs as any)
+    v.addEventListener('mozfullscreenchange', handleElFs as any)
+    v.addEventListener('MSFullscreenChange', handleElFs as any)
+    v.addEventListener('webkitbeginfullscreen', () => { console.log('[Fullscreen] webkitbeginfullscreen'); handleEnterFullscreen() })
+    v.addEventListener('webkitendfullscreen', () => { console.log('[Fullscreen] webkitendfullscreen'); handleExitFullscreen() })
   } catch {}
 }
 
 async function handleEnterFullscreen() {
+  console.log('handleEnterFullscreen')
+  // 每次进入全屏时都重新获取视频尺寸
+  const v = videoRef.value
+  if (v) {
+    try {
+      // 重新获取视频尺寸
+      const vw = v.videoWidth || 0
+      const vh = v.videoHeight || 0
+      if (vw && vh) {
+        lastVideoW = vw
+        lastVideoH = vh
+        try { console.log(`[Fullscreen] 重新获取视频尺寸: ${vw}x${vh}`) } catch {}
+      }
+    } catch (e) {
+      try { console.log('[Fullscreen] 获取视频尺寸失败:', e) } catch {}
+    }
+  }
+  
   const orientation = estimateOrientation()
+  try { console.log(`[Fullscreen] 根据视频尺寸 ${lastVideoW}x${lastVideoH} 设置屏幕方向: ${orientation}`) } catch {}
   await lockOrientation(orientation)
 }
 
 async function handleExitFullscreen() {
+  try { console.log('[Fullscreen] 退出全屏，尝试解锁屏幕方向') } catch {}
   await unlockOrientation()
 }
 
 function estimateOrientation(): 'landscape' | 'portrait' {
   // 优先使用真实视频宽高
-  const w = lastVideoW || (playerRef.value?.player?.videoWidth?.() || 0)
-  const h = lastVideoH || (playerRef.value?.player?.videoHeight?.() || 0)
+  const w = lastVideoW || (videoRef.value?.videoWidth || 0)
+  const h = lastVideoH || (videoRef.value?.videoHeight || 0)
   if (w > 0 && h > 0) return w >= h ? 'landscape' : 'portrait'
   // 退化为容器尺寸
-  const el: any = playerRef.value?.player?.el?.() || playerRef.value?.$el
+  const el: any = (videoRef.value && videoRef.value.parentElement) || videoRef.value
   const cw = el?.clientWidth || window.innerWidth
   const ch = el?.clientHeight || window.innerHeight
   return cw >= ch ? 'landscape' : 'portrait'
@@ -301,8 +322,10 @@ async function lockOrientation(ori: 'landscape' | 'portrait') {
   try {
     const o: any = (screen as any).orientation
     if (o && typeof o.lock === 'function') {
+      try { console.log('[Fullscreen] 请求锁定方向:', ori) } catch {}
       await o.lock(ori === 'landscape' ? 'landscape' : 'portrait-primary')
       orientationLocked = true
+      try { console.log('[Fullscreen] 锁定方向成功') } catch {}
     }
   } catch {
     // 忽略不支持或被拒绝
@@ -314,6 +337,7 @@ async function unlockOrientation() {
     const o: any = (screen as any).orientation
     if (orientationLocked && o && typeof o.unlock === 'function') {
       o.unlock()
+      try { console.log('[Fullscreen] 已解锁方向') } catch {}
     }
   } catch {}
   orientationLocked = false
@@ -363,9 +387,21 @@ const sourcesByTab = computed(() => {
 })
 
 const flatEpisodes = computed(() => sourcesByTab.value.flatMap(s => s.episodes.map(ep => ({ ...ep, __sourceName: s.name }))))
-const currentIndex = computed(() => flatEpisodes.value.findIndex(e => e.url === currentPlayUrl.value))
+// 当前来源（优先使用选中的 tab；若不含当前剧集，则回退到包含当前剧集的来源）
+const currentSource = computed(() => {
+  const list = sourcesByTab.value
+  if (!list.length) return null as any
+  const activeIdx = Number(activeSourceKey.value || 0)
+  const active = list[activeIdx]
+  if (active && active.episodes?.some(e => e.url === currentPlayUrl.value)) return active
+  const found = list.find(s => s.episodes?.some(e => e.url === currentPlayUrl.value))
+  return found || active
+})
+const currentSourceEpisodes = computed(() => currentSource.value ? currentSource.value.episodes : [])
+const currentIndex = computed(() => currentSourceEpisodes.value.findIndex(e => e.url === currentPlayUrl.value))
 const canPrev = computed(() => currentIndex.value > 0)
-const canNext = computed(() => currentIndex.value >= 0 && currentIndex.value < flatEpisodes.value.length - 1)
+// 仅判断“当前来源”是否还有下一集
+const canNext = computed(() => currentIndex.value >= 0 && currentIndex.value < currentSourceEpisodes.value.length - 1)
 
 function isCurrentEpisode(ep: { url: string }) {
   return String(ep?.url || '') === currentPlayUrl.value
@@ -373,42 +409,55 @@ function isCurrentEpisode(ep: { url: string }) {
 
 async function playEpisode(ep: { name: string; url: string }, sourceName?: string) {
   if (!ep?.url) return
+  // 立刻更新当前剧集，用于后续解析播放链接与按钮状态
+  currentPlayUrl.value = ep.url
   // 仅更新地址栏中标题与来源，不修改 url 参数，避免影响回显
   const q = { ...route.query, title: ep.name, source: sourceName || (ep as any).__sourceName }
   router.replace({ name: 'watch', params: route.params, query: q })
-  // 直接解析新的播放地址并替换当前播放器
   try {
     const token = auth.token!
     const res: any = await videoAPI.playUrl(token, sourceId.value, ep.url)
     const url: string = res?.data?.video_url || res?.data || ''
-    if (url) {
-      playerSource.value = url
-      await nextTick()
-      const player = playerRef.value?.player
-      if (player) {
-        try { player.playbackRate(rate.value) } catch {}
-        try { player.play() } catch {}
-        // 如果有缓存的进度且对应当前剧集，自动续播
-        const state = loadPlayState()
-        if (state && String(state.url) === ep.url && state.currentTime && state.currentTime > 0) {
-          try { player.currentTime(state.currentTime) } catch {}
-        }
-        bindPlayerEvents()
+    if (!url) return
+    playerSource.value = url
+    await nextTick()
+    ensurePlyr()
+    if (videoRef.value) {
+      // 切换播放源
+      if (Hls.isSupported()) {
+        if (hls) { try { hls.destroy() } catch {} }
+        hls = new Hls({ maxBufferLength: 30 })
+        hls.loadSource(url)
+        hls.attachMedia(videoRef.value)
+      } else {
+        videoRef.value.src = url
       }
-      // 保存所选剧集
-      savePlayState({ url: ep.url, title: ep.name, source: q.source })
-      currentPlayUrl.value = ep.url
+      // 设置倍速
+      try { if (plyr) plyr.speed = rate.value } catch {}
+      // 恢复该剧集的缓存进度
+      const state = loadPlayState()
+      const seekTo = (state && String(state.url) === ep.url && state.currentTime && state.currentTime > 0) ? state.currentTime : 0
+      if (seekTo > 0) {
+        const doSeek = () => { try { if (videoRef.value) videoRef.value.currentTime = seekTo } catch {} }
+        if ((videoRef.value?.readyState || 0) >= 1) doSeek()
+        else videoRef.value?.addEventListener('loadedmetadata', doSeek, { once: true })
+      }
+      // 自动播放
+      try { await videoRef.value.play() } catch {}
+      bindPlayerEvents()
     }
+    // 保存所选剧集
+    savePlayState({ url: ep.url, title: ep.name, source: q.source })
   } catch {}
 }
 
 function playPrev() {
   if (!canPrev.value) return
-  playEpisode(flatEpisodes.value[currentIndex.value - 1])
+  playEpisode(currentSourceEpisodes.value[currentIndex.value - 1])
 }
 function playNext() {
   if (!canNext.value) return
-  playEpisode(flatEpisodes.value[currentIndex.value + 1])
+  playEpisode(currentSourceEpisodes.value[currentIndex.value + 1])
 }
 
 // 映射基础字段，容错不同脚本返回的键名
@@ -466,13 +515,19 @@ function savePlayState(partial: PlayState) {
     const prev: PlayState = raw ? JSON.parse(raw) : {}
     const merged: PlayState = { ...prev, ...partial, rate: rate.value, updatedAt: Date.now() }
     localStorage.setItem(playStateKey.value, JSON.stringify(merged))
+    try { console.log('[PlayState] 已保存播放状态:', merged) } catch {}
   } catch {}
 }
 function loadPlayState(): PlayState | null {
   try {
     const raw = localStorage.getItem(playStateKey.value)
-    if (!raw) return null
-    return JSON.parse(raw)
+    if (!raw) {
+      try { console.log('[PlayState] 未发现缓存: key =', playStateKey.value) } catch {}
+      return null
+    }
+    const parsed = JSON.parse(raw)
+    try { console.log('[PlayState] 读取到缓存:', parsed) } catch {}
+    return parsed
   } catch { return null }
 }
 
@@ -481,7 +536,11 @@ async function fetchDetail(force = false) {
   if (!force) {
     const hit = loadCache()
     fromCache.value = hit
-    if (hit) return
+    if (hit) {
+      // 命中缓存也要解析播放地址
+      await resolvePlayUrl()
+      return
+    }
   }
 
   if (!sourceId.value || !videoUrl.value) {
@@ -507,24 +566,61 @@ async function fetchDetail(force = false) {
 async function resolvePlayUrl() {
   try {
     const token = auth.token!
-    const res: any = await videoAPI.playUrl(token, sourceId.value, videoUrl.value)
+    // 优先请求“当前选中剧集”的播放链接；无则回退
+    const episodeUrl = getSelectedEpisodeUrl()
+    const res: any = await videoAPI.playUrl(token, sourceId.value, episodeUrl)
     const url: string = res?.data?.video_url || res?.data || ''
     playerSource.value = url
     await nextTick()
-    const player = playerRef.value?.player
-    if (player) {
-      try { player.src({ src: url, type: 'application/x-mpegURL' }) } catch {}
-      try { player.playbackRate(rate.value) } catch {}
-      // 等待 metadata 再恢复进度，避免 duration 为 0 导致 seek 失败
-      const state = loadPlayState()
-      const seekTo = state?.currentTime || 0
-      if (seekTo > 0) {
-        const doSeek = () => { try { player.currentTime(seekTo) } catch {} }
-        if (player.readyState() >= 1) doSeek()
-        else player.one('loadedmetadata', doSeek)
-      }
-      try { player.play() } catch {}
-      bindPlayerEvents()
+    ensurePlyr()
+    if (videoRef.value) {
+      try {
+        // 使用 hls.js 播放 m3u8；Safari 原生支持时直接赋 src
+        if (Hls.isSupported()) {
+          try { console.log('[HLS] using hls.js, version:', (Hls as any).version) } catch {}
+          if (hls) { try { hls.destroy() } catch {} }
+          hls = new Hls({ maxBufferLength: 30 })
+          try {
+            hls.on(Hls.Events.MEDIA_ATTACHED, () => { try { console.log('[HLS] MEDIA_ATTACHED') } catch {} })
+            hls.on(Hls.Events.MANIFEST_PARSED, (_: any, data: any) => { try { console.log('[HLS] MANIFEST_PARSED levels=', data?.levels?.length) } catch {} })
+            hls.on(Hls.Events.ERROR, (_: any, data: any) => { try { console.log('[HLS] ERROR', data?.type, data?.details, 'fatal=', data?.fatal) } catch {} })
+          } catch {}
+          console.log('hls.loadSource', url)
+          hls.loadSource(url)
+          hls.attachMedia(videoRef.value)
+        } else if (videoRef.value.canPlayType('application/vnd.apple.mpegurl')) {
+          try { console.log('[HLS] using native HLS via canPlayType') } catch {}
+          videoRef.value.src = url
+        } else {
+          // 兜底：直接设置
+          try { console.log('[HLS] fallback: set src directly (no hls support)') } catch {}
+          videoRef.value.src = url
+        }
+        if (plyr) try { plyr.speed = rate.value; console.log('[HLS] set speed to', rate.value) } catch {}
+
+        // 每次播放时都检查缓存进度并跳转
+        const state = loadPlayState()
+        const seekTo = state?.currentTime || 0
+        if (seekTo > 0) {
+          const doSeek = () => { 
+            try { 
+              if (videoRef.value) videoRef.value.currentTime = seekTo
+              console.log(`跳转到缓存进度: ${seekTo}秒`)
+            } catch (e) {
+              console.log('跳转进度失败:', e)
+            } 
+          }
+          if ((videoRef.value?.readyState || 0) >= 1) {
+            doSeek()
+          } else {
+            videoRef.value?.addEventListener('loadedmetadata', doSeek, { once: true })
+          }
+        } else {
+          console.log('没有缓存进度，从头开始播放')
+        }
+        try { console.log('[HLS] call video.play()'); await videoRef.value.play() } catch (e) { try { console.log('[HLS] play() error', e) } catch {} }
+        bindPlayerEvents()
+      } catch {}
     }
     // 初始化情况下，将当前播放 url 与初始 url 对齐
     if (!currentPlayUrl.value) currentPlayUrl.value = videoUrl.value
