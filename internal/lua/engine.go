@@ -120,8 +120,8 @@ func (e *LuaEngine) registerFunctions() {
 	e.L.SetGlobal("json_decode", e.L.NewFunction(e.luaJsonDecode))
 
 	// 禁用危险的系统函数，并提供禁用信息
-	e.L.SetGlobal("io", e.L.NewFunction(e.luaDisabledFunction("io")))
-	e.L.SetGlobal("package", e.L.NewFunction(e.luaDisabledFunction("package")))
+	e.L.SetGlobal("io", e.L.NewFunction(e.luaDisabledTable("io")))
+	e.L.SetGlobal("package", e.L.NewFunction(e.luaDisabledTable("package")))
 	e.L.SetGlobal("require", e.L.NewFunction(e.luaDisabledFunction("require")))
 	e.L.SetGlobal("dofile", e.L.NewFunction(e.luaDisabledFunction("dofile")))
 	e.L.SetGlobal("loadfile", e.L.NewFunction(e.luaDisabledFunction("loadfile")))
@@ -1022,6 +1022,35 @@ func (e *LuaEngine) luaDisabledFunction(funcName string) func(*lua.LState) int {
 		L.Push(lua.LNil)
 		L.Push(lua.LString(errorMsg))
 		return 2
+	}
+}
+
+// luaDisabledTable 返回一个函数，用于创建包含禁用方法的表
+func (e *LuaEngine) luaDisabledTable(tableName string) func(*lua.LState) int {
+	return func(L *lua.LState) int {
+		// 创建一个表，包含所有被禁用的方法
+		table := L.CreateTable(0, 10)
+		
+		// 为每个可能的方法添加禁用函数
+		disabledMethods := []string{"open", "popen", "close", "read", "write", "flush", "seek", "lines", "input", "output"}
+		for _, method := range disabledMethods {
+			table.RawSetString(method, L.NewFunction(func(L *lua.LState) int {
+				errorMsg := fmt.Sprintf("[SECURITY] 函数 '%s.%s' 已被禁用，出于安全考虑不允许执行", tableName, method)
+				// 发送错误信息到输出通道
+				select {
+				case e.output <- fmt.Sprintf("[ERROR] %s", errorMsg):
+				default:
+					// 如果通道满了，丢弃消息
+				}
+				// 返回 nil 和错误信息
+				L.Push(lua.LNil)
+				L.Push(lua.LString(errorMsg))
+				return 2
+			}))
+		}
+		
+		L.Push(table)
+		return 1
 	}
 }
 

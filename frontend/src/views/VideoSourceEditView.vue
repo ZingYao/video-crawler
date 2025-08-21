@@ -206,118 +206,6 @@ const monacoOptions = {
   stickyScroll: { enabled: false }, // 关闭顶部白色预览条
 }
 
-// 资源编辑默认模板（已抽离常量文件，但保留以避免引用失败时回退）
-/*
-const defaultTemplateLua = `-- 搜索视频结果结构体
-local search_video_result = {
-    ['source_id'] = '', -- 资源ID
-    ['cover'] = '', -- 视频封面
-    ['name'] = '', -- 视频名称
-    ['url'] = '', -- 视频链接
-    ['actor'] = '', -- 演员
-    ['director'] = '', -- 导演
-    ['release_date'] = '', -- 上映日期
-    ['region'] = '', -- 地区
-    ['language'] = '', -- 语言
-    ['description'] = '', -- 描述
-    ['score'] = '', -- 评分
-}
-
--- 视频详情结构体
-local video_detail_result = {
-    ['source_id'] = '', -- 资源ID
-    ['cover'] = '', -- 视频封面
-    ['name'] = '', -- 视频名称
-    ['url'] = '', -- 视频链接
-    ['actor'] = '', -- 演员
-    ['director'] = '', -- 导演
-    ['release_date'] = '', -- 上映日期
-    ['region'] = '', -- 地区
-    ['language'] = '', -- 语言
-    ['description'] = '', -- 描述
-    ['score'] = '', -- 评分
-    ['source'] = {
-        ['name'] = '', -- 来源名称
-        ['episodes'] = {
-            ['name'] = '', -- 剧集名称
-            ['url'] = '', -- 剧集链接
-        }
-    }
-}
-
--- 视频播放详情
-local play_video_detail = {
-    ['source_id'] = '', -- 资源ID
-    ['video_url'] = '', -- 视频链接
-}
-
-function search_video(search_content)
-    -- 数组 Array(search_video_result)
-    local result = {}
-    local err = nil
-    -- 完成这个代码
-    return result, err
-end
-
-function get_video_detail(video_url)
-    -- video_detail_result 结构体
-    local result = {}
-    local err = nil
-    -- 完成这个代码
-    return result, err
-end
-
-function get_play_video_detail(video_url)
-    -- play_video_detail 结构体
-    local result = {}
-    local err = nil
-    -- 完成这个代码
-    return result, err
-end
-`
-
-const defaultDemo = `-- 链式调用 Demo：请求页面，querySelector 并读取 attr / text / html
-print('[Demo] 启动')
-set_user_agent('Lua-Demo-Agent/1.0')
-set_headers({ ['Accept'] = 'text/html' })
-
--- 获取并打印当前 UA
-local current_ua = get_user_agent()
-print('当前 User-Agent:', current_ua)
-
--- 1) 请求示例站点
-local resp, reqErr = http_get('https://example.com')
-if reqErr then
-  log('请求错误:', reqErr)
-else
-  print('HTTP 状态码:', resp.status_code)
-
-  -- 2) 解析 HTML
-  local doc, perr = parse_html(resp.body)
-  if perr then
-    log('解析错误:', perr)
-  else
-    -- 3) 执行 querySelector（链式 select_one）
-    local link, selErr = doc:select_one('a')
-    if selErr then
-      log('选择器错误:', selErr)
-    else
-      -- 4) 读取 attr / text / html 并打印
-      local href, aerr = link:attr('href')
-      if aerr then
-        log('attr 错误:', aerr)
-      else
-        print('href 属性 =', href)
-      end
-      print('text 文本 =', link:text())
-      print('inner HTML =', link:html())
-    end
-  end
-end
-print('[Demo] 完成')
-`
-*/
-
 // 草稿相关
 const DRAFT_KEY = 'video_source_draft'
 const DRAFT_INTERVAL = 3000 // 3秒自动保存
@@ -659,7 +547,7 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 .title-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .title-actions { display: flex; gap: 8px; align-items: center; }
 .title-text { font-weight: 800; }
-.editor-gradient { background: linear-gradient(135deg, #99f6e4 0%, #5eead4 35%, #34d399 70%, #2dd4bf 100%); padding: 0; overflow-x: hidden; min-width: 0; flex: 1; min-height: 0; }
+.editor-gradient { background: #0D1117; padding: 0; overflow-x: hidden; min-width: 0; flex: 1; min-height: 0; }
 .monaco { height: 100%; min-height: 0; }
 ::v-deep(.monaco-editor),
 ::v-deep(.monaco-editor .margin),
