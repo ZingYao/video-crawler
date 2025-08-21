@@ -14,11 +14,13 @@ import (
 
 type LuaTestController struct {
 	luaTestService services.LuaTestService
+	jsTestService  services.JSTestService
 }
 
 func NewLuaTestController(luaTestService services.LuaTestService) *LuaTestController {
 	return &LuaTestController{
 		luaTestService: luaTestService,
+		jsTestService:  services.NewJSTestService(),
 	}
 }
 
@@ -177,6 +179,41 @@ func (c *LuaTestController) TestScriptSSE(ctx *gin.Context) {
 
 		case <-ctx.Request.Context().Done():
 			// 客户端断开连接
+			return
+		}
+	}
+}
+
+// TestJSScript JS 脚本流式调试
+func (c *LuaTestController) TestJSScript(ctx *gin.Context) {
+	if ctx.Request.Method != "POST" {
+		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持POST方法", nil)
+		return
+	}
+	var request struct{ Script string `json:"script" binding:"required"` }
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		utils.SendResponse(ctx, http.StatusBadRequest, "参数错误: "+err.Error(), nil)
+		return
+	}
+	ctx.Header("Content-Type", "text/plain; charset=utf-8")
+	ctx.Header("Cache-Control", "no-cache")
+	ctx.Header("Connection", "keep-alive")
+	ctx.Header("Transfer-Encoding", "chunked")
+	ctx.Status(http.StatusOK)
+	reqCtx := ctx.Request.Context()
+	if ua := ctx.GetHeader("User-Agent"); ua != "" { reqCtx = context.WithValue(reqCtx, services.CtxKeyRequestUA, ua) }
+	ch, err := c.jsTestService.ExecuteScript(reqCtx, request.Script)
+	if err != nil { ctx.String(http.StatusInternalServerError, fmt.Sprintf("[ERROR] 启动脚本执行失败: %v\n", err)); return }
+	writer := ctx.Writer
+	flusher, ok := writer.(http.Flusher)
+	if !ok { ctx.String(http.StatusInternalServerError, "[ERROR] 服务器不支持流式响应\n"); return }
+	for {
+		select {
+		case msg, ok := <-ch:
+			if !ok { writer.Write([]byte("[END] 脚本执行结束\n")); flusher.Flush(); return }
+			writer.Write([]byte(msg+"\n"))
+			flusher.Flush()
+		case <-ctx.Request.Context().Done():
 			return
 		}
 	}

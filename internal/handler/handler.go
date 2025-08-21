@@ -124,6 +124,10 @@ func (h *Handler) HandleApi(c *gin.Context) {
 		// Lua脚本测试(SSE)
 		luaTestController := controllers.NewLuaTestController(h.luaTestService)
 		luaTestController.TestScriptSSE(c)
+	case "/api/js/test":
+		// JS脚本测试(流式)
+		luaTestController := controllers.NewLuaTestController(h.luaTestService)
+		luaTestController.TestJSScript(c)
 	}
 }
 

@@ -202,14 +202,16 @@ onMounted(() => {
               <span class="tech-tag">Gin 1.10.1</span>
               <span class="tech-tag">JWT</span>
               <span class="tech-tag">Logrus</span>
+              <span class="tech-tag">goja (JavaScript 引擎)</span>
             </div>
           </div>
 
           <div class="tech-card">
             <div class="tech-icon">🧩</div>
-            <h4>Lua 引擎与解析</h4>
+            <h4>脚本引擎与解析</h4>
             <div class="tech-tags">
               <span class="tech-tag">Lua (gopher-lua)</span>
+              <span class="tech-tag">JavaScript (goja)</span>
               <span class="tech-tag">链式 HTML (goquery)</span>
               <span class="tech-tag">SSE/Chunked 流</span>
               <span class="tech-tag">json_encode/json_decode</span>

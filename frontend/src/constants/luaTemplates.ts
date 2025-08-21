@@ -163,3 +163,41 @@ else
 end
 print('[Demo] 完成')
 `
+
+export const defaultTemplateJS = `// 默认 JS 模板：实现三个必须方法
+// 可用辅助：http_get(url), set_headers(map), set_user_agent(ua), set_random_user_agent()
+
+function search_video(keyword) {
+  // TODO: 实现站点搜索逻辑，返回数组
+  return []
+}
+
+function get_video_detail(video_url) {
+  // TODO: 实现详情解析，返回包含来源与剧集
+  return { name: '', description: '', sources: [] }
+}
+
+function get_play_video_detail(video_url) {
+  // TODO: 返回可播放链接（可直接回传或二次解析）
+  return { video_url }
+}
+`
+
+export const demoTemplateJS = `// Demo JS：演示请求与简单结构返回（按需改写）
+set_random_user_agent()
+
+function search_video(keyword) {
+  const q = encodeURIComponent(keyword)
+  const resp = http_get('https://example.com/search?q=' + q)
+  return []
+}
+
+function get_video_detail(video_url) {
+  const resp = http_get(video_url)
+  return { name: 'Demo', description: '示例', sources: [ { name: '默认', episodes: [ { name: '第1集', url: video_url } ] } ] }
+}
+
+function get_play_video_detail(video_url) {
+  return { video_url }
+}
+`

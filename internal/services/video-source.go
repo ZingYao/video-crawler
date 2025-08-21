@@ -96,7 +96,9 @@ func (s *videoSourceService) List() ([]entities.VideoSourceListResponse, error) 
 			Sort:       videoSource.Sort,
 			Status:     videoSource.Status,
 			SourceType: videoSource.SourceType,
+			EngineType: videoSource.EngineType,
 			LuaScript:  videoSource.LuaScript,
+			JsScript:   videoSource.JsScript,
 		})
 		return true
 	})

@@ -2,14 +2,14 @@
 
 [English README](README_EN.md) | 中文说明
 
-一个基于 Go + Vue3 的可视化视频爬虫/脚本运行平台，支持 Lua 实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力，并内置基于 video.js 的 HLS 播放器与观影页。
+一个基于 Go + Vue3 的可视化视频爬虫/脚本运行平台，支持 Lua 与 JavaScript 两种脚本引擎、实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力，并内置基于 video.js 的 HLS 播放器与观影页。
 
 ## 技术栈（已更新）
 
 - 后端（Go）
   - Gin（HTTP 服务）
   - 原生 net/http 爬虫（返回 *http.Response），默认模拟浏览器请求头；支持转发前端请求头（跳过 Cookie/Host/Content-Length）
-  - gopher-lua（Lua 引擎）：
+  - gopher-lua（Lua 引擎）与 goja（JavaScript 引擎）：
     - 流式输出通道，`print`/`log` 均带时间戳
     - 捕获顶层 `return`，转 `map[string]interface{}` 并格式化 JSON 以 `[RESULT]` 顺序输出
     - 注入函数：
@@ -84,10 +84,11 @@ go run cmd/video-crawler/main.go
 - 结果卡片：整卡可点击开始观看，保留“原站点”按钮
 - 播放页：自动选第一源第一集（若无缓存），支持切源/切集、自动播放与续播
 
-## Lua 调试接口
+## 调试接口
 
-- Chunked：`POST /api/lua/test`
-- SSE：`POST /api/lua/test-sse`
+- Lua (Chunked)：`POST /api/lua/test`
+- Lua (SSE)：`POST /api/lua/test-sse`
+- JavaScript (Chunked)：`POST /api/js/test`
 
 请求体：
 ```json
@@ -99,7 +100,9 @@ go run cmd/video-crawler/main.go
 ## 前端编辑页（视频源）
 
 - 字段：站点名称、站点域名、排序值、资源类型
-- Lua 编辑：默认模板、必需函数校验（`search_video`/`get_video_detail`/`get_play_video_detail`）
+- 脚本类型：Lua / JavaScript；编辑器语言实时切换
+- 模板：Lua 与 JS 均提供默认模板与 Demo，可一键填充
+- 必需函数校验：`search_video` / `get_video_detail` / `get_play_video_detail`
 - 草稿：定时保存、进入页提示恢复/删除（删除二次确认）
 - 交互：F5 调试、Cmd/Ctrl+S 禁用、可拖拽分栏并持久化、清空日志、自动滚动
 
