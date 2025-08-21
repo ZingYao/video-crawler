@@ -37,14 +37,14 @@
                 :options="{
                   controlBar: {
                     children: [
-                      'playToggle',
-                      'volumePanel',
-                      'currentTimeDisplay',
-                      'timeDivider',
-                      'durationDisplay',
-                      'progressControl',
-                      'playbackRateMenuButton',
-                      'fullscreenToggle'
+                      'playToggle', // 播放/暂停按钮
+                      'volumePanel', // 音量调节面板
+                      'currentTimeDisplay', // 当前播放时间显示
+                      'timeDivider', // 时间分隔符
+                      'durationDisplay', // 总时长显示
+                      'progressControl', // 进度条控制
+                      'playbackRateMenuButton', // 倍速菜单按钮
+                      'fullscreenToggle' // 全屏切换按钮
                     ]
                   }
                 }"
