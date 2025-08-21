@@ -126,6 +126,13 @@ export const userAPI = {
       method: 'POST',
       body: JSON.stringify({ user_id: userId, allow_login: allowLogin }),
     }),
+
+  // 管理员伪登录（不记录登录历史）
+  adminImpersonateLogin: (token: string, userId: string) =>
+    authenticatedRequest('/api/user/admin-impersonate-login', token, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId })
+    }),
 }
 
 // 系统相关API

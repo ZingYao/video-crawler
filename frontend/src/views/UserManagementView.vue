@@ -115,6 +115,13 @@
                     删除
                   </a-button>
                 </a-popconfirm>
+                <a-button
+                  size="small"
+                  @click="impersonate(record.id)"
+                  v-if="authStore.user?.isAdmin"
+                >
+                  登录为该用户
+                </a-button>
               </a-space>
             </template>
           </template>
@@ -283,6 +290,30 @@ const toggleLoginStatus = async (userId: string, allowLogin: boolean) => {
   } catch (err: any) {
     message.error(err.message || '更新登录状态失败')
     console.error('更新登录状态失败:', err)
+  }
+}
+
+const impersonate = async (userId: string) => {
+  if (!authStore.token || !authStore.user?.isAdmin) { message.error('无权限'); return }
+  try {
+    const data: any = await userAPI.adminImpersonateLogin(authStore.token, userId)
+    if (data.code !== 0) { message.error(data.message || '切换失败'); return }
+    const loginResp = data.data
+    const newUser = {
+      id: loginResp.id,
+      username: '',
+      nickname: loginResp.nickname,
+      isAdmin: loginResp.is_admin || false,
+      isSiteAdmin: loginResp.is_site_admin || false,
+      allowLogin: true
+    }
+    localStorage.setItem('token', loginResp.token)
+    localStorage.setItem('user', JSON.stringify(newUser))
+    ;(authStore as any).user = newUser
+    ;(authStore as any).token = loginResp.token
+    message.success('已切换为该用户（不记录登录历史）')
+  } catch (e:any) {
+    message.error(e?.message || '切换失败')
   }
 }
 

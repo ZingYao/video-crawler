@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"time"
 	"video-crawler/internal/consts"
 	"video-crawler/internal/entities"
 	"video-crawler/internal/services"
@@ -176,4 +177,42 @@ func (c *UserController) Delete(ctx *gin.Context) {
 	// 删除用户
 	c.userService.Delete(ctx, userDeleteRequest.UserId)
 	utils.SuccessResponse(ctx, nil)
+}
+
+func (c *UserController) AdminImpersonateLogin(ctx *gin.Context) {
+	// 仅管理员
+	if !ctx.GetBool("is_admin") {
+		utils.SendResponse(ctx, consts.ResponseCodeNoPermission, "no permission", nil)
+		return
+	}
+	var req struct {
+		UserId string `json:"user_id" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil || req.UserId == "" {
+		utils.SendResponse(ctx, consts.ResponseCodeParamError, "user_id required", nil)
+		return
+	}
+	// 获取用户
+	user, exist := c.userService.UserDetailInner(req.UserId)
+	if !exist {
+		utils.SendResponse(ctx, consts.ResponseCodeUserDetailFailed, "user not exists", nil)
+		return
+	}
+	// 生成 token（不记录登录历史）
+	// 注意：此处直接创建 JWTManager，密钥与有效期需要与应用保持一致
+	jm := utils.NewJWTManager("video-crawler-secret", 72*time.Hour)
+	token, err := jm.GenerateToken(user.Id, user.Username, user.IsAdmin, user.IsSiteAdmin)
+	if err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeLoginFailed, err.Error(), nil)
+		return
+	}
+	var isAdmin *bool
+	if user.IsAdmin {
+		isAdmin = &user.IsAdmin
+	}
+	var isSiteAdmin *bool
+	if user.IsSiteAdmin {
+		isSiteAdmin = &user.IsSiteAdmin
+	}
+	utils.SuccessResponse(ctx, entities.LoginResponse{Id: user.Id, Nickname: user.Nickname, Token: token, IsAdmin: isAdmin, IsSiteAdmin: isSiteAdmin})
 }

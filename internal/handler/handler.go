@@ -120,6 +120,9 @@ func (h *Handler) HandleApi(c *gin.Context) {
 	case "/api/user/allow-login-status-change":
 		// 用户能否登录状态修改
 		userController.AllowLoginStatusChange(c)
+	case "/api/user/admin-impersonate-login":
+		// 管理员伪登录（不记录登录历史）
+		userController.AdminImpersonateLogin(c)
 	case "/api/lua/test":
 		// Lua脚本测试(流式)
 		luaTestController := controllers.NewLuaTestController(h.luaTestService)
