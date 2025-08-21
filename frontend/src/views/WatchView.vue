@@ -693,16 +693,16 @@ onUnmounted(() => {
 /* 确保播放器控件在移动端也能正常显示 */
 @media (max-width: 768px) {
   .player-container {
-    margin: 0 -12px 12px -12px; /* 负边距让播放器延伸到容器边缘 */
+    margin: 0 0 12px 0; /* 与内容同宽 */
   }
   
   .player-wrap {
-    width: 100vw; /* 占满视口宽度 */
-    margin-left: calc(-50vw + 50%); /* 居中显示 */
+    width: 100%; /* 跟随 watch-view 内容宽度 */
+    margin-left: 0;
   }
   
   .video-player {
-    width: 100% !important;
+    width: 100% !important; /* 占满容器宽度 */
     height: auto !important;
     aspect-ratio: 16/9; /* 保持16:9比例 */
   }
