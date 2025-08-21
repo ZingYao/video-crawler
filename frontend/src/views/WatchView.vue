@@ -34,20 +34,7 @@
                 :playbackRates="rates"
                 :fluid="true"
                 :autoplay="false"
-                :options="{
-                  controlBar: {
-                    children: [
-                      'playToggle', // 播放/暂停按钮
-                      'volumePanel', // 音量调节面板
-                      'currentTimeDisplay', // 当前播放时间显示
-                      'timeDivider', // 时间分隔符
-                      'durationDisplay', // 总时长显示
-                      'progressControl', // 进度条控制
-                      'playbackRateMenuButton', // 倍速菜单按钮
-                      'fullscreenToggle' // 全屏切换按钮
-                    ]
-                  }
-                }"
+                :options="playerOptions"
                 ref="playerRef"
               />
               <div v-if="isScrubbing" class="scrub-overlay">{{ scrubLabel }}</div>
@@ -116,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
  
 import AppLayout from '@/components/AppLayout.vue'
@@ -159,6 +146,39 @@ const playerSource = ref('')
 const basePoster = computed(() => String((detailData.value?.cover || detailData.value?.poster || ''))) 
 const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3]
 const rate = ref(1)
+
+// 检测是否为移动设备
+const isMobile = ref(false)
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+// 根据设备类型生成播放器配置
+const playerOptions = computed(() => {
+  const baseOptions = {
+    controlBar: {
+      children: [
+        'playToggle',
+        'volumePanel',
+        'currentTimeDisplay',
+        'timeDivider',
+        'durationDisplay',
+        'progressControl',
+        'fullscreenToggle'
+      ]
+    }
+  }
+  
+  if (isMobile.value) {
+    // 移动端：使用切换按钮而不是下拉菜单
+    baseOptions.controlBar.children.splice(6, 0, 'playbackRateMenuButton')
+  } else {
+    // 桌面端：使用下拉菜单
+    baseOptions.controlBar.children.splice(6, 0, 'playbackRateMenuButton')
+  }
+  
+  return baseOptions
+})
 let lastSavedSecond = 0
 let playerBound = false
 let lastVideoW = 0
@@ -578,6 +598,10 @@ function bindLongPress() {
 }
 
 onMounted(async () => {
+  // 初始化移动设备检测
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  
   await fetchDetail(false)
   const state = loadPlayState()
   if (state?.url) {
@@ -594,6 +618,11 @@ onMounted(async () => {
   if (idx >= 0) activeSourceKey.value = String(idx)
   // 绑定长按 2x
   bindLongPress()
+})
+
+// 清理事件监听
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 
@@ -660,6 +689,32 @@ onMounted(async () => {
   .video-player :deep(.vjs-playback-rate-menu-button) {
     font-size: 12px;
     padding: 0 4px;
+  }
+  
+  /* 移动端倍速菜单优化 */
+  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-content) {
+    min-width: 80px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-item) {
+    padding: 8px 12px;
+    font-size: 14px;
+    text-align: center;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* 确保倍速按钮在移动端更容易点击 */
+  .video-player :deep(.vjs-playback-rate-menu-button) {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 .player-actions { margin-top: 8px; }
