@@ -132,12 +132,6 @@ const displayTitle = computed(() => {
   if (ep) return `${base.value.name || ''} - ${ep.name}`.trim()
   return String(route.query.title || base.value.name || '')
 })
-// 同步 HTML 标题与页面标题一致
-watch(displayTitle, (t) => {
-  const baseTitle = 'Video Crawler'
-  const full = t ? `播放 - ${t}` : '播放'
-  document.title = [full, baseTitle].filter(Boolean).join(' | ')
-}, { immediate: true })
 
 const cacheKey = computed(() => `watch_detail:${sourceId.value}:${encodeURIComponent(videoUrl.value)}`)
 // 使用 sourceId + original_url 作为进度键，避免标题变化导致无法命中
@@ -351,6 +345,16 @@ async function unlockOrientation() {
 
 
 
+// 资源列表容错（上移，供后续 sourcesByTab 使用，避免初始化顺序问题）
+const resources = computed<any[]>(() => {
+  const d: any = detailData.value || {}
+  if (Array.isArray(d.resources)) return d.resources
+  if (Array.isArray(d.playlist)) return d.playlist
+  if (Array.isArray(d.urls)) return d.urls
+  if (Array.isArray(d.videos)) return d.videos
+  return []
+})
+
 // 站点与剧集（source -> episodes）
 const activeSourceKey = ref('0')
 const sourcesByTab = computed(() => {
@@ -393,6 +397,12 @@ const sourcesByTab = computed(() => {
 })
 
 const flatEpisodes = computed(() => sourcesByTab.value.flatMap(s => s.episodes.map(ep => ({ ...ep, __sourceName: s.name }))))
+// 同步 HTML 标题与页面标题一致（放在 flatEpisodes 之后，避免初始化顺序问题）
+watch(displayTitle, (t) => {
+  const baseTitle = 'Video Crawler'
+  const full = t ? `播放 - ${t}` : '播放'
+  document.title = [full, baseTitle].filter(Boolean).join(' | ')
+}, { immediate: true })
 // 当前来源（优先使用选中的 tab；若不含当前剧集，则回退到包含当前剧集的来源）
 const currentSource = computed(() => {
   const list = sourcesByTab.value
@@ -482,15 +492,7 @@ const base = computed(() => {
   }
 })
 
-// 资源列表容错
-const resources = computed<any[]>(() => {
-  const d: any = detailData.value || {}
-  if (Array.isArray(d.resources)) return d.resources
-  if (Array.isArray(d.playlist)) return d.playlist
-  if (Array.isArray(d.urls)) return d.urls
-  if (Array.isArray(d.videos)) return d.videos
-  return []
-})
+// resources 已上移
 
 function saveCache() {
   try {

@@ -37,11 +37,16 @@ func (c *UserController) Login(ctx *gin.Context) {
 	if user.IsAdmin {
 		isAdmin = &user.IsAdmin
 	}
+	var isSiteAdmin *bool
+	if user.IsSiteAdmin {
+		isSiteAdmin = &user.IsSiteAdmin
+	}
 	utils.SuccessResponse(ctx, entities.LoginResponse{
 		Id:       user.Id,
 		Nickname: user.Nickname,
 		Token:    token,
 		IsAdmin:  isAdmin,
+		IsSiteAdmin: isSiteAdmin,
 	})
 }
 
@@ -108,6 +113,7 @@ func (c *UserController) Save(ctx *gin.Context) {
 	if isAdmin {
 		// 是管理员 允许修改是否管理员和是否允许登录状态
 		user.IsAdmin = saveRequest.IsAdmin
+		user.IsSiteAdmin = saveRequest.IsSiteAdmin
 		user.AllowLogin = saveRequest.AllowLogin
 	}
 	if saveRequest.Password != "" {

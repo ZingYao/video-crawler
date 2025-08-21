@@ -9,6 +9,7 @@ type UserEntity struct {
 	Salt        string    `json:"salt"`
 	Password    string    `json:"password"`
 	IsAdmin     bool      `json:"is_admin"`
+	IsSiteAdmin bool      `json:"is_site_admin"`
 	AllowLogin  bool      `json:"allow_login"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -26,6 +27,7 @@ type (
 		Nickname string `json:"nickname"`
 		Token    string `json:"token"`
 		IsAdmin  *bool  `json:"is_admin,omitempty"`
+		IsSiteAdmin *bool `json:"is_site_admin,omitempty"`
 	}
 )
 
@@ -39,6 +41,7 @@ type UserDetailResponse struct {
 	Nickname     string         `json:"nickname"`
 	Username     string         `json:"username"`
 	IsAdmin      bool           `json:"is_admin"`
+	IsSiteAdmin  bool           `json:"is_site_admin"`
 	AllowLogin   bool           `json:"allow_login"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
@@ -52,6 +55,7 @@ type UserSaveRequest struct {
 	Username   string `json:"username" binding:"required"`
 	UserId     string `json:"user_id" binding:"required"`
 	IsAdmin    bool   `json:"is_admin"`
+	IsSiteAdmin bool  `json:"is_site_admin"`
 	AllowLogin bool   `json:"allow_login"`
 	Password   string `json:"password"`
 }
@@ -61,6 +65,7 @@ type UserList struct {
 	Nickname    string    `json:"nickname"`
 	Username    string    `json:"username"`
 	IsAdmin     bool      `json:"is_admin"`
+	IsSiteAdmin bool      `json:"is_site_admin"`
 	AllowLogin  bool      `json:"allow_login"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`

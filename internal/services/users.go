@@ -120,6 +120,7 @@ func (s *userService) UserList() (userList []entities.UserList) {
 			Nickname:    user.Nickname,
 			Username:    user.Username,
 			IsAdmin:     user.IsAdmin,
+			IsSiteAdmin: user.IsSiteAdmin,
 			AllowLogin:  user.AllowLogin,
 			CreatedAt:   user.CreatedAt,
 			UpdatedAt:   user.UpdatedAt,
@@ -270,7 +271,7 @@ func (s *userService) Login(ctx *gin.Context, username string, password string) 
 	s.saveMapChange(ctx)
 	// 生成登录记录
 	// 生成 token
-	token, err = s.jwtManager.GenerateToken(userEntity.Id, userEntity.Username, userEntity.IsAdmin)
+	token, err = s.jwtManager.GenerateToken(userEntity.Id, userEntity.Username, userEntity.IsAdmin, userEntity.IsSiteAdmin)
 	if err != nil {
 		logger.CtxLogger(ctx).WithError(err).Error("failed to generate token")
 		return retUser, "", errors.New("failed to generate token")
@@ -299,6 +300,7 @@ func (s *userService) Register(ctx *gin.Context, username string, password strin
 		Username:    username,
 		Password:    password,
 		IsAdmin:     false,
+		IsSiteAdmin: false,
 		Salt:        salt,
 		Nickname:    nickname,
 		AllowLogin:  false,
@@ -335,6 +337,7 @@ func (s *userService) UserDetail(ctx *gin.Context, userId string) (userInfo enti
 		Nickname:     userEntity.Nickname,
 		Username:     userEntity.Username,
 		IsAdmin:      userEntity.IsAdmin,
+		IsSiteAdmin:  userEntity.IsSiteAdmin,
 		AllowLogin:   userEntity.AllowLogin,
 		CreatedAt:    userEntity.CreatedAt,
 		UpdatedAt:    userEntity.UpdatedAt,

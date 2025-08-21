@@ -101,7 +101,7 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // 需要认证但未登录，重定向到登录页，并带回跳转
     next({ path: '/login', query: { redirect: to.fullPath } })
-  } else if (to.meta.requiresAdmin && !authStore.user?.isAdmin) {
+  } else if (to.meta.requiresAdmin && !(authStore.user?.isAdmin || authStore.user?.isSiteAdmin)) {
     // 需要管理员权限但用户不是管理员，重定向到首页
     next('/')
   } else if ((to.path === '/login' || to.path === '/register') && authStore.isAuthenticated) {

@@ -38,6 +38,20 @@ async function request<T = any>(
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`)
   }
+  // 统一拦截响应头中的角色信息并落地到本地缓存
+  try {
+    const isAdmin = response.headers.get('X-User-Is-Admin')
+    const isSiteAdmin = response.headers.get('X-User-Is-Site-Admin')
+    if (isAdmin !== null || isSiteAdmin !== null) {
+      const userRaw = localStorage.getItem('user')
+      if (userRaw) {
+        const user = JSON.parse(userRaw)
+        if (isAdmin !== null) user.isAdmin = isAdmin === 'true'
+        if (isSiteAdmin !== null) user.isSiteAdmin = isSiteAdmin === 'true'
+        localStorage.setItem('user', JSON.stringify(user))
+      }
+    }
+  } catch {}
 
   const json = await response.json()
   handleBusinessCode(json)
@@ -87,6 +101,7 @@ export const userAPI = {
     nickname: string
     password?: string
     is_admin?: boolean
+    is_site_admin?: boolean
     allow_login?: boolean
   }) =>
     authenticatedRequest('/api/user/save', token, {

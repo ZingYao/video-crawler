@@ -13,6 +13,7 @@ type JWTClaims struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	IsAdmin  *bool  `json:"is_admin,omitempty"`
+	IsSiteAdmin *bool `json:"is_site_admin,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -31,15 +32,20 @@ func NewJWTManager(secretKey string, tokenDuration time.Duration) *JWTManager {
 }
 
 // GenerateToken 生成 JWT token
-func (j *JWTManager) GenerateToken(userID, username string, isAdmin bool) (string, error) {
+func (j *JWTManager) GenerateToken(userID, username string, isAdmin bool, isSiteAdmin bool) (string, error) {
 	isAdminPtr := &isAdmin
 	if !isAdmin {
 		isAdminPtr = nil
+	}
+	isSiteAdminPtr := &isSiteAdmin
+	if !isSiteAdmin {
+		isSiteAdminPtr = nil
 	}
 	claims := &JWTClaims{
 		UserID:   userID,
 		Username: username,
 		IsAdmin:  isAdminPtr,
+		IsSiteAdmin: isSiteAdminPtr,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.tokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -93,7 +99,15 @@ func (j *JWTManager) RefreshToken(tokenString string) (string, error) {
 	}
 
 	// 生成新的 token
-	return j.GenerateToken(claims.UserID, claims.Username, *claims.IsAdmin)
+	var isAdmin bool
+	if claims.IsAdmin != nil {
+		isAdmin = *claims.IsAdmin
+	}
+	var isSiteAdmin bool
+	if claims.IsSiteAdmin != nil {
+		isSiteAdmin = *claims.IsSiteAdmin
+	}
+	return j.GenerateToken(claims.UserID, claims.Username, isAdmin, isSiteAdmin)
 }
 
 // GetTokenInfo 获取 token 中的信息
@@ -107,6 +121,7 @@ func (j *JWTManager) GetTokenInfo(tokenString string) (map[string]interface{}, e
 		"user_id":  claims.UserID,
 		"username": claims.Username,
 		"is_admin": claims.IsAdmin,
+		"is_site_admin": claims.IsSiteAdmin,
 		"exp":      claims.ExpiresAt.Time,
 		"iat":      claims.IssuedAt.Time,
 		"iss":      claims.Issuer,

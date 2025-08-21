@@ -40,6 +40,13 @@ func (c *VideoSourceController) Detail(ctx *gin.Context) {
 }
 
 func (c *VideoSourceController) Save(ctx *gin.Context) {
+	// 站点管理：管理员或站点管理员可操作
+	isAdmin := ctx.GetBool("is_admin")
+	isSiteAdmin := ctx.GetBool("is_site_admin")
+	if !(isAdmin || isSiteAdmin) {
+		utils.SendResponse(ctx, consts.ResponseCodeNoPermission, "no permission", nil)
+		return
+	}
 	var videoSource entities.VideoSourceEntity
 	if err := ctx.ShouldBindJSON(&videoSource); err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeParamError, "参数错误: "+err.Error(), nil)
@@ -59,6 +66,13 @@ func (c *VideoSourceController) Save(ctx *gin.Context) {
 }
 
 func (c *VideoSourceController) Delete(ctx *gin.Context) {
+	// 站点管理：管理员或站点管理员可操作
+	isAdmin := ctx.GetBool("is_admin")
+	isSiteAdmin := ctx.GetBool("is_site_admin")
+	if !(isAdmin || isSiteAdmin) {
+		utils.SendResponse(ctx, consts.ResponseCodeNoPermission, "no permission", nil)
+		return
+	}
 	videoSourceId := ctx.Query("id")
 	if videoSourceId == "" {
 		utils.SendResponse(ctx, consts.ResponseCodeParamError, "站点ID不能为空", nil)
@@ -77,6 +91,13 @@ func (c *VideoSourceController) Delete(ctx *gin.Context) {
 }
 
 func (c *VideoSourceController) CheckStatus(ctx *gin.Context) {
+	// 站点管理：管理员或站点管理员可操作
+	isAdmin := ctx.GetBool("is_admin")
+	isSiteAdmin := ctx.GetBool("is_site_admin")
+	if !(isAdmin || isSiteAdmin) {
+		utils.SendResponse(ctx, consts.ResponseCodeNoPermission, "no permission", nil)
+		return
+	}
 	videoSourceId := ctx.Query("id")
 	videoSource, err := c.videoSourceService.Detail(videoSourceId)
 	if err != nil {

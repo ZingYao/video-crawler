@@ -77,6 +77,9 @@
               <a-checkbox v-model:checked="formData.isAdmin">
                 管理员权限
               </a-checkbox>
+              <a-checkbox v-model:checked="formData.isSiteAdmin">
+                站点管理员（可管理站点列表/编辑/调试）
+              </a-checkbox>
               <a-checkbox v-model:checked="formData.allowLogin">
                 允许登录
               </a-checkbox>
@@ -143,6 +146,7 @@ interface UserFormData {
   nickname: string
   password: string
   isAdmin: boolean
+  isSiteAdmin: boolean
   allowLogin: boolean
 }
 
@@ -171,6 +175,7 @@ const formData = ref<UserFormData>({
   nickname: '',
   password: '',
   isAdmin: false,
+  isSiteAdmin: false,
   allowLogin: true
 })
 
@@ -240,6 +245,7 @@ const loadUserData = async () => {
       nickname: userData.nickname || '',
       password: '',
       isAdmin: userData.is_admin || false,
+      isSiteAdmin: userData.is_site_admin || false,
       allowLogin: userData.allow_login !== false
     }
 
@@ -267,6 +273,7 @@ const saveUser = async () => {
       username: formData.value.username,
       nickname: formData.value.nickname,
       is_admin: formData.value.isAdmin,
+      is_site_admin: formData.value.isSiteAdmin,
       allow_login: formData.value.allowLogin
     }
 

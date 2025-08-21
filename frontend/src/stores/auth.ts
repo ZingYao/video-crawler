@@ -8,6 +8,7 @@ export interface User {
   username: string
   nickname?: string
   isAdmin?: boolean
+  isSiteAdmin?: boolean
   allowLogin?: boolean
 }
 
@@ -27,6 +28,7 @@ export interface LoginResponse {
   nickname:string
   token: string
   is_admin?: boolean | null
+  is_site_admin?: boolean | null
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -54,6 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
         username: username,
         nickname: loginResponse.nickname,
         isAdmin: loginResponse.is_admin || false, // 当 isAdmin 不存在时视为 false
+        isSiteAdmin: loginResponse.is_site_admin || false,
         allowLogin: true
       }
       

@@ -71,6 +71,18 @@ func JWTAuthMiddleware(jwtManager *utils.JWTManager, userService services.UserSe
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Set("is_admin", user.IsAdmin)
+		c.Set("is_site_admin", user.IsSiteAdmin)
+		// 同步角色到响应头
+		if user.IsAdmin {
+			c.Header("X-User-Is-Admin", "true")
+		} else {
+			c.Header("X-User-Is-Admin", "false")
+		}
+		if user.IsSiteAdmin {
+			c.Header("X-User-Is-Site-Admin", "true")
+		} else {
+			c.Header("X-User-Is-Site-Admin", "false")
+		}
 		c.Set("claims", claims)
 		c.Next()
 	}
