@@ -396,17 +396,15 @@ function disablePlyrDoubleClick() {
 function addPlyrCustomEvents() {
   if (!plyr) return
   
-  // 双击播放/暂停功能 + 单击进度条显隐切换
+  // 双击播放/暂停功能
   let plyrLastClickTime = 0
   const plyrDoubleClickThreshold = 300
-  let plyrSingleClickTimer: any = null
   
   plyr.elements.container.addEventListener('click', (e: any) => {
     const currentTime = Date.now()
     if (currentTime - plyrLastClickTime < plyrDoubleClickThreshold) {
       // 双击事件
       plyrLastClickTime = 0
-      if (plyrSingleClickTimer) { clearTimeout(plyrSingleClickTimer); plyrSingleClickTimer = null }
       try {
         if (plyr.playing) {
           plyr.pause()
@@ -417,33 +415,8 @@ function addPlyrCustomEvents() {
         }
       } catch {}
     } else {
-      // 单击候选：等待阈值后若未触发第二击，则执行单击逻辑
+      // 单击事件
       plyrLastClickTime = currentTime
-      if (plyrSingleClickTimer) { clearTimeout(plyrSingleClickTimer); plyrSingleClickTimer = null }
-      plyrSingleClickTimer = setTimeout(() => {
-        // 忽略拖动/长按态
-        if (isDraggingProgress || isLongPressActive.value) return
-        try {
-          const container = plyr.elements.container as HTMLElement
-          // 切换进度条显隐（仅进度，不影响其它控件）
-          if (container.classList.contains('manual-show-progress')) {
-            container.classList.remove('manual-show-progress')
-            container.classList.add('manual-hide-progress')
-          } else if (container.classList.contains('manual-hide-progress')) {
-            container.classList.remove('manual-hide-progress')
-            container.classList.add('manual-show-progress')
-            container.classList.remove('plyr--hide-controls')
-            container.classList.add('plyr--controls-active')
-            setTimeout(() => { try { container.classList.remove('plyr--controls-active') } catch {} }, 150)
-          } else {
-            // 初次点击默认：显示
-            container.classList.add('manual-show-progress')
-            container.classList.remove('plyr--hide-controls')
-            container.classList.add('plyr--controls-active')
-            setTimeout(() => { try { container.classList.remove('plyr--controls-active') } catch {} }, 150)
-          }
-        } catch {}
-      }, plyrDoubleClickThreshold)
     }
   })
   
@@ -623,7 +596,6 @@ function bindPlayerEvents() {
   let lastClickTime = 0
   let clickCount = 0
   const doubleClickThreshold = 300 // 双击时间阈值（毫秒）
-  let singleClickTimer: any = null
   
   v.addEventListener('click', (e) => {
     const currentTime = Date.now()
@@ -631,7 +603,6 @@ function bindPlayerEvents() {
       // 双击事件
       clickCount = 0
       lastClickTime = 0
-      if (singleClickTimer) { clearTimeout(singleClickTimer); singleClickTimer = null }
       try {
         if (!v.paused) {
           v.pause()
@@ -650,29 +621,6 @@ function bindPlayerEvents() {
       // 单击事件
       clickCount = 1
       lastClickTime = currentTime
-      if (singleClickTimer) { clearTimeout(singleClickTimer); singleClickTimer = null }
-      singleClickTimer = setTimeout(() => {
-        if (isDraggingProgress || isLongPressActive.value) return
-        try {
-          const container = v.parentElement as HTMLElement
-          if (!container) return
-          if (container.classList.contains('manual-show-progress')) {
-            container.classList.remove('manual-show-progress')
-            container.classList.add('manual-hide-progress')
-          } else if (container.classList.contains('manual-hide-progress')) {
-            container.classList.remove('manual-hide-progress')
-            container.classList.add('manual-show-progress')
-            container.classList.remove('plyr--hide-controls')
-            container.classList.add('plyr--controls-active')
-            setTimeout(() => { try { container.classList.remove('plyr--controls-active') } catch {} }, 150)
-          } else {
-            container.classList.add('manual-show-progress')
-            container.classList.remove('plyr--hide-controls')
-            container.classList.add('plyr--controls-active')
-            setTimeout(() => { try { container.classList.remove('plyr--controls-active') } catch {} }, 150)
-          }
-        } catch {}
-      }, doubleClickThreshold)
     }
   })
   
@@ -1627,15 +1575,6 @@ function attachProgressDrag(container: HTMLElement) {
   display: block !important;
 }
 
-/* 手动显隐：显示进度条 */
-.manual-show-progress :deep(.plyr__progress) {
-  display: block !important;
-}
-/* 手动显隐：隐藏进度条，仅隐藏进度条不隐藏其它控件 */
-.manual-hide-progress :deep(.plyr__progress) {
-  display: none !important;
-}
-
 /* 原生 video 控件隐藏进度条（WebKit 内核） */
 .longpress-hide-progress video::-webkit-media-controls-timeline {
   display: none !important;
@@ -1650,18 +1589,6 @@ function attachProgressDrag(container: HTMLElement) {
 .dragging-show-progress video::-webkit-media-controls-current-time-display,
 .dragging-show-progress video::-webkit-media-controls-time-remaining-display {
   display: block !important;
-}
-
-/* 原生 video 手动显隐 */
-.manual-show-progress video::-webkit-media-controls-timeline,
-.manual-show-progress video::-webkit-media-controls-current-time-display,
-.manual-show-progress video::-webkit-media-controls-time-remaining-display {
-  display: block !important;
-}
-.manual-hide-progress video::-webkit-media-controls-timeline,
-.manual-hide-progress video::-webkit-media-controls-current-time-display,
-.manual-hide-progress video::-webkit-media-controls-time-remaining-display {
-  display: none !important;
 }
 
 .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-content) {
