@@ -22,13 +22,13 @@
 
           <!-- 播放器区域 -->
           <div class="player-container">
-            <!-- 播放方案显示 -->
+            <!-- 播放器方案显示 -->
             <div class="player-scheme-info">
-              <a-tag color="blue" size="small">
+              <a-tag color="green" size="small">
                 <template #icon>
                   <PlayCircleOutlined />
                 </template>
-                {{ playerScheme }}
+                {{ currentPlayerScheme }}
               </a-tag>
             </div>
             
@@ -36,18 +36,23 @@
               <video
                 ref="videoRef"
                 class="plyr-video"
-                :poster="basePoster"
-                playsinline
                 controls
-              ></video>
+                preload="metadata"
+                :src="playerSource"
+                @loadstart="setVideoLoading(true)"
+                @canplay="setVideoLoading(false)"
+                @canplaythrough="setVideoLoading(false)"
+                @waiting="setVideoLoading(true)"
+                @error="setVideoLoading(false)"
+              />
               
-              <!-- 加载状态遮罩 -->
+              <!-- 视频加载遮罩 -->
               <div v-if="videoLoading" class="video-loading-mask">
                 <div class="loading-content">
                   <a-spin size="large" />
                   <div class="loading-text">视频加载中...</div>
                   <div v-if="networkSpeed" class="network-speed">
-                    网速: {{ networkSpeed }}
+                    网络速度: {{ networkSpeed }}
                   </div>
                 </div>
               </div>
@@ -68,20 +73,6 @@
                   </template>
                   迅雷下载
                 </a-button>
-                <!-- 当前播放器方案显示 -->
-                <a-tag color="green" size="small">
-                  <template #icon>
-                    <PlayCircleOutlined />
-                  </template>
-                  {{ currentPlayerScheme }}
-                </a-tag>
-                <!-- 长按2倍速提示 -->
-                <a-tag color="orange" size="small">
-                  <template #icon>
-                    <ClockCircleOutlined />
-                  </template>
-                  长按视频区域2倍速
-                </a-tag>
                 <!-- 移动端播放速率选择器 -->
                 <a-select
                   v-if="isMobile"
@@ -293,6 +284,9 @@ function ensurePlyr() {
     clickToPlay: true,
   })
   
+  // 立即禁用 Plyr 的双击全屏功能
+  disablePlyrDoubleClick()
+  
   // 绑定 Plyr 的播放完成事件
   plyr.on('ended', () => {
     try {
@@ -325,28 +319,77 @@ function ensurePlyr() {
     setVideoLoading(false)
   })
   
-  // 禁用 Plyr 默认的双击全屏 - 在多个层级上阻止
-  plyr.elements.container.addEventListener('dblclick', (e: any) => {
+  bindPlayerEvents()
+}
+
+// 禁用 Plyr 双击全屏的专用函数
+function disablePlyrDoubleClick() {
+  if (!plyr) return
+  
+  // 方法1: 通过CSS禁用双击选择
+  const style = document.createElement('style')
+  style.textContent = `
+    .plyr__video-wrapper {
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+    .plyr__video-wrapper * {
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+  `
+  document.head.appendChild(style)
+  
+  // 方法2: 直接移除 Plyr 的双击事件监听器
+  try {
+    const container = plyr.elements.container
+    const video = plyr.elements.video
+    
+    // 克隆元素来移除所有事件监听器
+    const newContainer = container.cloneNode(true)
+    const newVideo = video.cloneNode(true)
+    
+    container.parentNode?.replaceChild(newContainer, container)
+    newContainer.appendChild(newVideo)
+    
+    // 重新设置 Plyr 的元素引用
+    plyr.elements.container = newContainer
+    plyr.elements.video = newVideo
+  } catch (e) {
+    console.warn('无法移除Plyr事件监听器:', e)
+  }
+  
+  // 方法3: 使用事件捕获阶段阻止双击
+  const preventDoubleClick = (e: Event) => {
     e.preventDefault()
     e.stopPropagation()
     e.stopImmediatePropagation()
     return false
-  })
+  }
   
-  // 也监听视频元素本身的双击事件
-  plyr.elements.video.addEventListener('dblclick', (e: any) => {
-    e.preventDefault()
-    e.stopPropagation()
-    e.stopImmediatePropagation()
-    return false
-  })
+  // 在捕获阶段阻止双击事件
+  plyr.elements.container.addEventListener('dblclick', preventDoubleClick, true)
+  plyr.elements.video.addEventListener('dblclick', preventDoubleClick, true)
   
-  // Plyr 双击快进快退功能 - 直接监听容器
+  // 方法4: 覆盖 Plyr 的内部双击处理函数
+  if (plyr.config && typeof plyr.config === 'object') {
+    (plyr.config as any).doubleClick = false
+  }
+}
+
+// 为 Plyr 添加自定义事件处理
+function addPlyrCustomEvents() {
+  if (!plyr) return
+  
+  // 双击快进快退功能
   let plyrLastClickTime = 0
   const plyrDoubleClickThreshold = 300
   
   plyr.elements.container.addEventListener('click', (e: any) => {
-    e.preventDefault() // 阻止默认行为
     const currentTime = Date.now()
     if (currentTime - plyrLastClickTime < plyrDoubleClickThreshold) {
       // 双击事件
@@ -368,26 +411,18 @@ function ensurePlyr() {
         plyr.currentTime = newTime
         console.log('[Plyr] 双击快进10秒，当前时间:', newTime)
       }
-      
-      // 阻止默认行为
-      e.preventDefault()
-      e.stopPropagation()
-      e.stopImmediatePropagation()
     } else {
       // 单击事件
       plyrLastClickTime = currentTime
     }
-  }, { passive: false })
+  })
   
-  // Plyr 长按2倍速播放事件监听
-  let plyrTouchStartTime = 0
-  let plyrIsTouchActive = false
+  // 长按2倍速播放功能
   let plyrLongPressTimer: any = null
+  let plyrIsTouchActive = false
   
   // 触摸开始
   plyr.elements.container.addEventListener('touchstart', (e: any) => {
-    e.preventDefault() // 阻止默认行为
-    plyrTouchStartTime = Date.now()
     plyrIsTouchActive = true
     if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
     plyrLongPressTimer = setTimeout(() => {
@@ -398,11 +433,10 @@ function ensurePlyr() {
         console.log('[Plyr LongPress] 启动2倍速播放')
       }
     }, 500)
-  }, { passive: false })
+  })
   
   // 触摸结束
   plyr.elements.container.addEventListener('touchend', (e: any) => {
-    e.preventDefault() // 阻止默认行为
     plyrIsTouchActive = false
     if (plyrLongPressTimer) {
       clearTimeout(plyrLongPressTimer)
@@ -413,11 +447,10 @@ function ensurePlyr() {
       isLongPressActive.value = false
       console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
     }
-  }, { passive: false })
+  })
   
   // 触摸取消
   plyr.elements.container.addEventListener('touchcancel', (e: any) => {
-    e.preventDefault() // 阻止默认行为
     plyrIsTouchActive = false
     if (plyrLongPressTimer) {
       clearTimeout(plyrLongPressTimer)
@@ -427,13 +460,11 @@ function ensurePlyr() {
       plyr.speed = originalRate.value
       isLongPressActive.value = false
     }
-  }, { passive: false })
+  })
   
   // 鼠标按下（桌面端）
   plyr.elements.container.addEventListener('mousedown', (e: any) => {
     if (e.button === 0) {
-      e.preventDefault() // 阻止默认行为
-      plyrTouchStartTime = Date.now()
       plyrIsTouchActive = true
       if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
       plyrLongPressTimer = setTimeout(() => {
@@ -445,12 +476,11 @@ function ensurePlyr() {
         }
       }, 500)
     }
-  }, { passive: false })
+  })
   
   // 鼠标松开（桌面端）
   plyr.elements.container.addEventListener('mouseup', (e: any) => {
     if (e.button === 0) {
-      e.preventDefault() // 阻止默认行为
       plyrIsTouchActive = false
       if (plyrLongPressTimer) {
         clearTimeout(plyrLongPressTimer)
@@ -462,7 +492,7 @@ function ensurePlyr() {
         console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
       }
     }
-  }, { passive: false })
+  })
   
   // 鼠标离开（桌面端）
   plyr.elements.container.addEventListener('mouseleave', (e: any) => {
@@ -478,8 +508,6 @@ function ensurePlyr() {
       }
     }
   })
-  
-  bindPlayerEvents()
 }
 let lastSavedSecond = 0
 let playerBound = false
@@ -700,6 +728,12 @@ function bindPlayerEvents() {
       if (v.videoWidth && v.videoHeight) { lastVideoW = v.videoWidth; lastVideoH = v.videoHeight }
     } catch {}
   })
+  
+  // 为 Plyr 添加双击快进快退和长按功能
+  if (plyr) {
+    addPlyrCustomEvents()
+  }
+  
   // 容器与 document 级别全屏事件
   try {
     const container = v.parentElement
