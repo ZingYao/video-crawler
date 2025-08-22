@@ -207,7 +207,6 @@ func (c *VideoController) executeByEngine(ctx *gin.Context, src *entities.VideoS
 		argLiteral := strconv.Quote(arg)
 		wrapped := src.JsScript + "\n\n" +
 			fmt.Sprintf("var __ret = (function(){ try { var r = %s(%s); return {data: r, err: null}; } catch(e){ return {data:null, err: String(e)} } })(); __ret;", funcName, argLiteral)
-		fmt.Println("js script:", wrapped)
 		m, err := e.ExecuteWrapped(wrapped)
 		if err != nil {
 			return nil, err
