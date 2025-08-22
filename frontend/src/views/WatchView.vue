@@ -139,9 +139,9 @@ const fromCache = ref(false)
 const downloading = ref(false)
 
 const sourceId = computed(() => String(route.params.sourceId || ''))
-const videoUrl = computed(() => String(route.query.original_url || ''))
+const videoUrl = computed(() => String(route.query.original_url || route.query.url || ''))
 const currentPlayUrl = ref<string>('')
-const originalUrl = computed(() => String(route.query.original_url || videoUrl.value || ''))
+const originalUrl = computed(() => String(route.query.original_url || route.query.url || videoUrl.value || ''))
 const displayTitle = computed(() => {
   const ep = flatEpisodes.value.find(e => e.url === currentPlayUrl.value)
   if (ep) return `${base.value.name || ''} - ${ep.name}`.trim()
@@ -802,6 +802,15 @@ onUnmounted(() => {
 .player-wrap {
   position: relative;
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.plyr-video {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 16/9;
 }
 
 /* 确保播放器控件在移动端也能正常显示 */
@@ -813,12 +822,14 @@ onUnmounted(() => {
   .player-wrap {
     width: 100%; /* 跟随 watch-view 内容宽度 */
     margin-left: 0;
+    max-width: 100%;
   }
   
-  .video-player {
+  .plyr-video {
     width: 100% !important; /* 占满容器宽度 */
     height: auto !important;
     aspect-ratio: 16/9; /* 保持16:9比例 */
+    max-width: 100% !important;
   }
   
   .video-player :deep(.vjs-control-bar) {
