@@ -22,6 +22,16 @@
 
           <!-- 播放器区域 -->
           <div class="player-container">
+            <!-- 播放方案显示 -->
+            <div class="player-scheme-info">
+              <a-tag color="blue" size="small">
+                <template #icon>
+                  <PlayCircleOutlined />
+                </template>
+                {{ playerScheme }}
+              </a-tag>
+            </div>
+            
             <div class="player-wrap">
               <video
                 ref="videoRef"
@@ -125,7 +135,7 @@ import { videoAPI } from '@/api'
 import Plyr from 'plyr'
 import Hls from 'hls.js'
 import 'plyr/dist/plyr.css'
-import { ThunderboltOutlined } from '@ant-design/icons-vue'
+import { ThunderboltOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
 const route = useRoute()
@@ -163,6 +173,28 @@ const playerSource = ref('')
 let plyr: any = null
 let hls: any = null
 const basePoster = computed(() => String((detailData.value?.cover || detailData.value?.poster || ''))) 
+
+// 播放方案显示
+const playerScheme = computed(() => {
+  if (!playerSource.value) return '未加载'
+  
+  const url = playerSource.value.toLowerCase()
+  if (url.includes('.m3u8')) {
+    return 'HLS 流媒体'
+  } else if (url.includes('.mp4')) {
+    return 'MP4 直链'
+  } else if (url.includes('.flv')) {
+    return 'FLV 流媒体'
+  } else if (url.includes('.webm')) {
+    return 'WebM 格式'
+  } else if (url.includes('rtmp://')) {
+    return 'RTMP 流媒体'
+  } else if (url.includes('http')) {
+    return 'HTTP 直链'
+  } else {
+    return '未知格式'
+  }
+})
 const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3]
 const rate = ref(1)
 
@@ -914,6 +946,12 @@ onUnmounted(() => {
 /* 播放器容器样式 */
 .player-container {
   margin-bottom: 12px;
+}
+
+.player-scheme-info {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
 }
 
 .player-wrap {
