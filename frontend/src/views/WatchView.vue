@@ -68,6 +68,13 @@
                   </template>
                   迅雷下载
                 </a-button>
+                <!-- 当前播放器方案显示 -->
+                <a-tag color="green" size="small">
+                  <template #icon>
+                    <PlayCircleOutlined />
+                  </template>
+                  {{ currentPlayerScheme }}
+                </a-tag>
                 <!-- 长按2倍速提示 -->
                 <a-tag color="orange" size="small">
                   <template #icon>
@@ -223,6 +230,27 @@ const playerScheme = computed(() => {
     return '未知格式'
   }
 })
+
+// 当前播放器方案显示
+const currentPlayerScheme = computed(() => {
+  if (!playerSource.value) return '未加载'
+  
+  const url = playerSource.value.toLowerCase()
+  
+  // 检查是否使用HLS
+  if (url.includes('.m3u8')) {
+    if (Hls.isSupported()) {
+      return 'Plyr + HLS.js'
+    } else if (videoRef.value?.canPlayType('application/vnd.apple.mpegurl')) {
+      return 'Plyr + 原生HLS'
+    } else {
+      return 'Plyr + 兜底方案'
+    }
+  }
+  
+  // 其他格式都使用Plyr
+  return 'Plyr 播放器'
+})
 const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3]
 const rate = ref(1)
 
@@ -297,12 +325,28 @@ function ensurePlyr() {
     setVideoLoading(false)
   })
   
-  // Plyr 双击快进快退功能
+  // 禁用 Plyr 默认的双击全屏 - 在多个层级上阻止
+  plyr.elements.container.addEventListener('dblclick', (e: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
+    return false
+  })
+  
+  // 也监听视频元素本身的双击事件
+  plyr.elements.video.addEventListener('dblclick', (e: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
+    return false
+  })
+  
+  // Plyr 双击快进快退功能 - 直接监听容器
   let plyrLastClickTime = 0
   const plyrDoubleClickThreshold = 300
   
-  // 监听 Plyr 容器的点击事件
   plyr.elements.container.addEventListener('click', (e: any) => {
+    e.preventDefault() // 阻止默认行为
     const currentTime = Date.now()
     if (currentTime - plyrLastClickTime < plyrDoubleClickThreshold) {
       // 双击事件
@@ -333,23 +377,7 @@ function ensurePlyr() {
       // 单击事件
       plyrLastClickTime = currentTime
     }
-  })
-  
-  // 禁用 Plyr 默认的双击全屏 - 在多个层级上阻止
-  plyr.elements.container.addEventListener('dblclick', (e: any) => {
-    e.preventDefault()
-    e.stopPropagation()
-    e.stopImmediatePropagation()
-    return false
-  })
-  
-  // 也监听视频元素本身的双击事件
-  plyr.elements.video.addEventListener('dblclick', (e: any) => {
-    e.preventDefault()
-    e.stopPropagation()
-    e.stopImmediatePropagation()
-    return false
-  })
+  }, { passive: false })
   
   // Plyr 长按2倍速播放事件监听
   let plyrTouchStartTime = 0
@@ -358,6 +386,7 @@ function ensurePlyr() {
   
   // 触摸开始
   plyr.elements.container.addEventListener('touchstart', (e: any) => {
+    e.preventDefault() // 阻止默认行为
     plyrTouchStartTime = Date.now()
     plyrIsTouchActive = true
     if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
@@ -369,10 +398,11 @@ function ensurePlyr() {
         console.log('[Plyr LongPress] 启动2倍速播放')
       }
     }, 500)
-  })
+  }, { passive: false })
   
   // 触摸结束
   plyr.elements.container.addEventListener('touchend', (e: any) => {
+    e.preventDefault() // 阻止默认行为
     plyrIsTouchActive = false
     if (plyrLongPressTimer) {
       clearTimeout(plyrLongPressTimer)
@@ -383,10 +413,11 @@ function ensurePlyr() {
       isLongPressActive.value = false
       console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
     }
-  })
+  }, { passive: false })
   
   // 触摸取消
   plyr.elements.container.addEventListener('touchcancel', (e: any) => {
+    e.preventDefault() // 阻止默认行为
     plyrIsTouchActive = false
     if (plyrLongPressTimer) {
       clearTimeout(plyrLongPressTimer)
@@ -396,11 +427,12 @@ function ensurePlyr() {
       plyr.speed = originalRate.value
       isLongPressActive.value = false
     }
-  })
+  }, { passive: false })
   
   // 鼠标按下（桌面端）
   plyr.elements.container.addEventListener('mousedown', (e: any) => {
     if (e.button === 0) {
+      e.preventDefault() // 阻止默认行为
       plyrTouchStartTime = Date.now()
       plyrIsTouchActive = true
       if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
@@ -413,11 +445,12 @@ function ensurePlyr() {
         }
       }, 500)
     }
-  })
+  }, { passive: false })
   
   // 鼠标松开（桌面端）
   plyr.elements.container.addEventListener('mouseup', (e: any) => {
     if (e.button === 0) {
+      e.preventDefault() // 阻止默认行为
       plyrIsTouchActive = false
       if (plyrLongPressTimer) {
         clearTimeout(plyrLongPressTimer)
@@ -429,7 +462,7 @@ function ensurePlyr() {
         console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
       }
     }
-  })
+  }, { passive: false })
   
   // 鼠标离开（桌面端）
   plyr.elements.container.addEventListener('mouseleave', (e: any) => {
@@ -555,9 +588,10 @@ function bindPlayerEvents() {
         console.log('[Video] 双击快进10秒，当前时间:', newTime)
       }
       
-      // 阻止默认的双击全屏行为
+      // 阻止默认行为
       e.preventDefault()
       e.stopPropagation()
+      e.stopImmediatePropagation()
     } else {
       // 单击事件
       clickCount = 1
@@ -582,47 +616,79 @@ function bindPlayerEvents() {
   // 长按2倍速播放事件监听
   let touchStartTime = 0
   let isTouchActive = false
+  let longPressTimer: any = null
   
   // 触摸开始
   v.addEventListener('touchstart', (e) => {
+    e.preventDefault() // 阻止默认行为
     touchStartTime = Date.now()
     isTouchActive = true
-    startLongPress()
-  })
+    if (longPressTimer) clearTimeout(longPressTimer)
+    longPressTimer = setTimeout(() => {
+      if (isTouchActive) {
+        startLongPress()
+      }
+    }, 500)
+  }, { passive: false })
   
   // 触摸结束
   v.addEventListener('touchend', (e) => {
+    e.preventDefault() // 阻止默认行为
     isTouchActive = false
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
     endLongPress()
-  })
+  }, { passive: false })
   
   // 触摸取消
   v.addEventListener('touchcancel', (e) => {
+    e.preventDefault() // 阻止默认行为
     isTouchActive = false
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
     endLongPress()
-  })
+  }, { passive: false })
   
   // 鼠标按下（桌面端）
   v.addEventListener('mousedown', (e) => {
     if (e.button === 0) { // 左键
+      e.preventDefault() // 阻止默认行为
       touchStartTime = Date.now()
       isTouchActive = true
-      startLongPress()
+      if (longPressTimer) clearTimeout(longPressTimer)
+      longPressTimer = setTimeout(() => {
+        if (isTouchActive) {
+          startLongPress()
+        }
+      }, 500)
     }
-  })
+  }, { passive: false })
   
   // 鼠标松开（桌面端）
   v.addEventListener('mouseup', (e) => {
     if (e.button === 0) { // 左键
+      e.preventDefault() // 阻止默认行为
       isTouchActive = false
+      if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+      }
       endLongPress()
     }
-  })
+  }, { passive: false })
   
   // 鼠标离开（桌面端）
   v.addEventListener('mouseleave', (e) => {
     if (isTouchActive) {
       isTouchActive = false
+      if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+      }
       endLongPress()
     }
   })
