@@ -35,6 +35,18 @@
               <a-space wrap>
                 <a-button size="small" @click="playPrev" :disabled="!canPrev">上一集</a-button>
                 <a-button size="small" @click="playNext" :disabled="!canNext">下一集</a-button>
+                <a-button 
+                  size="small" 
+                  type="primary" 
+                  @click="downloadWithThunder" 
+                  :disabled="!playerSource"
+                  :loading="downloading"
+                >
+                  <template #icon>
+                    <ThunderboltOutlined />
+                  </template>
+                  迅雷下载
+                </a-button>
                 <!-- 移动端播放速率选择器 -->
                 <a-select
                   v-if="isMobile"
@@ -113,6 +125,8 @@ import { videoAPI } from '@/api'
 import Plyr from 'plyr'
 import Hls from 'hls.js'
 import 'plyr/dist/plyr.css'
+import { ThunderboltOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -122,6 +136,7 @@ const loading = ref(false)
 const error = ref('')
 const detailData = ref<any>(null)
 const fromCache = ref(false)
+const downloading = ref(false)
 
 const sourceId = computed(() => String(route.params.sourceId || ''))
 const videoUrl = computed(() => String(route.query.original_url || ''))
@@ -474,6 +489,49 @@ function playPrev() {
 function playNext() {
   if (!canNext.value) return
   playEpisode(currentSourceEpisodes.value[currentIndex.value + 1])
+}
+
+// 迅雷下载功能
+function downloadWithThunder() {
+  if (!playerSource.value) {
+    return
+  }
+  
+  downloading.value = true
+  
+  try {
+    // 构建文件名：视频名称 + 剧集名称
+    const videoName = base.value.name || '未知视频'
+    const currentEpisode = flatEpisodes.value.find(e => e.url === currentPlayUrl.value)
+    const episodeName = currentEpisode?.name || ''
+    const fileName = episodeName ? `${videoName} - ${episodeName}` : videoName
+    
+    // 清理文件名中的非法字符
+    const cleanFileName = fileName.replace(/[<>:"/\\|?*]/g, '_').trim()
+    
+    // 构建迅雷下载链接
+    const thunderUrl = `thunder://${btoa(`AA${playerSource.value}ZZ`)}`
+    
+    // 创建下载链接并触发下载
+    const link = document.createElement('a')
+    link.href = thunderUrl
+    link.download = `${cleanFileName}.mp4` // 设置下载文件名
+    link.style.display = 'none'
+    
+    // 添加到页面并触发点击
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // 显示成功提示
+    message.success('已调用迅雷下载，请检查迅雷是否已启动')
+    
+  } catch (error) {
+    console.error('迅雷下载失败:', error)
+    message.error('迅雷下载失败，请检查迅雷是否已安装')
+  } finally {
+    downloading.value = false
+  }
 }
 
 // 映射基础字段，容错不同脚本返回的键名
