@@ -1421,6 +1421,15 @@ function attachProgressDrag(container: HTMLElement) {
   let determined = false
   let isHorizontal = false
   let containerRect: DOMRect
+  let keepAliveTimer: any = null
+  
+  const ensureProgressVisible = () => {
+    try {
+      container.classList.add('dragging-show-progress')
+      container.classList.remove('plyr--hide-controls')
+      container.classList.add('plyr--controls-active')
+    } catch {}
+  }
 
   const verticalCancelThresholdRatio = 1 / 4 // 垂直位移超过高度1/4则取消
   const screenEdgeGuardRatio = 1 / 6 // 顶/底部1/6区域内不触发
@@ -1452,7 +1461,14 @@ function attachProgressDrag(container: HTMLElement) {
     startTime = getCurrentTime()
     determined = false
     isHorizontal = false
-    isDraggingProgress = false
+    // 预先进入“拖动模式”，立刻常驻显示进度条，避免首次水平位移阈值导致的闪现
+    isDraggingProgress = true
+    ensureProgressVisible()
+    // 在手指未抬起期间，定期刷新可见状态，防止 Plyr 自动隐藏
+    try { if (keepAliveTimer) clearInterval(keepAliveTimer) } catch {}
+    keepAliveTimer = setInterval(() => {
+      if (isDraggingProgress) ensureProgressVisible()
+    }, 250)
   }
 
   const onTouchMove = (e: TouchEvent) => {
@@ -1473,6 +1489,11 @@ function attachProgressDrag(container: HTMLElement) {
         determined = true
         isHorizontal = false
         isDraggingProgress = false
+        try {
+          container.classList.remove('dragging-show-progress')
+          container.classList.remove('plyr--controls-active')
+        } catch {}
+        try { if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null } } catch {}
         return
       }
       if (Math.abs(dx) > 8) {
@@ -1483,6 +1504,8 @@ function attachProgressDrag(container: HTMLElement) {
         try {
           container.classList.add('dragging-show-progress')
           container.classList.remove('longpress-hide-progress')
+          container.classList.remove('plyr--hide-controls')
+          container.classList.add('plyr--controls-active')
         } catch {}
       }
     }
@@ -1491,6 +1514,8 @@ function attachProgressDrag(container: HTMLElement) {
       // 阻止长按倍速与点击
       e.preventDefault()
       e.stopPropagation()
+      // 每次 move 都保证控件与进度条可见，避免任何闪烁
+      ensureProgressVisible()
       // 按容器宽度映射到时长
       const duration = getDuration()
       if (!duration || duration <= 0) return
@@ -1505,7 +1530,16 @@ function attachProgressDrag(container: HTMLElement) {
     determined = false
     isHorizontal = false
     isDraggingProgress = false
-    try { container.classList.remove('dragging-show-progress') } catch {}
+    try {
+      container.classList.remove('dragging-show-progress')
+      container.classList.remove('plyr--controls-active')
+    } catch {}
+    try { if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null } } catch {}
+    // 结束拖动后，给予控件短暂显示时间，避免立即被隐藏造成的闪烁
+    try {
+      container.classList.remove('plyr--hide-controls')
+      setTimeout(() => {}, 120)
+    } catch {}
   }
 
   // 触摸事件
