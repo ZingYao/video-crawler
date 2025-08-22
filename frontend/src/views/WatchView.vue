@@ -200,6 +200,32 @@ let plyr: any = null
 let hls: any = null
 let isDraggingProgress = false
 let plyrLongPressTimerRef: any = null
+let wakeLock: any = null
+
+// Screen Wake Lock API
+async function requestWakeLock(): Promise<void> {
+  try {
+    const anyNav: any = navigator as any
+    if (!anyNav.wakeLock || typeof anyNav.wakeLock.request !== 'function') return
+    if (wakeLock && !wakeLock.released) return
+    wakeLock = await anyNav.wakeLock.request('screen')
+    try { console.log('[WakeLock] acquired') } catch {}
+    wakeLock.addEventListener('release', () => {
+      try { console.log('[WakeLock] released') } catch {}
+    })
+  } catch (e) {
+    try { console.log('[WakeLock] request failed:', e) } catch {}
+  }
+}
+
+async function releaseWakeLock(): Promise<void> {
+  try {
+    if (wakeLock && typeof wakeLock.release === 'function' && !wakeLock.released) {
+      await wakeLock.release()
+    }
+  } catch {}
+  wakeLock = null
+}
 const basePoster = computed(() => String((detailData.value?.cover || detailData.value?.poster || ''))) 
 
 // 播放方案显示
@@ -276,6 +302,8 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth <= 768
 }
 
+// （已上方定义）
+
 // 初始化 Plyr 实例
 function ensurePlyr() {
   if (plyr || !videoRef.value) return
@@ -323,6 +351,11 @@ function ensurePlyr() {
     console.log('[Plyr] 视频可以流畅播放，隐藏loading')
     setVideoLoading(false)
   })
+  
+  // Plyr 播放状态 -> Screen Wake Lock
+  plyr.on('play', async () => { await requestWakeLock() })
+  plyr.on('pause', async () => { await releaseWakeLock() })
+  plyr.on('ended', async () => { await releaseWakeLock() })
   
   bindPlayerEvents()
 
@@ -743,6 +776,17 @@ function bindPlayerEvents() {
     startSpeedMonitoring()
   }
   
+  // 页面可见性变化时恢复/释放 Wake Lock
+  try {
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        if (!videoRef.value?.paused) { await requestWakeLock() }
+      } else {
+        await releaseWakeLock()
+      }
+    })
+  } catch {}
+
   // 容器与 document 级别全屏事件
   try {
     const container = v.parentElement
@@ -843,6 +887,9 @@ async function unlockOrientation() {
   } catch {}
   orientationLocked = false
 }
+
+// Screen Wake Lock API（声明到顶部作用域）
+// （重复定义已移除）
 
 
 
@@ -1395,6 +1442,8 @@ onUnmounted(() => {
     clearTimeout(longPressTimer)
     longPressTimer = null
   }
+  // 释放 Wake Lock
+  releaseWakeLock()
 })
 
 // 进度拖动手势（同时适配 Plyr 和原生 video 容器）
