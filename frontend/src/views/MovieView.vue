@@ -1,9 +1,5 @@
 <template>
-    <AppLayout :page-title="pageTitle">
-    <!-- 全屏 Loading 覆盖 -->
-    <div v-if="searching" class="loading-overlay">
-      <a-spin size="large" tip="搜索中..." />
-    </div>
+  <AppLayout :page-title="pageTitle">
     <a-card class="content-card">
       <template #title>
         <div class="card-header">
@@ -16,171 +12,179 @@
         <!-- 搜索区域 -->
         <div class="search-section">
           <a-card class="search-card">
-        <div class="search-form">
-          <a-row :gutter="16">
-            <a-col :xs="24" :sm="12" :md="14" :lg="16">
-              <a-auto-complete
-                v-model:value="searchKeyword"
-                :options="searchHistoryOptions"
-                placeholder="请输入影片名称"
-                size="large"
-                @keydown.enter="handleSearch"
-                @select="handleSelectHistory"
-                @focus="loadSearchHistory"
-                :disabled="searching"
-              >
-                <template #suffix>
-                  <SearchOutlined />
-                </template>
-              </a-auto-complete>
-            </a-col>
-            <a-col :xs="12" :sm="8" :md="6" :lg="6">
-              <a-select
-                v-model:value="selectedSourceType"
-                placeholder="选择站点类型"
-                size="large"
-                style="width: 100%"
-                :disabled="searching"
-              >
-                <a-select-option value="">所有</a-select-option>
-                <a-select-option value="0">综合</a-select-option>
-                <a-select-option value="1">短剧</a-select-option>
-                <a-select-option value="2">电影</a-select-option>
-                <a-select-option value="3">电视剧</a-select-option>
-                <a-select-option value="4">综艺</a-select-option>
-                <a-select-option value="5">动漫</a-select-option>
-                <a-select-option value="6">纪录片</a-select-option>
-                <a-select-option value="7">其他</a-select-option>
-              </a-select>
-            </a-col>
-            <a-col :xs="12" :sm="4" :md="4" :lg="2">
-              <a-button
-                type="primary"
-                size="large"
-                @click="handleSearch"
-                :loading="searching"
-                style="width: 100%"
-              >
-                搜索
-              </a-button>
-            </a-col>
-          </a-row>
-        </div>
-      </a-card>
-    </div>
-
-    <!-- 搜索结果区域 -->
-    <div class="results-section" v-if="searchResults.length > 0 && hasSearched">
-      <a-row :gutter="[16, 16]">
-        <a-col
-          v-for="movie in searchResults"
-          :key="movie.id"
-          :xs="24"
-          :sm="12"
-          :md="8"
-          :lg="6"
-          :xl="4"
-        >
-          <a-card class="movie-card" hoverable @click="startWatching(movie)">
-            <template #cover>
-              <div class="movie-cover">
-                <img :src="movie.cover_url" :alt="movie.title" />
-                <div class="movie-overlay">
-                  <a-space>
-                    <a-button
-                      type="primary"
-                      size="small"
-                      @click="startWatching(movie)"
-                    >
-                      开始观看
-                    </a-button>
-                    <a-button
-                      size="small"
-                      @click.stop="goToOriginal(movie)"
-                    >
-                      原站点
-                    </a-button>
-                  </a-space>
-                </div>
-              </div>
-            </template>
-            
-            <a-card-meta>
-              <template #title>
-                <a-tooltip :title="movie.title" :overlayStyle="tooltipOverlayStyle">
-                  <div class="movie-title">{{ movie.title }}</div>
-                </a-tooltip>
-              </template>
-              <template #description>
-                <div class="movie-info">
-                  <div class="movie-meta">
-                    <div class="meta-item">
-                      <span class="label">导演：</span>
-                      <a-tooltip :title="movie.director || '未知'" :overlayStyle="tooltipOverlayStyle">
-                        <span class="value">{{ movie.director || '未知' }}</span>
-                      </a-tooltip>
-                    </div>
-                    <div class="meta-item">
-                      <span class="label">主演：</span>
-                      <a-tooltip :title="movie.actors || '未知'" :overlayStyle="tooltipOverlayStyle">
-                        <span class="value">{{ movie.actors || '未知' }}</span>
-                      </a-tooltip>
-                    </div>
-                    <div class="meta-item">
-                      <span class="label">类型：</span>
-                      <a-tooltip :title="movie.type || '未知'" :overlayStyle="tooltipOverlayStyle">
-                        <span class="value">{{ movie.type || '未知' }}</span>
-                      </a-tooltip>
-                    </div>
-                    <div class="meta-item">
-                      <span class="label">上映：</span>
-                      <a-tooltip :title="movie.release_date || '未知'" :overlayStyle="tooltipOverlayStyle">
-                        <span class="value">{{ movie.release_date || '未知' }}</span>
-                      </a-tooltip>
-                    </div>
-                    <div class="meta-item">
-                      <span class="label">地区：</span>
-                      <a-tooltip :title="movie.region || '未知'" :overlayStyle="tooltipOverlayStyle">
-                        <span class="value">{{ movie.region || '未知' }}</span>
-                      </a-tooltip>
-                    </div>
-                    <div class="meta-item">
-                      <span class="label">来源：</span>
-                      <a-tag color="green">{{ movie.source_name }}</a-tag>
-                    </div>
-                  </div>
-                  <a-tooltip :title="movie.description || '暂无简介'" :overlayStyle="tooltipOverlayStyle">
-                    <div class="movie-description">
-                      {{ movie.description || '暂无简介' }}
-                    </div>
-                  </a-tooltip>
-                </div>
-              </template>
-            </a-card-meta>
+            <div class="search-form">
+              <a-row :gutter="16">
+                <a-col :xs="24" :sm="12" :md="14" :lg="16">
+                  <a-auto-complete
+                    v-model:value="searchKeyword"
+                    :options="searchHistoryOptions"
+                    placeholder="请输入影片名称"
+                    size="large"
+                    @keydown.enter="handleSearch"
+                    @select="handleSelectHistory"
+                    @focus="loadSearchHistory"
+                    :disabled="searching"
+                  >
+                    <template #suffix>
+                      <SearchOutlined />
+                    </template>
+                  </a-auto-complete>
+                </a-col>
+                <a-col :xs="12" :sm="8" :md="6" :lg="6">
+                  <a-select
+                    v-model:value="selectedSourceType"
+                    placeholder="选择站点类型"
+                    size="large"
+                    style="width: 100%"
+                    :disabled="searching"
+                  >
+                    <a-select-option value="">所有</a-select-option>
+                    <a-select-option value="0">综合</a-select-option>
+                    <a-select-option value="1">短剧</a-select-option>
+                    <a-select-option value="2">电影</a-select-option>
+                    <a-select-option value="3">电视剧</a-select-option>
+                    <a-select-option value="4">综艺</a-select-option>
+                    <a-select-option value="5">动漫</a-select-option>
+                    <a-select-option value="6">纪录片</a-select-option>
+                    <a-select-option value="7">其他</a-select-option>
+                  </a-select>
+                </a-col>
+                <a-col :xs="12" :sm="4" :md="4" :lg="2">
+                  <a-button
+                    type="primary"
+                    size="large"
+                    @click="handleSearch"
+                    :loading="searching"
+                    style="width: 100%"
+                  >
+                    搜索
+                  </a-button>
+                </a-col>
+              </a-row>
+            </div>
           </a-card>
-        </a-col>
-      </a-row>
-    </div>
+        </div>
 
-    <!-- 空状态 -->
-    <div class="empty-section" v-else-if="hasSearched && searchResults.length === 0">
-      <a-empty description="暂无搜索结果" />
-    </div>
+        <!-- 搜索结果区域 -->
+        <div class="results-section" v-if="hasSearched">
+          <!-- 搜索结果loading -->
+          <div v-if="searching" class="results-loading">
+            <a-spin size="large" tip="搜索中..." />
+          </div>
+          
+          <!-- 搜索结果列表 -->
+          <div v-else-if="searchResults.length > 0">
+            <a-row :gutter="[16, 16]">
+              <a-col
+                v-for="movie in searchResults"
+                :key="movie.id"
+                :xs="24"
+                :sm="12"
+                :md="8"
+                :lg="6"
+                :xl="4"
+              >
+                <a-card class="movie-card" hoverable @click="startWatching(movie)">
+                  <template #cover>
+                    <div class="movie-cover">
+                      <img :src="movie.cover_url" :alt="movie.title" />
+                      <div class="movie-overlay">
+                        <a-space>
+                          <a-button
+                            type="primary"
+                            size="small"
+                            @click="startWatching(movie)"
+                          >
+                            开始观看
+                          </a-button>
+                          <a-button
+                            size="small"
+                            @click.stop="goToOriginal(movie)"
+                          >
+                            原站点
+                          </a-button>
+                        </a-space>
+                      </div>
+                    </div>
+                  </template>
+                  
+                  <a-card-meta>
+                    <template #title>
+                      <a-tooltip :title="movie.title" :overlayStyle="tooltipOverlayStyle">
+                        <div class="movie-title">{{ movie.title }}</div>
+                      </a-tooltip>
+                    </template>
+                    <template #description>
+                      <div class="movie-info">
+                        <div class="movie-meta">
+                          <div class="meta-item">
+                            <span class="label">导演：</span>
+                            <a-tooltip :title="movie.director || '未知'" :overlayStyle="tooltipOverlayStyle">
+                              <span class="value">{{ movie.director || '未知' }}</span>
+                            </a-tooltip>
+                          </div>
+                          <div class="meta-item">
+                            <span class="label">主演：</span>
+                            <a-tooltip :title="movie.actors || '未知'" :overlayStyle="tooltipOverlayStyle">
+                              <span class="value">{{ movie.actors || '未知' }}</span>
+                            </a-tooltip>
+                          </div>
+                          <div class="meta-item">
+                            <span class="label">类型：</span>
+                            <a-tooltip :title="movie.type || '未知'" :overlayStyle="tooltipOverlayStyle">
+                              <span class="value">{{ movie.type || '未知' }}</span>
+                            </a-tooltip>
+                          </div>
+                          <div class="meta-item">
+                            <span class="label">上映：</span>
+                            <a-tooltip :title="movie.release_date || '未知'" :overlayStyle="tooltipOverlayStyle">
+                              <span class="value">{{ movie.release_date || '未知' }}</span>
+                            </a-tooltip>
+                          </div>
+                          <div class="meta-item">
+                            <span class="label">地区：</span>
+                            <a-tooltip :title="movie.region || '未知'" :overlayStyle="tooltipOverlayStyle">
+                              <span class="value">{{ movie.region || '未知' }}</span>
+                            </a-tooltip>
+                          </div>
+                          <div class="meta-item">
+                            <span class="label">来源：</span>
+                            <a-tag color="green">{{ movie.source_name }}</a-tag>
+                          </div>
+                        </div>
+                        <a-tooltip :title="movie.description || '暂无简介'" :overlayStyle="tooltipOverlayStyle">
+                          <div class="movie-description">
+                            {{ movie.description || '暂无简介' }}
+                          </div>
+                        </a-tooltip>
+                      </div>
+                    </template>
+                  </a-card-meta>
+                </a-card>
+              </a-col>
+            </a-row>
+          </div>
 
-    <!-- 初始状态 -->
-    <div class="welcome-section" v-else-if="!hasSearched">
-      <a-card class="welcome-card">
-        <a-result
-          status="success"
-          title="欢迎来到观影页面"
-          sub-title="请输入影片名称开始搜索"
-        >
-          <template #icon>
-            <PlayCircleOutlined style="font-size: 64px; color: #52c41a;" />
-          </template>
-        </a-result>
-      </a-card>
-    </div>
+          <!-- 空状态 -->
+          <div class="empty-section" v-else-if="hasSearched && searchResults.length === 0">
+            <a-empty description="暂无搜索结果" />
+          </div>
+        </div>
+
+        <!-- 初始状态 -->
+        <div class="welcome-section" v-else-if="!hasSearched">
+          <a-card class="welcome-card">
+            <a-result
+              status="success"
+              title="欢迎来到观影页面"
+              sub-title="请输入影片名称开始搜索"
+            >
+              <template #icon>
+                <PlayCircleOutlined style="font-size: 64px; color: #52c41a;" />
+              </template>
+            </a-result>
+          </a-card>
+        </div>
       </div>
     </a-card>
   </AppLayout>
@@ -378,10 +382,11 @@ const handleSearch = async () => {
   }
 }
 
-// 选择搜索历史：填充并触发搜索
+// 选择搜索历史：仅填充，不自动触发搜索
 const handleSelectHistory = (value: string) => {
   searchKeyword.value = value
-  handleSearch()
+  // 移除自动触发搜索，让用户手动点击搜索按钮
+  // handleSearch()
 }
 
 // 开始观看

@@ -91,16 +91,26 @@
   white-space: nowrap;
 }
 
-/* 全屏搜索 Loading 覆盖层 */
-.loading-overlay {
+/* 搜索结果 Loading */
+.results-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  min-height: 200px;
+}
+
+/* 移除全屏搜索 Loading 覆盖层 */
+/* .loading-overlay {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.65);
-  z-index: 2000;
-}
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+} */
 
 .movie-meta {
   margin-bottom: 12px;
