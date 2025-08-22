@@ -132,3 +132,17 @@ env: dev  # print logs to console in dev
 ## License
 
 MIT License
+
+---
+
+## Player Interaction Optimizations (Designed for Chinese user habits)
+
+To improve mobile and touch scenarios, we tuned the video playback interactions (both Plyr and native HTML5 video):
+
+- Double-click to Play/Pause: toggle playback on double click (replaces double-click seek).
+- Long-press 2x: press and hold for 500ms to enter 2x speed, release to restore; mutually exclusive with progress dragging to avoid mis-touches.
+- Horizontal drag to seek: supports repeated back-and-forth; ignore when vertical movement exceeds 1/4 of container height or when starting area is within top/bottom 1/6 (prevents pulling notification bar or system gestures).
+- Persistent progress bar during drag: once dragging starts, keep the bar visible until finger lifts; temporary pauses while holding will not hide the bar.
+- Mobile control simplification: hide volume slider on mobile; keep mute and speed settings for a cleaner UI.
+
+All optimizations apply to both Plyr and native video to deliver a consistent mobile experience across engines.

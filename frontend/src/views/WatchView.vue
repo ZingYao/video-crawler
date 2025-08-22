@@ -1452,7 +1452,7 @@ function attachProgressDrag(container: HTMLElement) {
     try { if (keepAliveTimer) clearInterval(keepAliveTimer) } catch {}
     keepAliveTimer = setInterval(() => {
       if (isDraggingProgress) ensureProgressVisible()
-    }, 250)
+    }, 100)
   }
 
   const onTouchMove = (e: TouchEvent) => {
