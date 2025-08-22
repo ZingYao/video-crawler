@@ -279,6 +279,24 @@ function ensurePlyr() {
     }
   })
   
+  // Plyr 视频等待数据事件（卡住检测）
+  plyr.on('waiting', () => {
+    console.log('[Plyr] 视频等待数据，显示loading')
+    setVideoLoading(true)
+  })
+  
+  // Plyr 视频可以播放事件（恢复检测）
+  plyr.on('canplay', () => {
+    console.log('[Plyr] 视频可以播放，隐藏loading')
+    setVideoLoading(false)
+  })
+  
+  // Plyr 视频可以流畅播放事件
+  plyr.on('canplaythrough', () => {
+    console.log('[Plyr] 视频可以流畅播放，隐藏loading')
+    setVideoLoading(false)
+  })
+  
   // Plyr 双击快进快退功能
   let plyrLastClickTime = 0
   const plyrDoubleClickThreshold = 300
@@ -488,6 +506,24 @@ function bindPlayerEvents() {
     } catch (e) {
       console.error('[Video] 自动切换下一集失败:', e)
     }
+  })
+  
+  // 视频等待数据事件（卡住检测）
+  v.addEventListener('waiting', () => {
+    console.log('[Video] 视频等待数据，显示loading')
+    setVideoLoading(true)
+  })
+  
+  // 视频可以播放事件（恢复检测）
+  v.addEventListener('canplay', () => {
+    console.log('[Video] 视频可以播放，隐藏loading')
+    setVideoLoading(false)
+  })
+  
+  // 视频可以流畅播放事件
+  v.addEventListener('canplaythrough', () => {
+    console.log('[Video] 视频可以流畅播放，隐藏loading')
+    setVideoLoading(false)
   })
   
   // 双击快进快退功能
@@ -898,8 +934,13 @@ function startSpeedMonitoring() {
       
       if (timeDiff > 0 && v.buffered.length > 0) {
         const bufferedEnd = v.buffered.end(v.buffered.length - 1)
-        const currentTime = v.currentTime
-        const bufferedBytes = (bufferedEnd - currentTime) * 1000000 // 估算字节数
+        const currentVideoTime = v.currentTime
+        const bufferedTime = bufferedEnd - currentVideoTime
+        
+        // 更准确的字节数估算：基于视频时长和码率
+        // 假设平均码率为 2Mbps (250KB/s)
+        const estimatedBitrate = 2 * 1024 * 1024 // 2Mbps
+        const bufferedBytes = bufferedTime * estimatedBitrate / 8
         
         const bytesDiff = bufferedBytes - lastLoadedBytes
         const speedBps = bytesDiff / timeDiff
@@ -913,13 +954,38 @@ function startSpeedMonitoring() {
           } else {
             networkSpeed.value = `${speedKBps.toFixed(1)} KB/s`
           }
+        } else {
+          networkSpeed.value = '0 KB/s'
         }
         
         lastLoadedBytes = bufferedBytes
         lastSpeedCheckTime = currentTime
+        
+        // 检测播放中卡住的情况
+        checkVideoStuck()
       }
     }
   }, 1000) // 每秒检查一次
+}
+
+// 检测视频是否卡住
+function checkVideoStuck() {
+  if (!videoRef.value) return
+  
+  const v = videoRef.value
+  
+  // 如果视频正在播放但缓冲不足，显示loading
+  if (!v.paused && v.readyState < 3) {
+    // readyState < 3 表示缓冲不足
+    if (!videoLoading.value) {
+      console.log('[Video] 检测到播放卡住，显示loading')
+      setVideoLoading(true)
+    }
+  } else if (videoLoading.value && v.readyState >= 3) {
+    // readyState >= 3 表示缓冲充足
+    console.log('[Video] 缓冲充足，隐藏loading')
+    setVideoLoading(false)
+  }
 }
 
 function stopSpeedMonitoring() {
@@ -932,9 +998,11 @@ function stopSpeedMonitoring() {
 
 function setVideoLoading(loading: boolean) {
   videoLoading.value = loading
-  if (loading) {
+  if (loading && !speedCheckInterval) {
+    // 只有在没有网速监控时才启动
     startSpeedMonitoring()
-  } else {
+  } else if (!loading && speedCheckInterval) {
+    // 只有在明确停止时才停止网速监控
     stopSpeedMonitoring()
   }
 }
