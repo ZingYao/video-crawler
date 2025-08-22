@@ -252,6 +252,7 @@ function ensurePlyr() {
     controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
     settings: ['speed'],
     speed: { selected: rate.value, options: rates },
+    clickToPlay: true,
   })
   
   // 绑定 Plyr 的播放完成事件
@@ -272,7 +273,8 @@ function ensurePlyr() {
   let plyrLastClickTime = 0
   const plyrDoubleClickThreshold = 300
   
-  plyr.on('click', (e: any) => {
+  // 监听 Plyr 容器的点击事件
+  plyr.elements.container.addEventListener('click', (e: any) => {
     const currentTime = Date.now()
     if (currentTime - plyrLastClickTime < plyrDoubleClickThreshold) {
       // 双击事件
@@ -298,16 +300,27 @@ function ensurePlyr() {
       // 阻止默认行为
       e.preventDefault()
       e.stopPropagation()
+      e.stopImmediatePropagation()
     } else {
       // 单击事件
       plyrLastClickTime = currentTime
     }
   })
   
-  // 禁用 Plyr 默认的双击全屏
-  plyr.on('dblclick', (e: any) => {
+  // 禁用 Plyr 默认的双击全屏 - 在多个层级上阻止
+  plyr.elements.container.addEventListener('dblclick', (e: any) => {
     e.preventDefault()
     e.stopPropagation()
+    e.stopImmediatePropagation()
+    return false
+  })
+  
+  // 也监听视频元素本身的双击事件
+  plyr.elements.video.addEventListener('dblclick', (e: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
+    return false
   })
   
   bindPlayerEvents()
@@ -415,7 +428,15 @@ function bindPlayerEvents() {
   v.addEventListener('dblclick', (e) => {
     e.preventDefault()
     e.stopPropagation()
+    e.stopImmediatePropagation()
+    return false
   })
+  
+  // 在视频元素上添加 CSS 样式禁用双击选择
+  v.style.userSelect = 'none'
+  ;(v.style as any).webkitUserSelect = 'none'
+  ;(v.style as any).mozUserSelect = 'none'
+  ;(v.style as any).msUserSelect = 'none'
   
   // 倍速变更（通过 plyr 统一）
   // 元数据
