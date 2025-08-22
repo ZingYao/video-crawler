@@ -1494,13 +1494,13 @@ function attachProgressDrag(container: HTMLElement) {
     startTime = getCurrentTime()
     determined = false
     isHorizontal = false
-    // 预先进入“拖动模式”，立刻常驻显示进度条，避免首次水平位移阈值导致的闪现
-    isDraggingProgress = true
+    // 不立刻标记为拖动，避免阻断长按倍速判定。
+    // 仅先行保持进度条常亮，等判定为水平拖动后再置 isDraggingProgress = true
     ensureProgressVisible()
     // 在手指未抬起期间，定期刷新可见状态，防止 Plyr 自动隐藏
     try { if (keepAliveTimer) clearInterval(keepAliveTimer) } catch {}
     keepAliveTimer = setInterval(() => {
-      if (isDraggingProgress) ensureProgressVisible()
+      ensureProgressVisible()
     }, 100)
   }
 
