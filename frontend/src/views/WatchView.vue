@@ -734,6 +734,11 @@ function bindPlayerEvents() {
     addPlyrCustomEvents()
   }
   
+  // 启动网速监控
+  if (!speedCheckInterval) {
+    startSpeedMonitoring()
+  }
+  
   // 容器与 document 级别全屏事件
   try {
     const container = v.parentElement
@@ -1099,12 +1104,11 @@ function stopSpeedMonitoring() {
 function setVideoLoading(loading: boolean) {
   videoLoading.value = loading
   if (loading && !speedCheckInterval) {
-    // 只有在没有网速监控时才启动
+    // 开始加载时启动网速监控
     startSpeedMonitoring()
-  } else if (!loading && speedCheckInterval) {
-    // 只有在明确停止时才停止网速监控
-    stopSpeedMonitoring()
   }
+  // 移除自动停止网速监控的逻辑，让网速监控持续运行
+  // 只有在组件卸载时才停止
 }
 
 // 长按2倍速播放功能
