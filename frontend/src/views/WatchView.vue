@@ -68,6 +68,13 @@
                   </template>
                   迅雷下载
                 </a-button>
+                <!-- 长按2倍速提示 -->
+                <a-tag color="orange" size="small">
+                  <template #icon>
+                    <ClockCircleOutlined />
+                  </template>
+                  长按视频区域2倍速
+                </a-tag>
                 <!-- 移动端播放速率选择器 -->
                 <a-select
                   v-if="isMobile"
@@ -146,7 +153,7 @@ import { videoAPI } from '@/api'
 import Plyr from 'plyr'
 import Hls from 'hls.js'
 import 'plyr/dist/plyr.css'
-import { ThunderboltOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
+import { ThunderboltOutlined, PlayCircleOutlined, ClockCircleOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
 const route = useRoute()
@@ -160,11 +167,14 @@ const fromCache = ref(false)
 const downloading = ref(false)
 const videoLoading = ref(false)
 const networkSpeed = ref('')
+const originalRate = ref(1) // 保存原始播放速率
+const isLongPressActive = ref(false) // 长按状态
 
 // 网速计算相关变量
 let lastLoadedBytes = 0
 let lastSpeedCheckTime = 0
 let speedCheckInterval: any = null
+let longPressTimer: any = null // 长按定时器
 
 const sourceId = computed(() => String(route.params.sourceId || ''))
 const videoUrl = computed(() => String(route.query.original_url || route.query.url || ''))
@@ -323,6 +333,101 @@ function ensurePlyr() {
     return false
   })
   
+  // Plyr 长按2倍速播放事件监听
+  let plyrTouchStartTime = 0
+  let plyrIsTouchActive = false
+  let plyrLongPressTimer: any = null
+  
+  // 触摸开始
+  plyr.elements.container.addEventListener('touchstart', (e: any) => {
+    plyrTouchStartTime = Date.now()
+    plyrIsTouchActive = true
+    if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
+    plyrLongPressTimer = setTimeout(() => {
+      if (plyrIsTouchActive) {
+        originalRate.value = plyr.speed
+        plyr.speed = 2
+        isLongPressActive.value = true
+        console.log('[Plyr LongPress] 启动2倍速播放')
+      }
+    }, 500)
+  })
+  
+  // 触摸结束
+  plyr.elements.container.addEventListener('touchend', (e: any) => {
+    plyrIsTouchActive = false
+    if (plyrLongPressTimer) {
+      clearTimeout(plyrLongPressTimer)
+      plyrLongPressTimer = null
+    }
+    if (isLongPressActive.value) {
+      plyr.speed = originalRate.value
+      isLongPressActive.value = false
+      console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
+    }
+  })
+  
+  // 触摸取消
+  plyr.elements.container.addEventListener('touchcancel', (e: any) => {
+    plyrIsTouchActive = false
+    if (plyrLongPressTimer) {
+      clearTimeout(plyrLongPressTimer)
+      plyrLongPressTimer = null
+    }
+    if (isLongPressActive.value) {
+      plyr.speed = originalRate.value
+      isLongPressActive.value = false
+    }
+  })
+  
+  // 鼠标按下（桌面端）
+  plyr.elements.container.addEventListener('mousedown', (e: any) => {
+    if (e.button === 0) {
+      plyrTouchStartTime = Date.now()
+      plyrIsTouchActive = true
+      if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
+      plyrLongPressTimer = setTimeout(() => {
+        if (plyrIsTouchActive) {
+          originalRate.value = plyr.speed
+          plyr.speed = 2
+          isLongPressActive.value = true
+          console.log('[Plyr LongPress] 启动2倍速播放')
+        }
+      }, 500)
+    }
+  })
+  
+  // 鼠标松开（桌面端）
+  plyr.elements.container.addEventListener('mouseup', (e: any) => {
+    if (e.button === 0) {
+      plyrIsTouchActive = false
+      if (plyrLongPressTimer) {
+        clearTimeout(plyrLongPressTimer)
+        plyrLongPressTimer = null
+      }
+      if (isLongPressActive.value) {
+        plyr.speed = originalRate.value
+        isLongPressActive.value = false
+        console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
+      }
+    }
+  })
+  
+  // 鼠标离开（桌面端）
+  plyr.elements.container.addEventListener('mouseleave', (e: any) => {
+    if (plyrIsTouchActive) {
+      plyrIsTouchActive = false
+      if (plyrLongPressTimer) {
+        clearTimeout(plyrLongPressTimer)
+        plyrLongPressTimer = null
+      }
+      if (isLongPressActive.value) {
+        plyr.speed = originalRate.value
+        isLongPressActive.value = false
+      }
+    }
+  })
+  
   bindPlayerEvents()
 }
 let lastSavedSecond = 0
@@ -437,6 +542,54 @@ function bindPlayerEvents() {
   ;(v.style as any).webkitUserSelect = 'none'
   ;(v.style as any).mozUserSelect = 'none'
   ;(v.style as any).msUserSelect = 'none'
+  
+  // 长按2倍速播放事件监听
+  let touchStartTime = 0
+  let isTouchActive = false
+  
+  // 触摸开始
+  v.addEventListener('touchstart', (e) => {
+    touchStartTime = Date.now()
+    isTouchActive = true
+    startLongPress()
+  })
+  
+  // 触摸结束
+  v.addEventListener('touchend', (e) => {
+    isTouchActive = false
+    endLongPress()
+  })
+  
+  // 触摸取消
+  v.addEventListener('touchcancel', (e) => {
+    isTouchActive = false
+    endLongPress()
+  })
+  
+  // 鼠标按下（桌面端）
+  v.addEventListener('mousedown', (e) => {
+    if (e.button === 0) { // 左键
+      touchStartTime = Date.now()
+      isTouchActive = true
+      startLongPress()
+    }
+  })
+  
+  // 鼠标松开（桌面端）
+  v.addEventListener('mouseup', (e) => {
+    if (e.button === 0) { // 左键
+      isTouchActive = false
+      endLongPress()
+    }
+  })
+  
+  // 鼠标离开（桌面端）
+  v.addEventListener('mouseleave', (e) => {
+    if (isTouchActive) {
+      isTouchActive = false
+      endLongPress()
+    }
+  })
   
   // 倍速变更（通过 plyr 统一）
   // 元数据
@@ -786,6 +939,58 @@ function setVideoLoading(loading: boolean) {
   }
 }
 
+// 长按2倍速播放功能
+function startLongPress() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+  }
+  
+  longPressTimer = setTimeout(() => {
+    // 保存当前播放速率
+    originalRate.value = rate.value
+    // 设置为2倍速
+    rate.value = 2
+    isLongPressActive.value = true
+    
+    // 应用2倍速
+    try {
+      if (plyr) {
+        plyr.speed = 2
+      } else if (videoRef.value) {
+        (videoRef.value as any).playbackRate = 2
+      }
+      console.log('[LongPress] 启动2倍速播放')
+    } catch (e) {
+      console.error('[LongPress] 设置2倍速失败:', e)
+    }
+  }, 500) // 500ms 长按触发
+}
+
+function endLongPress() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+  
+  if (isLongPressActive.value) {
+    // 恢复原始播放速率
+    rate.value = originalRate.value
+    isLongPressActive.value = false
+    
+    // 应用原始速率
+    try {
+      if (plyr) {
+        plyr.speed = originalRate.value
+      } else if (videoRef.value) {
+        (videoRef.value as any).playbackRate = originalRate.value
+      }
+      console.log('[LongPress] 恢复原始播放速率:', originalRate.value)
+    } catch (e) {
+      console.error('[LongPress] 恢复原始速率失败:', e)
+    }
+  }
+}
+
 // 映射基础字段，容错不同脚本返回的键名
 const base = computed(() => {
   const d: any = detailData.value || {}
@@ -993,6 +1198,12 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
   stopSpeedMonitoring() // 清理网速监控定时器
+  
+  // 清理长按定时器
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
 })
 </script>
 
