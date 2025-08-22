@@ -40,6 +40,17 @@
                 playsinline
                 controls
               ></video>
+              
+              <!-- 加载状态遮罩 -->
+              <div v-if="videoLoading" class="video-loading-mask">
+                <div class="loading-content">
+                  <a-spin size="large" />
+                  <div class="loading-text">视频加载中...</div>
+                  <div v-if="networkSpeed" class="network-speed">
+                    网速: {{ networkSpeed }}
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="player-actions">
               <a-space wrap>
@@ -147,6 +158,13 @@ const error = ref('')
 const detailData = ref<any>(null)
 const fromCache = ref(false)
 const downloading = ref(false)
+const videoLoading = ref(false)
+const networkSpeed = ref('')
+
+// 网速计算相关变量
+let lastLoadedBytes = 0
+let lastSpeedCheckTime = 0
+let speedCheckInterval: any = null
 
 const sourceId = computed(() => String(route.params.sourceId || ''))
 const videoUrl = computed(() => String(route.query.original_url || route.query.url || ''))
@@ -595,6 +613,7 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
   const q = { ...route.query, title: ep.name, source: sourceName || (ep as any).__sourceName }
   router.replace({ name: 'watch', params: route.params, query: q })
   try {
+    setVideoLoading(true) // 开始加载
     const token = auth.token!
     const res: any = await videoAPI.playUrl(token, sourceId.value, ep.url)
     const url: string = res?.data?.video_url || res?.data || ''
@@ -628,7 +647,11 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
     }
     // 保存所选剧集
     savePlayState({ url: ep.url, title: ep.name, source: q.source })
-  } catch {}
+  } catch (error) {
+    console.error('播放剧集失败:', error)
+  } finally {
+    setVideoLoading(false) // 结束加载
+  }
 }
 
 function playPrev() {
@@ -680,6 +703,65 @@ function downloadWithThunder() {
     message.error('迅雷下载失败，请检查迅雷是否已安装')
   } finally {
     downloading.value = false
+  }
+}
+
+// 网速计算和加载状态管理
+function startSpeedMonitoring() {
+  if (speedCheckInterval) {
+    clearInterval(speedCheckInterval)
+  }
+  
+  lastLoadedBytes = 0
+  lastSpeedCheckTime = Date.now()
+  networkSpeed.value = ''
+  
+  speedCheckInterval = setInterval(() => {
+    if (videoRef.value) {
+      const v = videoRef.value
+      const currentTime = Date.now()
+      const timeDiff = (currentTime - lastSpeedCheckTime) / 1000 // 秒
+      
+      if (timeDiff > 0 && v.buffered.length > 0) {
+        const bufferedEnd = v.buffered.end(v.buffered.length - 1)
+        const currentTime = v.currentTime
+        const bufferedBytes = (bufferedEnd - currentTime) * 1000000 // 估算字节数
+        
+        const bytesDiff = bufferedBytes - lastLoadedBytes
+        const speedBps = bytesDiff / timeDiff
+        
+        if (speedBps > 0) {
+          const speedKBps = speedBps / 1024
+          const speedMBps = speedKBps / 1024
+          
+          if (speedMBps >= 1) {
+            networkSpeed.value = `${speedMBps.toFixed(1)} MB/s`
+          } else {
+            networkSpeed.value = `${speedKBps.toFixed(1)} KB/s`
+          }
+        }
+        
+        lastLoadedBytes = bufferedBytes
+        lastSpeedCheckTime = currentTime
+      }
+    }
+  }, 1000) // 每秒检查一次
+}
+
+function stopSpeedMonitoring() {
+  if (speedCheckInterval) {
+    clearInterval(speedCheckInterval)
+    speedCheckInterval = null
+  }
+  networkSpeed.value = ''
+}
+
+function setVideoLoading(loading: boolean) {
+  videoLoading.value = loading
+  if (loading) {
+    startSpeedMonitoring()
+  } else {
+    stopSpeedMonitoring()
   }
 }
 
@@ -780,8 +862,9 @@ async function fetchDetail(force = false) {
 
 async function resolvePlayUrl() {
   try {
+    setVideoLoading(true) // 开始加载
     const token = auth.token!
-    // 优先请求“当前选中剧集”的播放链接；无则回退
+    // 优先请求"当前选中剧集"的播放链接；无则回退
     const episodeUrl = getSelectedEpisodeUrl()
     const res: any = await videoAPI.playUrl(token, sourceId.value, episodeUrl)
     const url: string = res?.data?.video_url || res?.data || ''
@@ -841,6 +924,8 @@ async function resolvePlayUrl() {
     if (!currentPlayUrl.value) currentPlayUrl.value = videoUrl.value
   } catch (e: any) {
     // 忽略错误，保留空源
+  } finally {
+    setVideoLoading(false) // 结束加载
   }
 }
 
@@ -886,6 +971,7 @@ onMounted(async () => {
 // 清理事件监听
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  stopSpeedMonitoring() // 清理网速监控定时器
 })
 </script>
 
@@ -959,6 +1045,36 @@ onUnmounted(() => {
   width: 100%;
   max-width: 100%;
   overflow: hidden;
+}
+
+.video-loading-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+}
+
+.loading-text {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #fff;
+}
+
+.network-speed {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #ccc;
 }
 
 .plyr-video {
