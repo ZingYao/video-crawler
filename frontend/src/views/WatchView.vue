@@ -218,6 +218,48 @@ function ensurePlyr() {
     }
   })
   
+  // Plyr 双击快进快退功能
+  let plyrLastClickTime = 0
+  const plyrDoubleClickThreshold = 300
+  
+  plyr.on('click', (e: any) => {
+    const currentTime = Date.now()
+    if (currentTime - plyrLastClickTime < plyrDoubleClickThreshold) {
+      // 双击事件
+      plyrLastClickTime = 0
+      
+      // 计算点击位置
+      const rect = plyr.elements.container.getBoundingClientRect()
+      const clickX = e.clientX - rect.left
+      const isLeftHalf = clickX < rect.width / 2
+      
+      if (isLeftHalf) {
+        // 左半边双击：快退10秒
+        const newTime = Math.max(0, plyr.currentTime - 10)
+        plyr.currentTime = newTime
+        console.log('[Plyr] 双击快退10秒，当前时间:', newTime)
+      } else {
+        // 右半边双击：快进10秒
+        const newTime = Math.min(plyr.duration, plyr.currentTime + 10)
+        plyr.currentTime = newTime
+        console.log('[Plyr] 双击快进10秒，当前时间:', newTime)
+      }
+      
+      // 阻止默认行为
+      e.preventDefault()
+      e.stopPropagation()
+    } else {
+      // 单击事件
+      plyrLastClickTime = currentTime
+    }
+  })
+  
+  // 禁用 Plyr 默认的双击全屏
+  plyr.on('dblclick', (e: any) => {
+    e.preventDefault()
+    e.stopPropagation()
+  })
+  
   bindPlayerEvents()
 }
 let lastSavedSecond = 0
@@ -278,6 +320,51 @@ function bindPlayerEvents() {
     } catch (e) {
       console.error('[Video] 自动切换下一集失败:', e)
     }
+  })
+  
+  // 双击快进快退功能
+  let lastClickTime = 0
+  let clickCount = 0
+  const doubleClickThreshold = 300 // 双击时间阈值（毫秒）
+  
+  v.addEventListener('click', (e) => {
+    const currentTime = Date.now()
+    if (currentTime - lastClickTime < doubleClickThreshold) {
+      // 双击事件
+      clickCount = 0
+      lastClickTime = 0
+      
+      // 计算点击位置，判断是左半边还是右半边
+      const rect = v.getBoundingClientRect()
+      const clickX = e.clientX - rect.left
+      const isLeftHalf = clickX < rect.width / 2
+      
+      if (isLeftHalf) {
+        // 左半边双击：快退10秒
+        const newTime = Math.max(0, v.currentTime - 10)
+        v.currentTime = newTime
+        console.log('[Video] 双击快退10秒，当前时间:', newTime)
+      } else {
+        // 右半边双击：快进10秒
+        const newTime = Math.min(v.duration, v.currentTime + 10)
+        v.currentTime = newTime
+        console.log('[Video] 双击快进10秒，当前时间:', newTime)
+      }
+      
+      // 阻止默认的双击全屏行为
+      e.preventDefault()
+      e.stopPropagation()
+    } else {
+      // 单击事件
+      clickCount = 1
+      lastClickTime = currentTime
+    }
+  })
+  
+  // 禁用默认的双击全屏行为
+  v.addEventListener('dblclick', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
   })
   
   // 倍速变更（通过 plyr 统一）
