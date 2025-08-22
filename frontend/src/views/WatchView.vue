@@ -7,7 +7,6 @@
           <div class="header-actions">
             <a-space>
               <a-button type="primary" :loading="loading" @click="refreshDetail">重新获取</a-button>
-              <a-button type="default" @click="goOriginal" :disabled="!originalUrl">原站点</a-button>
               <a-button @click="goBack">返回</a-button>
             </a-space>
           </div>
@@ -61,6 +60,15 @@
               <a-space wrap>
                 <a-button size="small" @click="playPrev" :disabled="!canPrev">上一集</a-button>
                 <a-button size="small" @click="playNext" :disabled="!canNext">下一集</a-button>
+                <!-- 移动端播放速率选择器 -->
+                <a-select
+                  v-if="isMobile"
+                  v-model:value="rate"
+                  size="small"
+                  style="width: 80px;"
+                  :options="rateOptions"
+                  @change="handleRateChange"
+                />
                 <a-button 
                   size="small" 
                   type="primary" 
@@ -73,15 +81,7 @@
                   </template>
                   迅雷下载
                 </a-button>
-                <!-- 移动端播放速率选择器 -->
-                <a-select
-                  v-if="isMobile"
-                  v-model:value="rate"
-                  size="small"
-                  style="width: 80px;"
-                  :options="rateOptions"
-                  @change="handleRateChange"
-                />
+                <a-button size="small" type="default" @click="goOriginal" :disabled="!originalUrl">原站点</a-button>
               </a-space>
             </div>
           </div>
@@ -198,6 +198,8 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const playerSource = ref('')
 let plyr: any = null
 let hls: any = null
+let isDraggingProgress = false
+let plyrLongPressTimerRef: any = null
 const basePoster = computed(() => String((detailData.value?.cover || detailData.value?.poster || ''))) 
 
 // 播放方案显示
@@ -277,8 +279,11 @@ const checkMobile = () => {
 // 初始化 Plyr 实例
 function ensurePlyr() {
   if (plyr || !videoRef.value) return
+  const controls = isMobile.value
+    ? ['play', 'progress', 'current-time', 'duration', 'mute', 'settings', 'fullscreen']
+    : ['play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen']
   plyr = new Plyr(videoRef.value!, {
-    controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+    controls,
     settings: ['speed'],
     speed: { selected: rate.value, options: rates },
     clickToPlay: true,
@@ -320,6 +325,12 @@ function ensurePlyr() {
   })
   
   bindPlayerEvents()
+
+  // 手势：左右滑动调节进度（Plyr 容器）
+  try {
+    const container = plyr?.elements?.container as HTMLElement
+    if (container) attachProgressDrag(container)
+  } catch {}
 }
 
 // 禁用 Plyr 双击全屏的专用函数
@@ -423,10 +434,11 @@ function addPlyrCustomEvents() {
   
   // 触摸开始
   plyr.elements.container.addEventListener('touchstart', (e: any) => {
+    if (isDraggingProgress) return
     plyrIsTouchActive = true
     if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
     plyrLongPressTimer = setTimeout(() => {
-      if (plyrIsTouchActive) {
+      if (plyrIsTouchActive && !isDraggingProgress) {
         originalRate.value = plyr.speed
         plyr.speed = 2
         isLongPressActive.value = true
@@ -465,10 +477,11 @@ function addPlyrCustomEvents() {
   // 鼠标按下（桌面端）
   plyr.elements.container.addEventListener('mousedown', (e: any) => {
     if (e.button === 0) {
+      if (isDraggingProgress) return
       plyrIsTouchActive = true
       if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
       plyrLongPressTimer = setTimeout(() => {
-        if (plyrIsTouchActive) {
+        if (plyrIsTouchActive && !isDraggingProgress) {
           originalRate.value = plyr.speed
           plyr.speed = 2
           isLongPressActive.value = true
@@ -648,12 +661,13 @@ function bindPlayerEvents() {
   
   // 触摸开始
   v.addEventListener('touchstart', (e) => {
+    if (isDraggingProgress) return
     e.preventDefault() // 阻止默认行为
     touchStartTime = Date.now()
     isTouchActive = true
     if (longPressTimer) clearTimeout(longPressTimer)
     longPressTimer = setTimeout(() => {
-      if (isTouchActive) {
+      if (isTouchActive && !isDraggingProgress) {
         startLongPress()
       }
     }, 500)
@@ -684,12 +698,13 @@ function bindPlayerEvents() {
   // 鼠标按下（桌面端）
   v.addEventListener('mousedown', (e) => {
     if (e.button === 0) { // 左键
+      if (isDraggingProgress) return
       e.preventDefault() // 阻止默认行为
       touchStartTime = Date.now()
       isTouchActive = true
       if (longPressTimer) clearTimeout(longPressTimer)
       longPressTimer = setTimeout(() => {
-        if (isTouchActive) {
+        if (isTouchActive && !isDraggingProgress) {
           startLongPress()
         }
       }, 500)
@@ -733,6 +748,11 @@ function bindPlayerEvents() {
   if (plyr) {
     addPlyrCustomEvents()
   }
+  // 手势：左右滑动调节进度（原生容器）
+  try {
+    const container = v.parentElement
+    if (container) attachProgressDrag(container)
+  } catch {}
   
   // 启动网速监控
   if (!speedCheckInterval) {
@@ -1118,6 +1138,7 @@ function startLongPress() {
   }
   
   longPressTimer = setTimeout(() => {
+    if (isDraggingProgress) return
     // 保存当前播放速率
     originalRate.value = rate.value
     // 设置为2倍速
@@ -1131,6 +1152,13 @@ function startLongPress() {
       } else if (videoRef.value) {
         (videoRef.value as any).playbackRate = 2
       }
+      // 长按期间隐藏进度条（Plyr 与 原生 video 均支持）
+      try {
+        const container = plyr
+          ? plyr.elements.container
+          : (videoRef.value ? videoRef.value.parentElement : null)
+        if (container) container.classList.add('longpress-hide-progress')
+      } catch {}
       console.log('[LongPress] 启动2倍速播放')
     } catch (e) {
       console.error('[LongPress] 设置2倍速失败:', e)
@@ -1156,6 +1184,13 @@ function endLongPress() {
       } else if (videoRef.value) {
         (videoRef.value as any).playbackRate = originalRate.value
       }
+      // 恢复进度条显示（Plyr 与 原生 video 均支持）
+      try {
+        const container = plyr
+          ? plyr.elements.container
+          : (videoRef.value ? videoRef.value.parentElement : null)
+        if (container) container.classList.remove('longpress-hide-progress')
+      } catch {}
       console.log('[LongPress] 恢复原始播放速率:', originalRate.value)
     } catch (e) {
       console.error('[LongPress] 恢复原始速率失败:', e)
@@ -1377,6 +1412,108 @@ onUnmounted(() => {
     longPressTimer = null
   }
 })
+
+// 进度拖动手势（同时适配 Plyr 和原生 video 容器）
+function attachProgressDrag(container: HTMLElement) {
+  let startX = 0
+  let startY = 0
+  let startTime = 0
+  let determined = false
+  let isHorizontal = false
+  let containerRect: DOMRect
+
+  const verticalCancelThresholdRatio = 1 / 4 // 垂直位移超过高度1/4则取消
+  const screenEdgeGuardRatio = 1 / 6 // 顶/底部1/6区域内不触发
+
+  const getMedia = () => plyr ? (plyr as any) : (videoRef.value as any)
+  const getDuration = () => plyr ? (plyr.duration as number || 0) : ((videoRef.value?.duration as number) || 0)
+  const getCurrentTime = () => plyr ? (plyr.currentTime as number || 0) : ((videoRef.value?.currentTime as number) || 0)
+  const setCurrentTime = (t: number) => {
+    const d = getDuration()
+    const nt = Math.max(0, Math.min(d || 0, t))
+    if (plyr) (plyr.currentTime = nt)
+    else if (videoRef.value) videoRef.value.currentTime = nt
+  }
+
+  const onTouchStart = (e: TouchEvent) => {
+    if (!container || isLongPressActive.value) return
+    containerRect = container.getBoundingClientRect()
+    const y = e.touches[0].clientY
+    const topGuard = containerRect.top + containerRect.height * screenEdgeGuardRatio
+    const bottomGuard = containerRect.bottom - containerRect.height * screenEdgeGuardRatio
+    if (y <= topGuard || y >= bottomGuard) {
+      determined = false
+      isHorizontal = false
+      isDraggingProgress = false
+      return
+    }
+    startX = e.touches[0].clientX
+    startY = e.touches[0].clientY
+    startTime = getCurrentTime()
+    determined = false
+    isHorizontal = false
+    isDraggingProgress = false
+  }
+
+  const onTouchMove = (e: TouchEvent) => {
+    if (!container) return
+    if (isLongPressActive.value) {
+      // 长按倍速已激活时，禁止进度拖动并清理样式
+      isDraggingProgress = false
+      try { container.classList.remove('dragging-show-progress') } catch {}
+      return
+    }
+    if (!containerRect) containerRect = container.getBoundingClientRect()
+    const dx = e.touches[0].clientX - startX
+    const dy = e.touches[0].clientY - startY
+
+    const verticalCancel = Math.abs(dy) > containerRect.height * verticalCancelThresholdRatio
+    if (!determined) {
+      if (verticalCancel) {
+        determined = true
+        isHorizontal = false
+        isDraggingProgress = false
+        return
+      }
+      if (Math.abs(dx) > 8) {
+        determined = true
+        isHorizontal = true
+        isDraggingProgress = true
+        // 进入进度拖动：强制显示进度条，且取消长按隐藏
+        try {
+          container.classList.add('dragging-show-progress')
+          container.classList.remove('longpress-hide-progress')
+        } catch {}
+      }
+    }
+
+    if (isHorizontal && !verticalCancel) {
+      // 阻止长按倍速与点击
+      e.preventDefault()
+      e.stopPropagation()
+      // 按容器宽度映射到时长
+      const duration = getDuration()
+      if (!duration || duration <= 0) return
+      const w = containerRect.width || 1
+      const timePerPixel = duration / w
+      const nt = startTime + dx * timePerPixel
+      setCurrentTime(nt)
+    }
+  }
+
+  const onTouchEnd = (_e: TouchEvent) => {
+    determined = false
+    isHorizontal = false
+    isDraggingProgress = false
+    try { container.classList.remove('dragging-show-progress') } catch {}
+  }
+
+  // 触摸事件
+  container.addEventListener('touchstart', onTouchStart, { passive: true })
+  container.addEventListener('touchmove', onTouchMove, { passive: false })
+  container.addEventListener('touchend', onTouchEnd, { passive: true })
+  container.addEventListener('touchcancel', onTouchEnd, { passive: true })
+}
 </script>
 
 <style scoped>
@@ -1409,6 +1546,31 @@ onUnmounted(() => {
 /* 优化倍速菜单显示 */
 .video-player :deep(.vjs-playback-rate-menu-button) {
   margin-right: 8px;
+}
+
+.longpress-hide-progress :deep(.plyr__progress) {
+  display: none !important;
+}
+
+/* 进度拖动时，强制显示 Plyr 进度条 */
+.dragging-show-progress :deep(.plyr__progress) {
+  display: block !important;
+}
+
+/* 原生 video 控件隐藏进度条（WebKit 内核） */
+.longpress-hide-progress video::-webkit-media-controls-timeline {
+  display: none !important;
+}
+.longpress-hide-progress video::-webkit-media-controls-current-time-display,
+.longpress-hide-progress video::-webkit-media-controls-time-remaining-display {
+  display: none !important;
+}
+
+/* 原生 video 进度拖动时强制显示进度条（WebKit 内核） */
+.dragging-show-progress video::-webkit-media-controls-timeline,
+.dragging-show-progress video::-webkit-media-controls-current-time-display,
+.dragging-show-progress video::-webkit-media-controls-time-remaining-display {
+  display: block !important;
 }
 
 .video-player :deep(.vjs-playback-rate-menu-button .vjs-menu-content) {
