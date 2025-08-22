@@ -203,6 +203,21 @@ function ensurePlyr() {
     settings: ['speed'],
     speed: { selected: rate.value, options: rates },
   })
+  
+  // 绑定 Plyr 的播放完成事件
+  plyr.on('ended', () => {
+    try {
+      console.log('[Plyr] 视频播放完成，尝试切换下一集')
+      if (canNext.value) {
+        playNext()
+      } else {
+        console.log('[Plyr] 没有下一集，播放结束')
+      }
+    } catch (e) {
+      console.error('[Plyr] 自动切换下一集失败:', e)
+    }
+  })
+  
   bindPlayerEvents()
 }
 let lastSavedSecond = 0
@@ -250,6 +265,21 @@ function bindPlayerEvents() {
       }
     } catch {}
   })
+  
+  // 播放完成自动切换下一集（原生事件）
+  v.addEventListener('ended', () => {
+    try {
+      console.log('[Video] 视频播放完成，尝试切换下一集')
+      if (canNext.value) {
+        playNext()
+      } else {
+        console.log('[Video] 没有下一集，播放结束')
+      }
+    } catch (e) {
+      console.error('[Video] 自动切换下一集失败:', e)
+    }
+  })
+  
   // 倍速变更（通过 plyr 统一）
   // 元数据
   v.addEventListener('loadedmetadata', () => {
