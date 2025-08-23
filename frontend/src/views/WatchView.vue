@@ -57,72 +57,81 @@
               </div>
             </div>
             <div class="player-actions">
-              <a-space wrap>
-                <a-button size="small" @click="playPrev" :disabled="!canPrev">上一集</a-button>
-                <a-button size="small" @click="playNext" :disabled="!canNext">下一集</a-button>
-                <!-- 移动端播放速率选择器 -->
-                <a-select
-                  v-if="isMobile"
-                  v-model:value="rate"
-                  size="small"
-                  style="width: 80px;"
-                  :options="rateOptions"
-                  @change="handleRateChange"
-                />
-                <!-- 跳过片首开关 -->
-                <a-switch
-                  v-model:checked="skipIntro.enabled"
-                  size="small"
-                  @change="handleSkipIntroChange"
-                >
-                  <template #checkedChildren>跳过片首</template>
-                  <template #unCheckedChildren>跳过片首</template>
-                </a-switch>
-                <!-- 跳过片首秒数输入 -->
-                <a-input-number
-                  v-if="skipIntro.enabled"
-                  v-model:value="skipIntro.seconds"
-                  size="small"
-                  :min="1"
-                  :max="300"
-                  style="width: 80px;"
-                  placeholder="秒数"
-                  @change="handleSkipIntroChange"
-                />
-                <!-- 跳过片尾开关 -->
-                <a-switch
-                  v-model:checked="skipOutro.enabled"
-                  size="small"
-                  @change="handleSkipOutroChange"
-                >
-                  <template #checkedChildren>跳过片尾</template>
-                  <template #unCheckedChildren>跳过片尾</template>
-                </a-switch>
-                <!-- 跳过片尾秒数输入 -->
-                <a-input-number
-                  v-if="skipOutro.enabled"
-                  v-model:value="skipOutro.seconds"
-                  size="small"
-                  :min="1"
-                  :max="300"
-                  style="width: 80px;"
-                  placeholder="秒数"
-                  @change="handleSkipOutroChange"
-                />
-                <a-button 
-                  size="small" 
-                  type="primary" 
-                  @click="downloadWithThunder" 
-                  :disabled="!playerSource"
-                  :loading="downloading"
-                >
-                  <template #icon>
-                    <ThunderboltOutlined />
-                  </template>
-                  迅雷下载
-                </a-button>
-                <a-button size="small" type="default" @click="goOriginal" :disabled="!originalUrl">原站点</a-button>
-              </a-space>
+              <!-- 第一行：基础控制 -->
+              <div class="player-actions-row">
+                <a-space wrap>
+                  <a-button size="small" @click="playPrev" :disabled="!canPrev">上一集</a-button>
+                  <a-button size="small" @click="playNext" :disabled="!canNext">下一集</a-button>
+                  <!-- 移动端播放速率选择器 -->
+                  <a-select
+                    v-if="isMobile"
+                    v-model:value="rate"
+                    size="small"
+                    style="width: 80px;"
+                    :options="rateOptions"
+                    @change="handleRateChange"
+                  />
+                  <a-button 
+                    size="small" 
+                    type="primary" 
+                    @click="downloadWithThunder" 
+                    :disabled="!playerSource"
+                    :loading="downloading"
+                  >
+                    <template #icon>
+                      <ThunderboltOutlined />
+                    </template>
+                    迅雷下载
+                  </a-button>
+                  <a-button size="small" type="default" @click="goOriginal" :disabled="!originalUrl">原站点</a-button>
+                </a-space>
+              </div>
+              
+              <!-- 第二行：跳过片首控制 -->
+              <div class="player-actions-row">
+                <a-space wrap>
+                  <span class="skip-label">跳过片首：</span>
+                  <a-switch
+                    v-model:checked="skipIntro.enabled"
+                    size="small"
+                    @change="handleSkipIntroChange"
+                  />
+                  <a-input-number
+                    v-if="skipIntro.enabled"
+                    v-model:value="skipIntro.seconds"
+                    size="small"
+                    :min="1"
+                    :max="300"
+                    style="width: 80px;"
+                    placeholder="秒数"
+                    @change="handleSkipIntroChange"
+                  />
+                  <span v-if="skipIntro.enabled" class="skip-unit">秒</span>
+                </a-space>
+              </div>
+              
+              <!-- 第三行：跳过片尾控制 -->
+              <div class="player-actions-row">
+                <a-space wrap>
+                  <span class="skip-label">跳过片尾：</span>
+                  <a-switch
+                    v-model:checked="skipOutro.enabled"
+                    size="small"
+                    @change="handleSkipOutroChange"
+                  />
+                  <a-input-number
+                    v-if="skipOutro.enabled"
+                    v-model:value="skipOutro.seconds"
+                    size="small"
+                    :min="1"
+                    :max="300"
+                    style="width: 80px;"
+                    placeholder="秒数"
+                    @change="handleSkipOutroChange"
+                  />
+                  <span v-if="skipOutro.enabled" class="skip-unit">秒</span>
+                </a-space>
+              </div>
             </div>
           </div>
 
@@ -1845,7 +1854,30 @@ function attachProgressDrag(container: HTMLElement) {
     padding: 0 4px;
   }
 }
-.player-actions { margin-top: 8px; }
+.player-actions { 
+  margin-top: 8px; 
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.player-actions-row {
+  display: flex;
+  align-items: center;
+}
+
+.skip-label {
+  color: #666;
+  font-size: 14px;
+  margin-right: 8px;
+  min-width: 60px;
+}
+
+.skip-unit {
+  color: #666;
+  font-size: 14px;
+  margin-left: 4px;
+}
 .detail-layout {
   display: flex;
   gap: 16px;
@@ -1882,12 +1914,23 @@ function attachProgressDrag(container: HTMLElement) {
     gap: 8px;
   }
   
+  .player-actions-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
   .player-actions .ant-space {
     flex-wrap: wrap;
     gap: 4px;
   }
   
   .player-actions .ant-space-item {
+    margin-bottom: 4px;
+  }
+  
+  .skip-label {
+    min-width: auto;
     margin-bottom: 4px;
   }
 }
