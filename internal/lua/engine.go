@@ -8,13 +8,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	lua "github.com/yuin/gopher-lua"
 
 	"video-crawler/internal/crawler"
+	"video-crawler/internal/logger"
 )
 
 const (
@@ -30,7 +36,8 @@ type luaSelection struct{ sel *goquery.Selection }
 type LuaEngine struct {
 	L       *lua.LState
 	browser crawler.BrowserRequest
-	output  chan string // 用于流式输出的通道
+	output  chan string  // 用于流式输出的通道
+	ctx     *gin.Context // 添加gin.Context支持
 }
 
 // NewLuaEngine 创建新的Lua引擎
@@ -40,6 +47,22 @@ func NewLuaEngine(browser crawler.BrowserRequest) *LuaEngine {
 		L:       L,
 		browser: browser,
 		output:  make(chan string, 100), // 缓冲通道，避免阻塞
+	}
+
+	// 注册所有函数到Lua
+	engine.registerFunctions()
+
+	return engine
+}
+
+// NewLuaEngineWithContext 创建带有gin.Context的Lua引擎
+func NewLuaEngineWithContext(browser crawler.BrowserRequest, ctx *gin.Context) *LuaEngine {
+	L := lua.NewState()
+	engine := &LuaEngine{
+		L:       L,
+		browser: browser,
+		output:  make(chan string, 100), // 缓冲通道，避免阻塞
+		ctx:     ctx,
 	}
 
 	// 注册所有函数到Lua
@@ -118,6 +141,10 @@ func (e *LuaEngine) registerFunctions() {
 	// JSON 编解码
 	e.L.SetGlobal("json_encode", e.L.NewFunction(e.luaJsonEncode))
 	e.L.SetGlobal("json_decode", e.L.NewFunction(e.luaJsonDecode))
+
+	// URL 和 Unicode 库
+	e.L.SetGlobal("url", e.createUrlLibrary())
+	e.L.SetGlobal("unicode", e.createUnicodeLibrary())
 
 	// 禁用危险的系统函数，并提供禁用信息
 	e.L.SetGlobal("io", e.createDisabledTable("io"))
@@ -654,6 +681,14 @@ func (e *LuaEngine) luaPrint(L *lua.LState) int {
 	}
 	output := strings.Join(args, " ")
 
+	// 如果有gin.Context，同步输出到ctxlog
+	if e.ctx != nil {
+		logger.CtxLogger(e.ctx).WithFields(logrus.Fields{
+			"engine": "lua",
+			"output": output,
+		}).Info("script_output")
+	}
+
 	// 发送到输出通道
 	select {
 	case e.output <- fmt.Sprintf("[PRINT][%s] %s", time.Now().Format("2006-01-02 15:04:05.000"), output):
@@ -671,6 +706,14 @@ func (e *LuaEngine) luaLog(L *lua.LState) int {
 		args[i-1] = L.Get(i).String()
 	}
 	output := strings.Join(args, " ")
+
+	// 如果有gin.Context，同步输出到ctxlog
+	if e.ctx != nil {
+		logger.CtxLogger(e.ctx).WithFields(logrus.Fields{
+			"engine": "lua",
+			"output": output,
+		}).Info("script_output")
+	}
 
 	// 发送到输出通道
 	select {
@@ -1184,4 +1227,148 @@ func (e *LuaEngine) luaSafeOs(L *lua.LState) int {
 
 	L.Push(osTable)
 	return 1
+}
+
+// createUrlLibrary 创建URL库
+func (e *LuaEngine) createUrlLibrary() *lua.LTable {
+	urlTable := e.L.CreateTable(0, 4)
+
+	// url.encode(str) -> string
+	urlTable.RawSetString("encode", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+		encoded := url.QueryEscape(str)
+		L.Push(lua.LString(encoded))
+		return 1
+	}))
+
+	// url.decode(str) -> string, err
+	urlTable.RawSetString("decode", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+		decoded, err := url.QueryUnescape(str)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LString(decoded))
+		L.Push(lua.LNil)
+		return 2
+	}))
+
+	// url.parse(url) -> table, err (解析URL为组件)
+	urlTable.RawSetString("parse", e.L.NewFunction(func(L *lua.LState) int {
+		urlStr := L.CheckString(1)
+		parsed, err := url.Parse(urlStr)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+
+		// 创建结果表
+		result := e.L.CreateTable(0, 6)
+		result.RawSetString("scheme", lua.LString(parsed.Scheme))
+		result.RawSetString("host", lua.LString(parsed.Host))
+		result.RawSetString("path", lua.LString(parsed.Path))
+		result.RawSetString("query", lua.LString(parsed.RawQuery))
+		result.RawSetString("fragment", lua.LString(parsed.Fragment))
+		result.RawSetString("raw", lua.LString(parsed.String()))
+
+		L.Push(result)
+		L.Push(lua.LNil)
+		return 2
+	}))
+
+	// url.build(table) -> string, err (从组件构建URL)
+	urlTable.RawSetString("build", e.L.NewFunction(func(L *lua.LState) int {
+		urlTable := L.CheckTable(1)
+
+		parsed := &url.URL{}
+
+		if scheme := urlTable.RawGetString("scheme"); scheme != lua.LNil {
+			parsed.Scheme = scheme.String()
+		}
+		if host := urlTable.RawGetString("host"); host != lua.LNil {
+			parsed.Host = host.String()
+		}
+		if path := urlTable.RawGetString("path"); path != lua.LNil {
+			parsed.Path = path.String()
+		}
+		if query := urlTable.RawGetString("query"); query != lua.LNil {
+			parsed.RawQuery = query.String()
+		}
+		if fragment := urlTable.RawGetString("fragment"); fragment != lua.LNil {
+			parsed.Fragment = fragment.String()
+		}
+
+		L.Push(lua.LString(parsed.String()))
+		L.Push(lua.LNil)
+		return 2
+	}))
+
+	return urlTable
+}
+
+// createUnicodeLibrary 创建Unicode库
+func (e *LuaEngine) createUnicodeLibrary() *lua.LTable {
+	unicodeTable := e.L.CreateTable(0, 4)
+
+	// unicode.encode(str) -> string
+	unicodeTable.RawSetString("encode", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+		var result strings.Builder
+
+		for _, r := range str {
+			if r < 128 {
+				result.WriteRune(r)
+			} else {
+				result.WriteString(fmt.Sprintf("\\u%04X", r))
+			}
+		}
+
+		L.Push(lua.LString(result.String()))
+		return 1
+	}))
+
+	// unicode.decode(str) -> string
+	unicodeTable.RawSetString("decode", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+
+		// 使用正则表达式替换 \uXXXX 为对应的 Unicode 字符
+		re := regexp.MustCompile(`\\u([0-9a-fA-F]{4})`)
+		result := re.ReplaceAllStringFunc(str, func(match string) string {
+			hex := match[2:6] // 提取 XXXX 部分
+			if code, err := strconv.ParseUint(hex, 16, 32); err == nil {
+				return string(rune(code))
+			}
+			return match // 如果解析失败，保持原样
+		})
+
+		L.Push(lua.LString(result))
+		return 1
+	}))
+
+	// unicode.is_ascii(str) -> boolean
+	unicodeTable.RawSetString("is_ascii", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+
+		for _, r := range str {
+			if r >= 128 {
+				L.Push(lua.LBool(false))
+				return 1
+			}
+		}
+
+		L.Push(lua.LBool(true))
+		return 1
+	}))
+
+	// unicode.length(str) -> number (返回Unicode字符数量)
+	unicodeTable.RawSetString("length", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+		L.Push(lua.LNumber(len([]rune(str))))
+		return 1
+	}))
+
+	return unicodeTable
 }

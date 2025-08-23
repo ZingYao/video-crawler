@@ -175,7 +175,7 @@ func executeLuaFunction(ctx *gin.Context, baseScript string, funcName string, ar
 		fmt.Sprintf("local __data, __err = %s(%s)\nreturn { data = __data, err = __err }\n", funcName, argLiteral)
 
 	// 执行
-	engine := lua.NewLuaEngine(browser)
+	engine := lua.NewLuaEngineWithContext(browser, ctx)
 	defer engine.Close()
 	ret, execErr := engine.Execute(wrapped)
 	if execErr != nil {
@@ -203,7 +203,7 @@ func (c *VideoController) executeByEngine(ctx *gin.Context, src *entities.VideoS
 		} else {
 			browser.SetRandomUserAgent()
 		}
-		e := jsengine.New(browser)
+		e := jsengine.NewWithContext(browser, ctx)
 		argLiteral := strconv.Quote(arg)
 		wrapped := src.JsScript + "\n\n" +
 			fmt.Sprintf("var __ret = (function(){ try { var r = %s(%s); return {data: r, err: null}; } catch(e){ return {data:null, err: String(e)} } })(); __ret;", funcName, argLiteral)

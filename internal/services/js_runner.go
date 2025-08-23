@@ -35,7 +35,7 @@ func (s *jsTestService) ExecuteScript(ctx context.Context, script string) (<-cha
 	}
 	browser.SetHeaders(headers)
 
-	eng := jsengine.New(browser)
+	eng := jsengine.New(browser) // 测试服务不需要ctxlog，保持原有行为
 
 	out := make(chan string, 200)
 	// 将 console.* 输出回流到前端

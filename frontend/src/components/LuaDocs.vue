@@ -16,6 +16,109 @@
         </div>
 
         <div class="doc-section">
+          <h3>必须实现的三个方法</h3>
+          <div class="doc-item"><b>search_video(keyword: string)</b> → <code>array, err</code> 搜索视频，返回搜索结果数组。</div>
+          <div class="doc-item"><b>get_video_detail(video_url: string)</b> → <code>table, err</code> 获取视频详情，返回视频详情结构。</div>
+          <div class="doc-item"><b>get_play_video_detail(video_url: string)</b> → <code>table, err</code> 获取播放详情，返回播放详情结构。</div>
+          
+          <h4>数据结构</h4>
+          <div class="doc-item"><b>搜索视频结果 (search_video_result)</b></div>
+          <pre class="doc-code">{
+  cover = '',        -- 视频封面
+  name = '',         -- 视频名称
+  type = '',         -- 视频类型
+  url = '',          -- 视频链接
+  actor = '',        -- 演员
+  director = '',     -- 导演
+  release_date = '', -- 上映日期
+  region = '',       -- 地区
+  language = '',     -- 语言
+  description = '',  -- 描述
+  score = ''         -- 评分
+}</pre>
+          
+          <div class="doc-item"><b>视频详情结果 (video_detail_result)</b></div>
+          <pre class="doc-code">{
+  cover = '',        -- 视频封面
+  name = '',         -- 视频名称
+  url = '',          -- 视频链接
+  score = '',        -- 评分
+  release_date = '', -- 上映日期
+  region = '',       -- 地区
+  actor = '',        -- 演员
+  director = '',     -- 导演
+  description = '',  -- 描述
+  language = '',     -- 语言
+  source = {}        -- 数组：来源站点及剧集列表
+}</pre>
+          
+          <div class="doc-item"><b>来源站点对象 (source_item)</b></div>
+          <pre class="doc-code">{
+  name = '',         -- 来源站点名称（如：'线路1'、'线路2'、'备用线路'等）
+  episodes = {}      -- 剧集列表数组
+}</pre>
+          
+          <div class="doc-item"><b>剧集对象 (episode_item)</b></div>
+          <pre class="doc-code">{
+  name = '',         -- 剧集名称（如：'第1集'、'第2集'、'大结局'等）
+  url = ''           -- 剧集播放链接
+}</pre>
+          
+          <div class="doc-item"><b>播放详情结果 (play_video_detail)</b></div>
+          <pre class="doc-code">{
+  video_url = ''     -- 视频链接
+}</pre>
+          
+          <h4>构造函数</h4>
+          <div class="doc-item">提供了三个构造函数来创建标准数据结构：</div>
+          <pre class="doc-code">-- 创建搜索视频结果
+local result = new_search_video_result()
+result.name = '电影名称'
+result.url = 'https://example.com/movie'
+
+-- 创建视频详情结果
+local detail = new_video_detail_result()
+detail.name = '电影名称'
+detail.description = '电影描述'
+
+-- 构建来源站点和剧集列表
+detail.source = {
+  -- 来源站点1
+  { 
+    name = '线路1', 
+    episodes = {
+      { name = '第1集', url = 'https://example.com/ep1' },
+      { name = '第2集', url = 'https://example.com/ep2' },
+      { name = '第3集', url = 'https://example.com/ep3' },
+      { name = '大结局', url = 'https://example.com/final' }
+    }
+  },
+  -- 来源站点2（备用线路）
+  { 
+    name = '线路2', 
+    episodes = {
+      { name = '第1集', url = 'https://example2.com/ep1' },
+      { name = '第2集', url = 'https://example2.com/ep2' },
+      { name = '第3集', url = 'https://example2.com/ep3' }
+    }
+  },
+  -- 来源站点3（高清线路）
+  { 
+    name = '高清线路', 
+    episodes = {
+      { name = '第1集', url = 'https://hd.example.com/ep1' },
+      { name = '第2集', url = 'https://hd.example.com/ep2' }
+    }
+  }
+}
+
+-- 创建播放详情结果
+local play = new_play_video_detail()
+play.video_url = 'https://example.com/video.mp4'
+</pre>
+        </div>
+
+        <div class="doc-section">
           <h3>日志与工具</h3>
           <div class="doc-item">
             <b>print(...)</b>：打印到调试输出，前缀为 [PRINT]，后端已添加毫秒级时间戳。
@@ -99,6 +202,106 @@ end
             <li><b>boolean</b>：<code>true</code> → 两空格缩进；<code>false</code> → 紧凑模式</li>
             <li><b>number</b>：使用给定数量的空格缩进</li>
             <li><b>string</b>：使用该字符串作为缩进（如 <code>"\t"</code>）</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>URL 库</h3>
+          <div class="doc-item"><b>url.encode(str: string)</b> → <code>string</code> 将字符串进行 URL 编码。</div>
+          <div class="doc-item"><b>url.decode(str: string)</b> → <code>string, err</code> 将 URL 编码的字符串解码。</div>
+          <div class="doc-item"><b>url.parse(url: string)</b> → <code>table, err</code> 解析URL为组件表。</div>
+          <div class="doc-item"><b>url.build(table: table)</b> → <code>string, err</code> 从组件表构建URL。</div>
+          <pre class="doc-code">-- URL 编码示例
+local test_url = 'https://example.com/path?name=张三&age=25&city=北京'
+local encoded = url.encode(test_url)
+print('编码后:', encoded)
+-- 输出: https%3A%2F%2Fexample.com%2Fpath%3Fname%3D%E5%BC%A0%E4%B8%89%26age%3D25%26city%3D%E5%8C%97%E4%BA%AC
+
+-- URL 解码示例
+local decoded, err = url.decode(encoded)
+if err then
+  log('解码错误:', err)
+else
+  print('解码后:', decoded)
+  -- 输出: https://example.com/path?name=张三&age=25&city=北京
+end
+
+-- URL 解析示例
+local parsed, parse_err = url.parse(test_url)
+if parse_err then
+  log('解析错误:', parse_err)
+else
+  print('scheme:', parsed.scheme)    -- https
+  print('host:', parsed.host)        -- example.com
+  print('path:', parsed.path)        -- /path
+  print('query:', parsed.query)      -- name=张三&age=25&city=北京
+  print('fragment:', parsed.fragment) -- (空)
+end
+
+-- URL 构建示例
+local components = {
+  scheme = 'https',
+  host = 'example.com',
+  path = '/api/v1',
+  query = 'id=123&type=user'
+}
+local built_url, build_err = url.build(components)
+if build_err then
+  log('构建错误:', build_err)
+else
+  print('构建的URL:', built_url)
+  -- 输出: https://example.com/api/v1?id=123&type=user
+end
+
+-- 链式调用示例
+local result = url.encode('测试文本')
+    :gsub('%%', '%%25')  -- 对%进行二次编码
+    :gsub('%%25', '%%')  -- 再解码回来
+print('链式调用结果:', result)
+</pre>
+          <div class="doc-item"><b>参数/返回</b></div>
+          <ul>
+            <li><code>url.encode(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+            <li><code>url.decode(str)</code>：<code>str:string</code>；返回 <code>string, err</code></li>
+            <li><code>url.parse(url)</code>：<code>url:string</code>；返回 <code>table, err</code>（包含 scheme, host, path, query, fragment, raw 字段）</li>
+            <li><code>url.build(table)</code>：<code>table:table</code>；返回 <code>string, err</code></li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h3>Unicode 库</h3>
+          <div class="doc-item"><b>unicode.encode(str: string)</b> → <code>string</code> 将字符串中的非ASCII字符编码为 \uXXXX 格式。</div>
+          <div class="doc-item"><b>unicode.decode(str: string)</b> → <code>string</code> 将 \uXXXX 格式的字符串解码为原始字符。</div>
+          <div class="doc-item"><b>unicode.is_ascii(str: string)</b> → <code>boolean</code> 检查字符串是否只包含ASCII字符。</div>
+          <div class="doc-item"><b>unicode.length(str: string)</b> → <code>number</code> 返回字符串的Unicode字符数量。</div>
+          <pre class="doc-code">-- Unicode 编码示例
+local test_text = 'Hello 世界！你好！'
+local encoded = unicode.encode(test_text)
+print('编码后:', encoded)
+-- 输出: Hello \u4E16\u754C\uFF01\u4F60\u597D\uFF01
+
+-- Unicode 解码示例
+local decoded = unicode.decode(encoded)
+print('解码后:', decoded)
+-- 输出: Hello 世界！你好！
+
+-- Unicode 工具函数示例
+print('是否为ASCII:', unicode.is_ascii('Hello'))      -- true
+print('是否为ASCII:', unicode.is_ascii('Hello世界'))  -- false
+print('字符长度:', unicode.length('Hello世界！'))      -- 12
+
+-- 链式调用示例
+local result = unicode.encode('测试文本')
+    :gsub('\\\\u', '\\\\u')  -- 对\\u进行二次编码
+    :gsub('\\\\u', '\\\\u')  -- 再解码回来
+print('链式调用结果:', result)
+</pre>
+          <div class="doc-item"><b>参数/返回</b></div>
+          <ul>
+            <li><code>unicode.encode(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+            <li><code>unicode.decode(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+            <li><code>unicode.is_ascii(str)</code>：<code>str:string</code>；返回 <code>boolean</code></li>
+            <li><code>unicode.length(str)</code>：<code>str:string</code>；返回 <code>number</code></li>
           </ul>
         </div>
 

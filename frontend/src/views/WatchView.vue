@@ -220,6 +220,7 @@ const isLongPressActive = ref(false) // 长按状态
 // 跳过片首片尾相关变量
 const skipIntro = ref({ enabled: false, seconds: 30 })
 const skipOutro = ref({ enabled: false, seconds: 30 })
+const skipOutroTriggered = ref(false) // 跟踪当前剧集是否已触发跳过片尾
 
 // 网速计算相关变量
 let lastLoadedBytes = 0
@@ -695,9 +696,13 @@ function bindPlayerEvents() {
       }
       
       // 检查是否需要跳过片尾
-      if (skipOutro.value.enabled && dur > 0 && ct > dur - skipOutro.value.seconds) {
+      if (skipOutro.value.enabled && dur > 0 && ct > dur - skipOutro.value.seconds && !skipOutroTriggered.value) {
+        // 标记已触发，避免重复触发
+        skipOutroTriggered.value = true
+        
         // 如果接近片尾，自动切换到下一集
         if (canNext.value) {
+          console.log(`跳过片尾，自动切换到下一集`)
           playNext()
         } else {
           // 没有下一集，跳转到片尾前指定秒数
@@ -1093,6 +1098,10 @@ function isCurrentEpisode(ep: { url: string }) {
 
 async function playEpisode(ep: { name: string; url: string }, sourceName?: string) {
   if (!ep?.url) return
+  
+  // 重置跳过片尾状态，新剧集可以重新触发
+  skipOutroTriggered.value = false
+  
   // 立刻更新当前剧集，用于后续解析播放链接与按钮状态
   currentPlayUrl.value = ep.url
   // 仅更新地址栏中标题与来源，不修改 url 参数，避免影响回显
@@ -1514,6 +1523,9 @@ async function fetchDetail(force = false) {
 
 async function resolvePlayUrl() {
   try {
+    // 重置跳过片尾状态，新播放源可以重新触发
+    skipOutroTriggered.value = false
+    
     setVideoLoading(true) // 开始加载
     const token = auth.token!
     // 优先请求"当前选中剧集"的播放链接；无则回退

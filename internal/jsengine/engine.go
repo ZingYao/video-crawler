@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -15,8 +17,11 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/dop251/goja"
+	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 
 	"video-crawler/internal/crawler"
+	"video-crawler/internal/logger"
 )
 
 // Engine 提供最小可用的 JS 执行环境（goja）
@@ -24,6 +29,7 @@ type Engine struct {
 	vm      *goja.Runtime
 	browser crawler.BrowserRequest
 	logSink func(string)
+	ctx     *gin.Context // 添加gin.Context支持
 }
 
 func New(browser crawler.BrowserRequest) *Engine {
@@ -33,14 +39,33 @@ func New(browser crawler.BrowserRequest) *Engine {
 	return e
 }
 
+// NewWithContext 创建带有gin.Context的引擎实例
+func NewWithContext(browser crawler.BrowserRequest, ctx *gin.Context) *Engine {
+	vm := goja.New()
+	e := &Engine{vm: vm, browser: browser, ctx: ctx}
+	e.bindApis()
+	return e
+}
+
 // SetLogSink 设置日志输出回调，用于回流到前端调试面板
 func (e *Engine) SetLogSink(sink func(string)) { e.logSink = sink }
 
 func (e *Engine) emit(line string) {
+	// 如果有gin.Context，同步输出到ctxlog
+	if e.ctx != nil {
+		logger.CtxLogger(e.ctx).WithFields(logrus.Fields{
+			"engine": "javascript",
+			"output": line,
+		}).Info("script_output")
+	}
+
+	// 如果有logSink，输出到前端调试面板
 	if e.logSink != nil {
 		e.logSink(line)
 		return
 	}
+
+	// 默认输出到控制台
 	fmt.Println(line)
 }
 
@@ -343,6 +368,90 @@ func (e *Engine) bindApis() {
 		_ = console.Set("clear", func(call goja.FunctionCall) goja.Value { e.emit("[CLEAR]\n\n"); return goja.Undefined() })
 		e.vm.Set("console", console)
 	}
+
+	// URL 库
+	urlLib := e.vm.NewObject()
+	_ = urlLib.Set("encode", func(str string) string {
+		return url.QueryEscape(str)
+	})
+	_ = urlLib.Set("decode", func(str string) string {
+		decoded, err := url.QueryUnescape(str)
+		if err != nil {
+			return str // 解码失败时返回原字符串
+		}
+		return decoded
+	})
+	_ = urlLib.Set("parse", func(urlStr string) map[string]interface{} {
+		parsed, err := url.Parse(urlStr)
+		if err != nil {
+			return map[string]interface{}{"error": err.Error()}
+		}
+		return map[string]interface{}{
+			"scheme":   parsed.Scheme,
+			"host":     parsed.Host,
+			"path":     parsed.Path,
+			"query":    parsed.RawQuery,
+			"fragment": parsed.Fragment,
+			"raw":      parsed.String(),
+		}
+	})
+	_ = urlLib.Set("build", func(components map[string]interface{}) string {
+		parsed := &url.URL{}
+		if scheme, ok := components["scheme"].(string); ok {
+			parsed.Scheme = scheme
+		}
+		if host, ok := components["host"].(string); ok {
+			parsed.Host = host
+		}
+		if path, ok := components["path"].(string); ok {
+			parsed.Path = path
+		}
+		if query, ok := components["query"].(string); ok {
+			parsed.RawQuery = query
+		}
+		if fragment, ok := components["fragment"].(string); ok {
+			parsed.Fragment = fragment
+		}
+		return parsed.String()
+	})
+	e.vm.Set("url", urlLib)
+
+	// Unicode 库
+	unicodeLib := e.vm.NewObject()
+	_ = unicodeLib.Set("encode", func(str string) string {
+		var result strings.Builder
+		for _, r := range str {
+			if r < 128 {
+				result.WriteRune(r)
+			} else {
+				result.WriteString(fmt.Sprintf("\\u%04X", r))
+			}
+		}
+		return result.String()
+	})
+	_ = unicodeLib.Set("decode", func(str string) string {
+		re := regexp.MustCompile(`\\u([0-9a-fA-F]{4})`)
+		result := re.ReplaceAllStringFunc(str, func(match string) string {
+			hex := match[2:6] // 提取 XXXX 部分
+			if code, err := strconv.ParseUint(hex, 16, 32); err == nil {
+				return string(rune(code))
+			}
+			return match // 如果解析失败，保持原样
+		})
+		return result
+	})
+	_ = unicodeLib.Set("isAscii", func(str string) bool {
+		for _, r := range str {
+			if r >= 128 {
+				return false
+			}
+		}
+		return true
+	})
+	_ = unicodeLib.Set("length", func(str string) int64 {
+		return int64(len([]rune(str)))
+	})
+	e.vm.Set("unicode", unicodeLib)
 
 	// fetch：同步实现（与 await 兼容：await 非 thenable 值将立即返回）
 	e.vm.Set("fetch", func(call goja.FunctionCall) goja.Value {

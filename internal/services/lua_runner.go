@@ -62,7 +62,7 @@ func (s *luaTestService) ExecuteScript(ctx context.Context, script string) (<-ch
 	browser.SetHeaders(headers)
 
 	// 创建Lua引擎
-	engine := lua.NewLuaEngine(browser)
+	engine := lua.NewLuaEngine(browser) // 测试服务不需要ctxlog，保持原有行为
 
 	// 创建输出通道
 	outputChan := make(chan string, 100)
