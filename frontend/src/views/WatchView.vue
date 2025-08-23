@@ -227,6 +227,10 @@ let lastSpeedCheckTime = 0
 let speedCheckInterval: any = null
 let longPressTimer: any = null // 长按定时器
 
+// 倍速监听相关变量
+let rateCheckInterval: any = null
+let lastVideoRate = 1
+
 const sourceId = computed(() => String(route.params.sourceId || ''))
 const videoUrl = computed(() => String(route.query.original_url || route.query.url || ''))
 const currentPlayUrl = ref<string>('')
@@ -338,6 +342,8 @@ const rateOptions = computed(() => {
 function syncRateToUI(newRate: number) {
   rate.value = newRate
   savePlayState({ rate: newRate })
+  // 更新lastVideoRate，避免倍速监听器误判
+  lastVideoRate = newRate
 }
 
 // 处理播放速率变化
@@ -885,6 +891,11 @@ function bindPlayerEvents() {
     startSpeedMonitoring()
   }
   
+  // 启动倍速监听
+  if (!rateCheckInterval) {
+    startRateMonitoring()
+  }
+  
   // 页面可见性变化时恢复/释放 Wake Lock
   try {
     document.addEventListener('visibilitychange', async () => {
@@ -1107,7 +1118,17 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
         videoRef.value.src = url
       }
       // 设置倍速
-      try { if (plyr) plyr.speed = rate.value } catch {}
+      if (plyr) {
+        try { 
+          plyr.speed = rate.value
+          console.log('[PlayEpisode] set plyr speed to', rate.value)
+        } catch {}
+      } else if (videoRef.value) {
+        try {
+          videoRef.value.playbackRate = rate.value
+          console.log('[PlayEpisode] set video playbackRate to', rate.value)
+        } catch {}
+      }
       // 恢复该剧集的缓存进度
       const state = loadPlayState()
       const seekTo = (state && String(state.url) === ep.url && state.currentTime && state.currentTime > 0) ? state.currentTime : 0
@@ -1281,6 +1302,38 @@ function vibrateFeedback() {
     }
   } catch (e) {
     console.log('[Vibrate] 震动功能不可用:', e)
+  }
+}
+
+// 倍速监听函数
+function startRateMonitoring() {
+  if (rateCheckInterval) {
+    clearInterval(rateCheckInterval)
+  }
+  
+  lastVideoRate = 1
+  rateCheckInterval = setInterval(() => {
+    if (!videoRef.value) return
+    
+    const currentRate = videoRef.value.playbackRate || 1
+    
+    // 如果倍速发生变化且不是长按状态，同步到页面
+    if (Math.abs(currentRate - lastVideoRate) > 0.01 && !isLongPressActive.value) {
+      lastVideoRate = currentRate
+      // 找到最接近的倍速选项
+      const closestRate = rates.find(r => Math.abs(r - currentRate) < 0.1) || 1
+      if (Math.abs(closestRate - rate.value) > 0.01) {
+        syncRateToUI(closestRate)
+        console.log('[RateMonitor] 检测到倍速变化，同步到页面:', currentRate, '->', closestRate)
+      }
+    }
+  }, 500) // 每500ms检查一次
+}
+
+function stopRateMonitoring() {
+  if (rateCheckInterval) {
+    clearInterval(rateCheckInterval)
+    rateCheckInterval = null
   }
 }
 
@@ -1493,7 +1546,18 @@ async function resolvePlayUrl() {
           try { console.log('[HLS] fallback: set src directly (no hls support)') } catch {}
           videoRef.value.src = url
         }
-        if (plyr) try { plyr.speed = rate.value; console.log('[HLS] set speed to', rate.value) } catch {}
+        // 设置倍速
+        if (plyr) {
+          try { 
+            plyr.speed = rate.value
+            console.log('[HLS] set plyr speed to', rate.value) 
+          } catch {}
+        } else if (videoRef.value) {
+          try {
+            videoRef.value.playbackRate = rate.value
+            console.log('[HLS] set video playbackRate to', rate.value)
+          } catch {}
+        }
 
         // 每次播放时都检查缓存进度并跳转
         const state = loadPlayState()
@@ -1580,6 +1644,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
   stopSpeedMonitoring() // 清理网速监控定时器
+  stopRateMonitoring() // 清理倍速监听定时器
   
   // 清理长按定时器
   if (longPressTimer) {
