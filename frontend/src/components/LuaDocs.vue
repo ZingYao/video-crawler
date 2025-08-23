@@ -306,6 +306,56 @@ print('链式调用结果:', result)
         </div>
 
         <div class="doc-section">
+          <h3>Base64 库</h3>
+          <div class="doc-item"><b>base64.encode(str: string)</b> → <code>string</code> 将字符串进行Base64编码。</div>
+          <div class="doc-item"><b>base64.decode(str: string)</b> → <code>string, err</code> 将Base64编码的字符串解码。</div>
+          <div class="doc-item"><b>base64.encode_urlsafe(str: string)</b> → <code>string</code> 将字符串进行URL安全的Base64编码。</div>
+          <div class="doc-item"><b>base64.decode_urlsafe(str: string)</b> → <code>string, err</code> 将URL安全的Base64编码字符串解码。</div>
+          <pre class="doc-code">-- Base64 编码示例
+local test_text = 'Hello 世界！'
+local encoded = base64.encode(test_text)
+print('编码后:', encoded)
+-- 输出: SGVsbG8g5LiW5YyB77yB
+
+-- Base64 解码示例
+local decoded, err = base64.decode(encoded)
+if err then
+  log('解码错误:', err)
+else
+  print('解码后:', decoded)
+end
+-- 输出: Hello 世界！
+
+-- URL安全的Base64编码示例
+local url_safe_encoded = base64.encode_urlsafe(test_text)
+print('URL安全编码:', url_safe_encoded)
+-- 输出: SGVsbG8g5LiW5YyB77yB
+
+-- URL安全的Base64解码示例
+local url_safe_decoded, decode_err = base64.decode_urlsafe(url_safe_encoded)
+if decode_err then
+  log('URL安全解码错误:', decode_err)
+else
+  print('URL安全解码:', url_safe_decoded)
+end
+-- 输出: Hello 世界！
+
+-- 链式调用示例
+local result = base64.encode('测试文本')
+  :gsub('=', '')  -- 移除填充字符
+  :lower()        -- 转换为小写
+print('链式调用结果:', result)
+</pre>
+          <div class="doc-item"><b>参数/返回</b></div>
+          <ul>
+            <li><code>base64.encode(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+            <li><code>base64.decode(str)</code>：<code>str:string</code>；返回 <code>string, err</code></li>
+            <li><code>base64.encode_urlsafe(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+            <li><code>base64.decode_urlsafe(str)</code>：<code>str:string</code>；返回 <code>string, err</code></li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
           <h3>HTTP</h3>
           <div class="doc-item"><b>set_user_agent(ua: string)</b> 设置 UA</div>
           <div class="doc-item"><b>set_random_user_agent()</b> 随机 UA</div>

@@ -220,6 +220,48 @@ console.log('链式调用结果:', result)
       </div>
 
       <div class="doc-section">
+        <h3>Base64 库</h3>
+        <div class="doc-item"><b>base64.encode(str: string)</b> → <code>string</code> 将字符串进行Base64编码。</div>
+        <div class="doc-item"><b>base64.decode(str: string)</b> → <code>string</code> 将Base64编码的字符串解码。</div>
+        <div class="doc-item"><b>base64.encodeURLSafe(str: string)</b> → <code>string</code> 将字符串进行URL安全的Base64编码。</div>
+        <div class="doc-item"><b>base64.decodeURLSafe(str: string)</b> → <code>string</code> 将URL安全的Base64编码字符串解码。</div>
+        <pre class="doc-code">// Base64 编码示例
+const testText = 'Hello 世界！'
+const encoded = base64.encode(testText)
+console.log('编码后:', encoded)
+// 输出: SGVsbG8g5LiW5YyB77yB
+
+// Base64 解码示例
+const decoded = base64.decode(encoded)
+console.log('解码后:', decoded)
+// 输出: Hello 世界！
+
+// URL安全的Base64编码示例
+const urlSafeEncoded = base64.encodeURLSafe(testText)
+console.log('URL安全编码:', urlSafeEncoded)
+// 输出: SGVsbG8g5LiW5YyB77yB
+
+// URL安全的Base64解码示例
+const urlSafeDecoded = base64.decodeURLSafe(urlSafeEncoded)
+console.log('URL安全解码:', urlSafeDecoded)
+// 输出: Hello 世界！
+
+// 链式调用示例
+const result = base64.encode('测试文本')
+  .replace(/=/g, '')  // 移除填充字符
+  .toLowerCase()      // 转换为小写
+console.log('链式调用结果:', result)
+</pre>
+        <div class="doc-item"><b>参数/返回</b></div>
+        <ul>
+          <li><code>base64.encode(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+          <li><code>base64.decode(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+          <li><code>base64.encodeURLSafe(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+          <li><code>base64.decodeURLSafe(str)</code>：<code>str:string</code>；返回 <code>string</code></li>
+        </ul>
+      </div>
+
+      <div class="doc-section">
         <h3>Unicode 库</h3>
         <div class="doc-item"><b>unicode.encode(str: string)</b> → <code>string</code> 将字符串中的非ASCII字符编码为 \uXXXX 格式。</div>
         <div class="doc-item"><b>unicode.decode(str: string)</b> → <code>string</code> 将 \uXXXX 格式的字符串解码为原始字符。</div>
@@ -288,9 +330,9 @@ const items = doc.getElementsByClassName('item')  // 通过类名选择
 
 // Element 方法
 if (card) {
-  console.log('text:', card.text())                    // 获取文本内容
+  console.log('textContent:', card.textContent)        // 获取文本内容
   console.log('innerText:', card.innerText())          // 获取文本内容（别名）
-  console.log('html:', card.html())                    // 获取HTML内容
+  console.log('outerHTML:', card.outerHTML)            // 获取HTML内容
   console.log('innerHTML:', card.innerHTML())          // 获取HTML内容（别名）
   console.log('data-id:', card.attr('data-id'))        // 获取属性值
   console.log('data-id:', card.getAttribute('data-id')) // 获取属性值（别名）
@@ -303,7 +345,7 @@ if (card) {
 // 遍历元素数组
 for (let i = 0; i < cards.length; i++) {
   const card = cards[i]
-  console.log('Card', i, ':', card.text())
+  console.log('Card', i, ':', card.textContent)
 }
 
 // 链式DOM操作示例
@@ -315,9 +357,9 @@ if (list) {
   const nextItem = firstItem.next()              // 获取下一个兄弟元素
   const prevItem = secondItem.prev()             // 获取上一个兄弟元素
   
-  console.log('First item:', firstItem.text())
-  console.log('Parent tag:', parent ? parent.html().match(/<(\w+)/)?.[1] : 'none')
-  console.log('Next item:', nextItem ? nextItem.text() : 'none')
+  console.log('First item:', firstItem.textContent)
+  console.log('Parent tag:', parent ? parent.outerHTML.match(/<(\w+)/)?.[1] : 'none')
+  console.log('Next item:', nextItem ? nextItem.textContent : 'none')
 }
 
 // 实际爬虫示例
@@ -329,7 +371,7 @@ const results = []
 for (let i = 0; i < links.length; i++) {
   const link = links[i]
   const href = link.attr('href')
-  const text = link.text()
+  const text = link.textContent
   if (href && text) {
     results.push({ href, text })
   }
@@ -342,14 +384,14 @@ for (let i = 0; i < links.length; i++) {
           <li><code>getElementById(id)</code>：<code>id:string</code>；返回 <code>Element|undefined</code></li>
           <li><code>getElementsByTagName(tag)</code>：<code>tag:string</code>；返回 <code>Element[]</code></li>
           <li><code>getElementsByClassName(cls)</code>：<code>cls:string</code>；返回 <code>Element[]</code></li>
-          <li><code>text()</code>：返回 <code>string</code> 文档文本内容</li>
-          <li><code>html()</code>：返回 <code>string</code> 文档HTML内容</li>
+          <li><code>textContent</code>：返回 <code>string</code> 文档文本内容</li>
+          <li><code>innerHTML</code>：返回 <code>string</code> 文档HTML内容</li>
         </ul>
         
         <div class="doc-item"><b>Element 方法</b></div>
         <ul>
-          <li><code>text()</code>、<code>innerText()</code>：返回 <code>string</code> 元素文本内容</li>
-          <li><code>html()</code>、<code>innerHTML()</code>：返回 <code>string</code> 元素HTML内容</li>
+          <li><code>textContent</code>、<code>innerText()</code>：返回 <code>string</code> 元素文本内容</li>
+          <li><code>outerHTML</code>、<code>innerHTML()</code>：返回 <code>string</code> 元素HTML内容</li>
           <li><code>attr(name)</code>、<code>getAttribute(name)</code>：<code>name:string</code>；返回 <code>string|undefined</code> 属性值</li>
           <li><code>querySelector(css)</code>：<code>css:string</code>；返回 <code>Element|undefined</code></li>
           <li><code>querySelectorAll(css)</code>：<code>css:string</code>；返回 <code>Element[]</code></li>

@@ -4,6 +4,7 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"compress/zlib"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -72,9 +73,9 @@ func (e *Engine) emit(line string) {
 // ---- DOM 封装 ----
 func (e *Engine) wrapSelection(sel *goquery.Selection) *goja.Object {
 	obj := e.vm.NewObject()
-	_ = obj.Set("text", func() string { return strings.TrimSpace(sel.Text()) })
+	_ = obj.Set("textContent", func() string { return strings.TrimSpace(sel.Text()) })
 	_ = obj.Set("innerText", func() string { return strings.TrimSpace(sel.Text()) })
-	_ = obj.Set("html", func() string { h, _ := sel.Html(); return h })
+	_ = obj.Set("outerHTML", func() string { h, _ := sel.Html(); return h })
 	_ = obj.Set("innerHTML", func() string { h, _ := sel.Html(); return h })
 	_ = obj.Set("attr", func(name string) goja.Value {
 		if v, ok := sel.Attr(name); ok {
@@ -195,8 +196,8 @@ func (e *Engine) wrapDocument(doc *goquery.Document) *goja.Object {
 		}
 		return e.wrapSelection(s)
 	})
-	_ = obj.Set("text", func() string { return strings.TrimSpace(root.Text()) })
-	_ = obj.Set("html", func() string { h, _ := root.Html(); return h })
+	_ = obj.Set("textContent", func() string { return strings.TrimSpace(root.Text()) })
+	_ = obj.Set("innerHTML", func() string { h, _ := root.Html(); return h })
 	return obj
 }
 
@@ -463,6 +464,30 @@ func (e *Engine) bindApis() {
 		return parsed.String()
 	})
 	e.vm.Set("url", urlLib)
+
+	// Base64 库
+	base64Lib := e.vm.NewObject()
+	_ = base64Lib.Set("encode", func(str string) string {
+		return base64.StdEncoding.EncodeToString([]byte(str))
+	})
+	_ = base64Lib.Set("decode", func(str string) string {
+		decoded, err := base64.StdEncoding.DecodeString(str)
+		if err != nil {
+			return "" // 解码失败时返回空字符串
+		}
+		return string(decoded)
+	})
+	_ = base64Lib.Set("encodeURLSafe", func(str string) string {
+		return base64.URLEncoding.EncodeToString([]byte(str))
+	})
+	_ = base64Lib.Set("decodeURLSafe", func(str string) string {
+		decoded, err := base64.URLEncoding.DecodeString(str)
+		if err != nil {
+			return "" // 解码失败时返回空字符串
+		}
+		return string(decoded)
+	})
+	e.vm.Set("base64", base64Lib)
 
 	// Unicode 库
 	unicodeLib := e.vm.NewObject()

@@ -4,6 +4,7 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"compress/zlib"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -142,9 +143,10 @@ func (e *LuaEngine) registerFunctions() {
 	e.L.SetGlobal("json_encode", e.L.NewFunction(e.luaJsonEncode))
 	e.L.SetGlobal("json_decode", e.L.NewFunction(e.luaJsonDecode))
 
-	// URL 和 Unicode 库
+	// URL、Unicode 和 Base64 库
 	e.L.SetGlobal("url", e.createUrlLibrary())
 	e.L.SetGlobal("unicode", e.createUnicodeLibrary())
+	e.L.SetGlobal("base64", e.createBase64Library())
 
 	// 禁用危险的系统函数，并提供禁用信息
 	e.L.SetGlobal("io", e.createDisabledTable("io"))
@@ -1371,4 +1373,55 @@ func (e *LuaEngine) createUnicodeLibrary() *lua.LTable {
 	}))
 
 	return unicodeTable
+}
+
+// createBase64Library 创建Base64库
+func (e *LuaEngine) createBase64Library() *lua.LTable {
+	base64Table := e.L.CreateTable(0, 4)
+
+	// base64.encode(str) -> string
+	base64Table.RawSetString("encode", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+		encoded := base64.StdEncoding.EncodeToString([]byte(str))
+		L.Push(lua.LString(encoded))
+		return 1
+	}))
+
+	// base64.decode(str) -> string, err
+	base64Table.RawSetString("decode", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+		decoded, err := base64.StdEncoding.DecodeString(str)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LString(string(decoded)))
+		L.Push(lua.LNil)
+		return 2
+	}))
+
+	// base64.encode_urlsafe(str) -> string
+	base64Table.RawSetString("encode_urlsafe", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+		encoded := base64.URLEncoding.EncodeToString([]byte(str))
+		L.Push(lua.LString(encoded))
+		return 1
+	}))
+
+	// base64.decode_urlsafe(str) -> string, err
+	base64Table.RawSetString("decode_urlsafe", e.L.NewFunction(func(L *lua.LState) int {
+		str := L.CheckString(1)
+		decoded, err := base64.URLEncoding.DecodeString(str)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+		L.Push(lua.LString(string(decoded)))
+		L.Push(lua.LNil)
+		return 2
+	}))
+
+	return base64Table
 }
