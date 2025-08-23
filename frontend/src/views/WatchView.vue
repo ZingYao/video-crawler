@@ -221,6 +221,14 @@ const isLongPressActive = ref(false) // 长按状态
 const skipIntro = ref({ enabled: false, seconds: 30 })
 const skipOutro = ref({ enabled: false, seconds: 30 })
 const skipOutroTriggered = ref(false) // 跟踪当前剧集是否已触发跳过片尾
+const skipOutroCurrentUrl = ref<string>('') // 跟踪当前剧集的URL，用于判断是否切换了剧集
+
+// 下一集预加载相关变量
+const nextEpisodeUrl = ref<string>('') // 下一集的播放链接
+const nextEpisodePreloaded = ref(false) // 是否已预加载下一集
+const nextEpisodePreloadTimer = ref<number | null>(null) // 预加载定时器
+const nextEpisodeToastTimer = ref<number | null>(null) // 提示定时器
+const nextEpisodeToastShown = ref(false) // 是否已显示切换提示
 
 // 网速计算相关变量
 let lastLoadedBytes = 0
@@ -695,15 +703,56 @@ function bindPlayerEvents() {
         console.log(`跳过片首，跳转到 ${skipIntro.value.seconds} 秒`)
       }
       
+      // 下一集预加载和提示逻辑
+      if (canNext.value && dur > 0) {
+        const remainingTime = dur - ct
+        
+        // 提前20秒预加载下一集
+        if (remainingTime <= 20 && !nextEpisodePreloaded.value && !nextEpisodePreloadTimer.value) {
+          nextEpisodePreloadTimer.value = window.setTimeout(() => {
+            preloadNextEpisode()
+          }, 100) // 延迟100ms避免频繁调用
+        }
+        
+        // 提前5秒显示切换提示
+        if (remainingTime <= 5 && !nextEpisodeToastShown.value && !nextEpisodeToastTimer.value) {
+          nextEpisodeToastTimer.value = window.setTimeout(() => {
+            const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+            message.info(`即将切换到下一集：${nextEpisode?.name || '下一集'}`, 4)
+            nextEpisodeToastShown.value = true
+          }, 100) // 延迟100ms避免频繁调用
+        }
+      }
+      
       // 检查是否需要跳过片尾
-      if (skipOutro.value.enabled && dur > 0 && ct > dur - skipOutro.value.seconds && !skipOutroTriggered.value) {
+      if (skipOutro.value.enabled && dur > 0 && ct > dur - skipOutro.value.seconds) {
+        // 检查当前剧集URL是否发生变化，如果变化了说明切换了剧集，需要重置状态
+        if (skipOutroCurrentUrl.value !== currentPlayUrl.value) {
+          skipOutroTriggered.value = false
+          skipOutroCurrentUrl.value = currentPlayUrl.value
+          console.log(`检测到剧集切换，重置跳过片尾状态: ${currentPlayUrl.value}`)
+        }
+        
+        // 如果已经触发过跳过片尾，则不再触发
+        if (skipOutroTriggered.value) {
+          return
+        }
+        
         // 标记已触发，避免重复触发
         skipOutroTriggered.value = true
+        console.log(`触发跳过片尾，当前剧集: ${currentPlayUrl.value}`)
         
         // 如果接近片尾，自动切换到下一集
         if (canNext.value) {
           console.log(`跳过片尾，自动切换到下一集`)
-          playNext()
+          
+          // 如果有预加载的URL，直接使用
+          if (nextEpisodeUrl.value) {
+            const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+            playEpisodeWithUrl(nextEpisode, nextEpisodeUrl.value)
+          } else {
+            playNext()
+          }
         } else {
           // 没有下一集，跳转到片尾前指定秒数
           v.currentTime = Math.max(0, dur - skipOutro.value.seconds)
@@ -1096,14 +1145,84 @@ function isCurrentEpisode(ep: { url: string }) {
   return String(ep?.url || '') === currentPlayUrl.value
 }
 
-async function playEpisode(ep: { name: string; url: string }, sourceName?: string) {
-  if (!ep?.url) return
+// 使用预加载的URL播放剧集
+async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUrl: string, sourceName?: string) {
+  if (!ep?.url || !preloadedUrl) return
   
-  // 重置跳过片尾状态，新剧集可以重新触发
-  skipOutroTriggered.value = false
+  // 清理预加载状态
+  clearNextEpisodePreload()
   
   // 立刻更新当前剧集，用于后续解析播放链接与按钮状态
   currentPlayUrl.value = ep.url
+  
+  // 重置跳过片尾状态，新剧集可以重新触发
+  skipOutroTriggered.value = false
+  skipOutroCurrentUrl.value = ep.url
+  
+  // 仅更新地址栏中标题与来源，不修改 url 参数，避免影响回显
+  const q = { ...route.query, title: ep.name, source: sourceName || (ep as any).__sourceName }
+  router.replace({ name: 'watch', params: route.params, query: q })
+  
+  try {
+    setVideoLoading(true) // 开始加载
+    playerSource.value = preloadedUrl
+    await nextTick()
+    ensurePlyr()
+    if (videoRef.value) {
+      // 切换播放源
+      if (Hls.isSupported()) {
+        if (hls) { try { hls.destroy() } catch {} }
+        hls = new Hls({ maxBufferLength: 30 })
+        hls.loadSource(preloadedUrl)
+        hls.attachMedia(videoRef.value)
+      } else {
+        videoRef.value.src = preloadedUrl
+      }
+      // 设置倍速
+      if (plyr) {
+        try { 
+          plyr.speed = rate.value
+          console.log('[PlayEpisodeWithUrl] set plyr speed to', rate.value)
+        } catch {}
+      } else if (videoRef.value) {
+        try {
+          videoRef.value.playbackRate = rate.value
+          console.log('[PlayEpisodeWithUrl] set video playbackRate to', rate.value)
+        } catch {}
+      }
+      // 恢复该剧集的缓存进度
+      const state = loadPlayState()
+      const seekTo = (state && String(state.url) === ep.url && state.currentTime && state.currentTime > 0) ? state.currentTime : 0
+      if (seekTo > 0) {
+        const doSeek = () => { try { if (videoRef.value) videoRef.value.currentTime = seekTo } catch {} }
+        if ((videoRef.value?.readyState || 0) >= 1) doSeek()
+        else videoRef.value?.addEventListener('loadedmetadata', doSeek, { once: true })
+      }
+      // 自动播放
+      try { await videoRef.value.play() } catch {}
+      bindPlayerEvents()
+    }
+    // 保存所选剧集
+    savePlayState({ url: ep.url, title: ep.name, source: q.source })
+  } catch (error) {
+    console.error('播放剧集失败:', error)
+  } finally {
+    setVideoLoading(false) // 结束加载
+  }
+}
+
+async function playEpisode(ep: { name: string; url: string }, sourceName?: string) {
+  if (!ep?.url) return
+  
+  // 清理预加载状态
+  clearNextEpisodePreload()
+  
+  // 立刻更新当前剧集，用于后续解析播放链接与按钮状态
+  currentPlayUrl.value = ep.url
+  
+  // 重置跳过片尾状态，新剧集可以重新触发
+  skipOutroTriggered.value = false
+  skipOutroCurrentUrl.value = ep.url
   // 仅更新地址栏中标题与来源，不修改 url 参数，避免影响回显
   const q = { ...route.query, title: ep.name, source: sourceName || (ep as any).__sourceName }
   router.replace({ name: 'watch', params: route.params, query: q })
@@ -1163,9 +1282,59 @@ function playPrev() {
   if (!canPrev.value) return
   playEpisode(currentSourceEpisodes.value[currentIndex.value - 1])
 }
+// 预加载下一集播放链接
+async function preloadNextEpisode() {
+  if (!canNext.value || nextEpisodePreloaded.value) return
+  
+  try {
+    const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+    if (!nextEpisode?.url) return
+    
+    console.log('开始预加载下一集播放链接:', nextEpisode.url)
+    const token = auth.token!
+    const res: any = await videoAPI.playUrl(token, sourceId.value, nextEpisode.url)
+    const url: string = res?.data?.video_url || res?.data || ''
+    
+    if (url) {
+      nextEpisodeUrl.value = url
+      nextEpisodePreloaded.value = true
+      console.log('下一集播放链接预加载成功')
+    }
+  } catch (error) {
+    console.error('预加载下一集失败:', error)
+  }
+}
+
+// 清理下一集预加载状态
+function clearNextEpisodePreload() {
+  nextEpisodeUrl.value = ''
+  nextEpisodePreloaded.value = false
+  nextEpisodeToastShown.value = false
+  
+  if (nextEpisodePreloadTimer.value) {
+    clearTimeout(nextEpisodePreloadTimer.value)
+    nextEpisodePreloadTimer.value = null
+  }
+  
+  if (nextEpisodeToastTimer.value) {
+    clearTimeout(nextEpisodeToastTimer.value)
+    nextEpisodeToastTimer.value = null
+  }
+}
+
 function playNext() {
   if (!canNext.value) return
-  playEpisode(currentSourceEpisodes.value[currentIndex.value + 1])
+  
+  // 清理预加载状态
+  clearNextEpisodePreload()
+  
+  // 如果有预加载的URL，直接使用
+  if (nextEpisodeUrl.value) {
+    const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+    playEpisodeWithUrl(nextEpisode, nextEpisodeUrl.value)
+  } else {
+    playEpisode(currentSourceEpisodes.value[currentIndex.value + 1])
+  }
 }
 
 // 迅雷下载功能
@@ -1377,6 +1546,8 @@ function startLongPress() {
       console.log('[LongPress] 启动2倍速播放')
       // 震动反馈
       vibrateFeedback()
+      // 显示toast提示
+      message.info('已启动2倍速播放', 2)
     } catch (e) {
       console.error('[LongPress] 设置2倍速失败:', e)
     }
@@ -1411,6 +1582,8 @@ function endLongPress() {
       console.log('[LongPress] 恢复原始播放速率:', originalRate.value)
       // 震动反馈
       vibrateFeedback()
+      // 显示toast提示
+      message.info(`已恢复${originalRate.value}x倍速播放`, 2)
     } catch (e) {
       console.error('[LongPress] 恢复原始速率失败:', e)
     }
@@ -1523,10 +1696,11 @@ async function fetchDetail(force = false) {
 
 async function resolvePlayUrl() {
   try {
+    setVideoLoading(true) // 开始加载
+    
     // 重置跳过片尾状态，新播放源可以重新触发
     skipOutroTriggered.value = false
-    
-    setVideoLoading(true) // 开始加载
+    skipOutroCurrentUrl.value = currentPlayUrl.value
     const token = auth.token!
     // 优先请求"当前选中剧集"的播放链接；无则回退
     const episodeUrl = getSelectedEpisodeUrl()
@@ -1663,6 +1837,14 @@ onUnmounted(() => {
     clearTimeout(longPressTimer)
     longPressTimer = null
   }
+  
+  // 清理跳过片尾状态
+  skipOutroTriggered.value = false
+  skipOutroCurrentUrl.value = ''
+  
+  // 清理下一集预加载状态
+  clearNextEpisodePreload()
+  
   // 释放 Wake Lock
   releaseWakeLock()
 })
