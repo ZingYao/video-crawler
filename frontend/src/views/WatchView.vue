@@ -334,17 +334,21 @@ const rateOptions = computed(() => {
   }))
 })
 
+// 同步倍速到页面显示
+function syncRateToUI(newRate: number) {
+  rate.value = newRate
+  savePlayState({ rate: newRate })
+}
+
 // 处理播放速率变化
 function handleRateChange(value: number) {
-  rate.value = value
+  syncRateToUI(value)
   try {
     if (plyr) {
       plyr.speed = value
-      savePlayState({ rate: value })
     } else if (videoRef.value) {
       // 原生 video 兜底
       ;(videoRef.value as any).playbackRate = value as any
-      savePlayState({ rate: value })
     }
   } catch {}
 }
@@ -539,8 +543,11 @@ function addPlyrCustomEvents() {
       if (plyrIsTouchActive && !isDraggingProgress) {
         originalRate.value = plyr.speed
         plyr.speed = 2
+        syncRateToUI(2)
         isLongPressActive.value = true
         console.log('[Plyr LongPress] 启动2倍速播放')
+        // 震动反馈
+        vibrateFeedback()
       }
     }, 500)
   })
@@ -554,8 +561,11 @@ function addPlyrCustomEvents() {
     }
     if (isLongPressActive.value) {
       plyr.speed = originalRate.value
+      syncRateToUI(originalRate.value)
       isLongPressActive.value = false
       console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
+      // 震动反馈
+      vibrateFeedback()
     }
   })
   
@@ -568,6 +578,7 @@ function addPlyrCustomEvents() {
     }
     if (isLongPressActive.value) {
       plyr.speed = originalRate.value
+      syncRateToUI(originalRate.value)
       isLongPressActive.value = false
     }
   })
@@ -582,8 +593,11 @@ function addPlyrCustomEvents() {
         if (plyrIsTouchActive && !isDraggingProgress) {
           originalRate.value = plyr.speed
           plyr.speed = 2
+          syncRateToUI(2)
           isLongPressActive.value = true
           console.log('[Plyr LongPress] 启动2倍速播放')
+          // 震动反馈
+          vibrateFeedback()
         }
       }, 500)
     }
@@ -599,8 +613,11 @@ function addPlyrCustomEvents() {
       }
       if (isLongPressActive.value) {
         plyr.speed = originalRate.value
+        syncRateToUI(originalRate.value)
         isLongPressActive.value = false
         console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
+        // 震动反馈
+        vibrateFeedback()
       }
     }
   })
@@ -615,6 +632,7 @@ function addPlyrCustomEvents() {
       }
       if (isLongPressActive.value) {
         plyr.speed = originalRate.value
+        syncRateToUI(originalRate.value)
         isLongPressActive.value = false
       }
     }
@@ -1253,6 +1271,19 @@ function setVideoLoading(loading: boolean) {
   // 只有在组件卸载时才停止
 }
 
+// 震动反馈函数
+function vibrateFeedback() {
+  try {
+    // 检查是否支持震动API
+    if ('vibrate' in navigator) {
+      // 震动两次：每次50ms，间隔100ms
+      navigator.vibrate([50, 100, 50])
+    }
+  } catch (e) {
+    console.log('[Vibrate] 震动功能不可用:', e)
+  }
+}
+
 // 长按2倍速播放功能
 function startLongPress() {
   if (longPressTimer) {
@@ -1263,8 +1294,8 @@ function startLongPress() {
     if (isDraggingProgress) return
     // 保存当前播放速率
     originalRate.value = rate.value
-    // 设置为2倍速
-    rate.value = 2
+    // 设置为2倍速并同步到UI
+    syncRateToUI(2)
     isLongPressActive.value = true
     
     // 应用2倍速
@@ -1282,6 +1313,8 @@ function startLongPress() {
         if (container) container.classList.add('longpress-hide-progress')
       } catch {}
       console.log('[LongPress] 启动2倍速播放')
+      // 震动反馈
+      vibrateFeedback()
     } catch (e) {
       console.error('[LongPress] 设置2倍速失败:', e)
     }
@@ -1295,8 +1328,8 @@ function endLongPress() {
   }
   
   if (isLongPressActive.value) {
-    // 恢复原始播放速率
-    rate.value = originalRate.value
+    // 恢复原始播放速率并同步到UI
+    syncRateToUI(originalRate.value)
     isLongPressActive.value = false
     
     // 应用原始速率
@@ -1314,6 +1347,8 @@ function endLongPress() {
         if (container) container.classList.remove('longpress-hide-progress')
       } catch {}
       console.log('[LongPress] 恢复原始播放速率:', originalRate.value)
+      // 震动反馈
+      vibrateFeedback()
     } catch (e) {
       console.error('[LongPress] 恢复原始速率失败:', e)
     }
