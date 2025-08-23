@@ -139,6 +139,7 @@ const debugLoading = ref(false)
 const outputText = ref('')
 const docsOpen = ref(false)
 const logsRef = ref<HTMLDivElement | null>(null)
+const hasSaved = ref(false) // 标记是否已保存成功
 // 已移除最大化功能
 
 const isEdit = computed(() => !!route.params.id)
@@ -292,6 +293,9 @@ const stopDrag = () => {
 
 // 草稿管理函数
 const saveDraft = () => {
+  // 如果已经保存成功，不再保存草稿
+  if (hasSaved.value) return
+  
   const draft = {
     name: formData.value.name,
     domain: formData.value.domain,
@@ -322,6 +326,8 @@ const clearDraft = () => {
 }
 
 const hasDraft = () => {
+  // 如果已经保存成功，不检测草稿
+  if (hasSaved.value) return false
   return localStorage.getItem(DRAFT_KEY) !== null
 }
 
@@ -343,6 +349,12 @@ const stopDraftTimer = () => {
 }
 
 const handleBack = () => {
+  // 如果已经保存成功，直接返回
+  if (hasSaved.value) {
+    router.push('/video-source-management')
+    return
+  }
+  
   // 如果有未保存的草稿，提示用户
   if (hasDraft()) {
     Modal.confirm({
@@ -352,6 +364,7 @@ const handleBack = () => {
       cancelText: '取消',
       onOk: () => {
         clearDraft()
+        stopDraftTimer()
         router.push('/video-source-management')
       }
     })
@@ -525,12 +538,14 @@ const handleSave = async () => {
     const response = await videoSourceAPI.saveVideoSource(authStore.token, payload)
     if ((response as any).code === 0) { 
       message.success(isEdit.value ? '保存成功' : '创建成功')
-      // 保存成功后清除草稿
+      // 设置保存成功标志
+      hasSaved.value = true
+      // 保存成功后清除草稿并直接返回
       clearDraft()
-      // 创建成功后返回列表
-      if (!isEdit.value) {
-        router.push('/video-source-management')
-      }
+      // 停止草稿定时器，避免保存后继续保存草稿
+      stopDraftTimer()
+      // 无论编辑还是创建，保存成功后都返回列表
+      router.push('/video-source-management')
     }
     else { message.error((response as any).message || '保存失败') }
   } catch (err: any) { message.error(err.message || '网络错误') }
