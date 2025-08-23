@@ -69,6 +69,46 @@
                   :options="rateOptions"
                   @change="handleRateChange"
                 />
+                <!-- 跳过片首开关 -->
+                <a-switch
+                  v-model:checked="skipIntro.enabled"
+                  size="small"
+                  @change="handleSkipIntroChange"
+                >
+                  <template #checkedChildren>跳过片首</template>
+                  <template #unCheckedChildren>跳过片首</template>
+                </a-switch>
+                <!-- 跳过片首秒数输入 -->
+                <a-input-number
+                  v-if="skipIntro.enabled"
+                  v-model:value="skipIntro.seconds"
+                  size="small"
+                  :min="1"
+                  :max="300"
+                  style="width: 80px;"
+                  placeholder="秒数"
+                  @change="handleSkipIntroChange"
+                />
+                <!-- 跳过片尾开关 -->
+                <a-switch
+                  v-model:checked="skipOutro.enabled"
+                  size="small"
+                  @change="handleSkipOutroChange"
+                >
+                  <template #checkedChildren>跳过片尾</template>
+                  <template #unCheckedChildren>跳过片尾</template>
+                </a-switch>
+                <!-- 跳过片尾秒数输入 -->
+                <a-input-number
+                  v-if="skipOutro.enabled"
+                  v-model:value="skipOutro.seconds"
+                  size="small"
+                  :min="1"
+                  :max="300"
+                  style="width: 80px;"
+                  placeholder="秒数"
+                  @change="handleSkipOutroChange"
+                />
                 <a-button 
                   size="small" 
                   type="primary" 
@@ -167,6 +207,10 @@ const videoLoading = ref(false)
 const networkSpeed = ref('')
 const originalRate = ref(1) // 保存原始播放速率
 const isLongPressActive = ref(false) // 长按状态
+
+// 跳过片首片尾相关变量
+const skipIntro = ref({ enabled: false, seconds: 30 })
+const skipOutro = ref({ enabled: false, seconds: 30 })
 
 // 网速计算相关变量
 let lastLoadedBytes = 0
@@ -294,6 +338,26 @@ function handleRateChange(value: number) {
       savePlayState({ rate: value })
     }
   } catch {}
+}
+
+// 处理跳过片首变化
+function handleSkipIntroChange() {
+  savePlayState({ 
+    skipIntro: { 
+      enabled: skipIntro.value.enabled, 
+      seconds: skipIntro.value.seconds 
+    } 
+  })
+}
+
+// 处理跳过片尾变化
+function handleSkipOutroChange() {
+  savePlayState({ 
+    skipOutro: { 
+      enabled: skipOutro.value.enabled, 
+      seconds: skipOutro.value.seconds 
+    } 
+  })
 }
 
 // 检测是否为移动设备
@@ -589,6 +653,24 @@ function bindPlayerEvents() {
       if (dur > 0 && Math.abs(ct - lastSavedSecond) >= 5) {
         lastSavedSecond = ct
         savePlayState({ currentTime: ct })
+      }
+      
+      // 检查是否需要跳过片首
+      if (skipIntro.value.enabled && ct < skipIntro.value.seconds) {
+        v.currentTime = skipIntro.value.seconds
+        console.log(`跳过片首，跳转到 ${skipIntro.value.seconds} 秒`)
+      }
+      
+      // 检查是否需要跳过片尾
+      if (skipOutro.value.enabled && dur > 0 && ct > dur - skipOutro.value.seconds) {
+        // 如果接近片尾，自动切换到下一集
+        if (canNext.value) {
+          playNext()
+        } else {
+          // 没有下一集，跳转到片尾前指定秒数
+          v.currentTime = Math.max(0, dur - skipOutro.value.seconds)
+          console.log(`跳过片尾，跳转到 ${Math.max(0, dur - skipOutro.value.seconds)} 秒`)
+        }
       }
     } catch {}
   })
@@ -1269,7 +1351,16 @@ function loadCache(): boolean {
   return false
 }
 
-type PlayState = { url?: string; title?: string; source?: string; currentTime?: number; rate?: number; updatedAt?: number }
+type PlayState = { 
+  url?: string; 
+  title?: string; 
+  source?: string; 
+  currentTime?: number; 
+  rate?: number; 
+  skipIntro?: { enabled: boolean; seconds: number };
+  skipOutro?: { enabled: boolean; seconds: number };
+  updatedAt?: number 
+}
 function savePlayState(partial: PlayState) {
   try {
     const raw = localStorage.getItem(playStateKey.value)
@@ -1420,6 +1511,15 @@ onMounted(async () => {
   const state = loadPlayState()
   if (state?.url) {
     if (typeof state.rate === 'number') rate.value = state.rate
+    // 恢复跳过片首片尾配置
+    if (state.skipIntro) {
+      skipIntro.value.enabled = state.skipIntro.enabled
+      skipIntro.value.seconds = state.skipIntro.seconds
+    }
+    if (state.skipOutro) {
+      skipOutro.value.enabled = state.skipOutro.enabled
+      skipOutro.value.seconds = state.skipOutro.seconds
+    }
     const ep = flatEpisodes.value.find(e => e.url === state.url) || flatEpisodes.value[0]
     if (ep) await playEpisode(ep)
   } else {
@@ -1775,6 +1875,21 @@ function attachProgressDrag(container: HTMLElement) {
   .card-header { flex-direction: column; align-items: flex-start; }
   .kv-list { grid-template-columns: 1fr; }
   .card-header h2 { white-space: normal; font-size: 18px; }
+  
+  /* 移动端播放器控制区域优化 */
+  .player-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .player-actions .ant-space {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .player-actions .ant-space-item {
+    margin-bottom: 4px;
+  }
 }
 </style>
 
