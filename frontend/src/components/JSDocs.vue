@@ -257,10 +257,124 @@ console.log('链式调用结果:', result)
       </div>
 
       <div class="doc-section">
+        <h3>HTML 解析</h3>
+        <div class="doc-item"><b>parseHtml(html: string)</b> → <code>Document</code> 解析HTML字符串，返回Document对象。</div>
+        <div class="doc-item"><b>DOMParser</b> 构造函数，提供 <code>parseFromString(html, type)</code> 方法。</div>
+        <pre class="doc-code">// 基本用法
+const htmlStr = `
+&lt;html&gt;&lt;body&gt;
+  &lt;div class="card" data-id="100"&gt;Hello&lt;/div&gt;
+  &lt;p id="p1"&gt;world&lt;/p&gt;
+  &lt;ul&gt;
+    &lt;li&gt;Item 1&lt;/li&gt;
+    &lt;li&gt;Item 2&lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/body&gt;&lt;/html&gt;
+`
+
+// 使用 parseHtml
+const doc = parseHtml(htmlStr)
+
+// 使用 DOMParser
+const parser = new DOMParser()
+const doc2 = parser.parseFromString(htmlStr, 'text/html')
+
+// Document 方法
+const card = doc.querySelector('.card')           // 选择单个元素
+const cards = doc.querySelectorAll('.card')       // 选择多个元素
+const p1 = doc.getElementById('p1')               // 通过ID选择
+const divs = doc.getElementsByTagName('div')      // 通过标签名选择
+const items = doc.getElementsByClassName('item')  // 通过类名选择
+
+// Element 方法
+if (card) {
+  console.log('text:', card.text())                    // 获取文本内容
+  console.log('innerText:', card.innerText())          // 获取文本内容（别名）
+  console.log('html:', card.html())                    // 获取HTML内容
+  console.log('innerHTML:', card.innerHTML())          // 获取HTML内容（别名）
+  console.log('data-id:', card.attr('data-id'))        // 获取属性值
+  console.log('data-id:', card.getAttribute('data-id')) // 获取属性值（别名）
+  
+  // 链式选择
+  const nested = card.querySelector('span')
+  const allNested = card.querySelectorAll('span')
+}
+
+// 遍历元素数组
+for (let i = 0; i < cards.length; i++) {
+  const card = cards[i]
+  console.log('Card', i, ':', card.text())
+}
+
+// 链式DOM操作示例
+const list = doc.querySelector('ul')
+if (list) {
+  const firstItem = list.children()[0]           // 获取第一个子元素
+  const secondItem = list.children()[1]          // 获取第二个子元素
+  const parent = firstItem.parent()              // 获取父元素
+  const nextItem = firstItem.next()              // 获取下一个兄弟元素
+  const prevItem = secondItem.prev()             // 获取上一个兄弟元素
+  
+  console.log('First item:', firstItem.text())
+  console.log('Parent tag:', parent ? parent.html().match(/<(\w+)/)?.[1] : 'none')
+  console.log('Next item:', nextItem ? nextItem.text() : 'none')
+}
+
+// 实际爬虫示例
+const r = httpGet('https://example.com')
+const doc = parseHtml(r.body)
+const links = doc.querySelectorAll('a')
+const results = []
+
+for (let i = 0; i < links.length; i++) {
+  const link = links[i]
+  const href = link.attr('href')
+  const text = link.text()
+  if (href && text) {
+    results.push({ href, text })
+  }
+}
+</pre>
+        <div class="doc-item"><b>Document 方法</b></div>
+        <ul>
+          <li><code>querySelector(css)</code>：<code>css:string</code>；返回 <code>Element|undefined</code></li>
+          <li><code>querySelectorAll(css)</code>：<code>css:string</code>；返回 <code>Element[]</code></li>
+          <li><code>getElementById(id)</code>：<code>id:string</code>；返回 <code>Element|undefined</code></li>
+          <li><code>getElementsByTagName(tag)</code>：<code>tag:string</code>；返回 <code>Element[]</code></li>
+          <li><code>getElementsByClassName(cls)</code>：<code>cls:string</code>；返回 <code>Element[]</code></li>
+          <li><code>text()</code>：返回 <code>string</code> 文档文本内容</li>
+          <li><code>html()</code>：返回 <code>string</code> 文档HTML内容</li>
+        </ul>
+        
+        <div class="doc-item"><b>Element 方法</b></div>
+        <ul>
+          <li><code>text()</code>、<code>innerText()</code>：返回 <code>string</code> 元素文本内容</li>
+          <li><code>html()</code>、<code>innerHTML()</code>：返回 <code>string</code> 元素HTML内容</li>
+          <li><code>attr(name)</code>、<code>getAttribute(name)</code>：<code>name:string</code>；返回 <code>string|undefined</code> 属性值</li>
+          <li><code>querySelector(css)</code>：<code>css:string</code>；返回 <code>Element|undefined</code></li>
+          <li><code>querySelectorAll(css)</code>：<code>css:string</code>；返回 <code>Element[]</code></li>
+          <li><code>getElementById(id)</code>：<code>id:string</code>；返回 <code>Element|undefined</code></li>
+          <li><code>getElementsByTagName(tag)</code>：<code>tag:string</code>；返回 <code>Element[]</code></li>
+          <li><code>getElementsByClassName(cls)</code>：<code>cls:string</code>；返回 <code>Element[]</code></li>
+        </ul>
+        
+        <div class="doc-item"><b>链式DOM操作方法</b></div>
+        <ul>
+          <li><code>parent()</code>：返回 <code>Element|undefined</code> 父元素</li>
+          <li><code>children()</code>：返回 <code>Element[]</code> 子元素数组</li>
+          <li><code>next()</code>：返回 <code>Element|undefined</code> 下一个兄弟元素</li>
+          <li><code>prev()</code>：返回 <code>Element|undefined</code> 上一个兄弟元素</li>
+          <li><code>eq(index)</code>：<code>index:number</code>；返回 <code>Element|undefined</code> 指定索引的元素</li>
+          <li><code>first()</code>：返回 <code>Element|undefined</code> 第一个元素</li>
+        </ul>
+      </div>
+
+      <div class="doc-section">
         <h3>建议规范</h3>
         <div class="doc-item">- 优先使用 <b>fetch</b>，其语义更接近 Web/Node；需要简单快速时可用 <b>httpGet/httpPost</b>。</div>
         <div class="doc-item">- 处理重定向：<code>redirect: 'manual'</code> 时，可读取 <code>response.location</code> 自行处理跳转。</div>
         <div class="doc-item">- JSON 直接使用 <code>JSON.parse</code>/<code>JSON.stringify</code>；不需要 <code>json_encode/json_decode</code>。</div>
+        <div class="doc-item">- HTML解析优先使用 <b>parseHtml</b>，支持完整的DOM操作API。</div>
       </div>
     </div>
   </a-drawer>

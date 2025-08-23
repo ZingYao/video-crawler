@@ -114,6 +114,54 @@ func (e *Engine) wrapSelection(sel *goquery.Selection) *goja.Object {
 		}
 		return e.wrapSelection(s)
 	})
+
+	// 链式DOM操作方法
+	_ = obj.Set("parent", func() goja.Value {
+		parent := sel.Parent()
+		if parent.Length() == 0 {
+			return goja.Undefined()
+		}
+		return e.wrapSelection(parent)
+	})
+	_ = obj.Set("children", func() *goja.Object {
+		children := sel.Children()
+		arr := e.vm.NewArray()
+		var idx int64 = 0
+		children.Each(func(i int, s *goquery.Selection) {
+			arr.Set(strconv.FormatInt(idx, 10), e.wrapSelection(s))
+			idx++
+		})
+		arr.Set("length", idx)
+		return arr
+	})
+	_ = obj.Set("next", func() goja.Value {
+		next := sel.Next()
+		if next.Length() == 0 {
+			return goja.Undefined()
+		}
+		return e.wrapSelection(next)
+	})
+	_ = obj.Set("prev", func() goja.Value {
+		prev := sel.Prev()
+		if prev.Length() == 0 {
+			return goja.Undefined()
+		}
+		return e.wrapSelection(prev)
+	})
+	_ = obj.Set("eq", func(index int) goja.Value {
+		eq := sel.Eq(index)
+		if eq.Length() == 0 {
+			return goja.Undefined()
+		}
+		return e.wrapSelection(eq)
+	})
+	_ = obj.Set("first", func() goja.Value {
+		first := sel.First()
+		if first.Length() == 0 {
+			return goja.Undefined()
+		}
+		return e.wrapSelection(first)
+	})
 	return obj
 }
 

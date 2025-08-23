@@ -222,6 +222,8 @@ const skipIntro = ref({ enabled: false, seconds: 30 })
 const skipOutro = ref({ enabled: false, seconds: 30 })
 const skipOutroTriggered = ref(false) // 跟踪当前剧集是否已触发跳过片尾
 const skipOutroCurrentUrl = ref<string>('') // 跟踪当前剧集的URL，用于判断是否切换了剧集
+const skipOutroLastTriggerTime = ref<number>(0) // 上次触发跳过片尾的时间戳
+const skipOutroCooldownTime = 10000 // 10秒冷却时间（毫秒）
 
 // 下一集预加载相关变量
 const nextEpisodeUrl = ref<string>('') // 下一集的播放链接
@@ -563,6 +565,9 @@ function addPlyrCustomEvents() {
         console.log('[Plyr LongPress] 启动2倍速播放')
         // 震动反馈
         vibrateFeedback()
+        // 显示toast提示
+        console.log('[Plyr LongPress] 显示Toast: 已启动2倍速播放')
+        message.info('已启动2倍速播放', 3)
       }
     }, 500)
   })
@@ -581,6 +586,9 @@ function addPlyrCustomEvents() {
       console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
       // 震动反馈
       vibrateFeedback()
+      // 显示toast提示
+      console.log('[Plyr LongPress] 显示Toast: 已恢复倍速播放')
+      message.info(`已恢复${originalRate.value}x倍速播放`, 3)
     }
   })
   
@@ -613,6 +621,9 @@ function addPlyrCustomEvents() {
           console.log('[Plyr LongPress] 启动2倍速播放')
           // 震动反馈
           vibrateFeedback()
+          // 显示toast提示
+          console.log('[Plyr LongPress] 显示Toast: 已启动2倍速播放')
+          message.info('已启动2倍速播放', 3)
         }
       }, 500)
     }
@@ -633,6 +644,9 @@ function addPlyrCustomEvents() {
         console.log('[Plyr LongPress] 恢复原始播放速率:', originalRate.value)
         // 震动反馈
         vibrateFeedback()
+        // 显示toast提示
+        console.log('[Plyr LongPress] 显示Toast: 已恢复倍速播放')
+        message.info(`已恢复${originalRate.value}x倍速播放`, 3)
       }
     }
   })
@@ -733,6 +747,15 @@ function bindPlayerEvents() {
           console.log(`检测到剧集切换，重置跳过片尾状态: ${currentPlayUrl.value}`)
         }
         
+        // 检查冷却时间
+        const currentTime = Date.now()
+        const timeSinceLastTrigger = currentTime - skipOutroLastTriggerTime.value
+        if (timeSinceLastTrigger < skipOutroCooldownTime) {
+          const remainingCooldown = Math.ceil((skipOutroCooldownTime - timeSinceLastTrigger) / 1000)
+          console.log(`跳过片尾冷却中，剩余 ${remainingCooldown} 秒`)
+          return
+        }
+        
         // 如果已经触发过跳过片尾，则不再触发
         if (skipOutroTriggered.value) {
           return
@@ -740,6 +763,7 @@ function bindPlayerEvents() {
         
         // 标记已触发，避免重复触发
         skipOutroTriggered.value = true
+        skipOutroLastTriggerTime.value = currentTime
         console.log(`触发跳过片尾，当前剧集: ${currentPlayUrl.value}`)
         
         // 如果接近片尾，自动切换到下一集
@@ -1158,6 +1182,7 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
   // 重置跳过片尾状态，新剧集可以重新触发
   skipOutroTriggered.value = false
   skipOutroCurrentUrl.value = ep.url
+  skipOutroLastTriggerTime.value = 0 // 重置冷却时间
   
   // 仅更新地址栏中标题与来源，不修改 url 参数，避免影响回显
   const q = { ...route.query, title: ep.name, source: sourceName || (ep as any).__sourceName }
@@ -1223,6 +1248,7 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
   // 重置跳过片尾状态，新剧集可以重新触发
   skipOutroTriggered.value = false
   skipOutroCurrentUrl.value = ep.url
+  skipOutroLastTriggerTime.value = 0 // 重置冷却时间
   // 仅更新地址栏中标题与来源，不修改 url 参数，避免影响回显
   const q = { ...route.query, title: ep.name, source: sourceName || (ep as any).__sourceName }
   router.replace({ name: 'watch', params: route.params, query: q })
@@ -1547,7 +1573,8 @@ function startLongPress() {
       // 震动反馈
       vibrateFeedback()
       // 显示toast提示
-      message.info('已启动2倍速播放', 2)
+      console.log('[LongPress] 显示Toast: 已启动2倍速播放')
+      message.info('已启动2倍速播放', 3)
     } catch (e) {
       console.error('[LongPress] 设置2倍速失败:', e)
     }
@@ -1583,7 +1610,8 @@ function endLongPress() {
       // 震动反馈
       vibrateFeedback()
       // 显示toast提示
-      message.info(`已恢复${originalRate.value}x倍速播放`, 2)
+      console.log('[LongPress] 显示Toast: 已恢复倍速播放')
+      message.info(`已恢复${originalRate.value}x倍速播放`, 3)
     } catch (e) {
       console.error('[LongPress] 恢复原始速率失败:', e)
     }
@@ -1701,6 +1729,7 @@ async function resolvePlayUrl() {
     // 重置跳过片尾状态，新播放源可以重新触发
     skipOutroTriggered.value = false
     skipOutroCurrentUrl.value = currentPlayUrl.value
+    skipOutroLastTriggerTime.value = 0 // 重置冷却时间
     const token = auth.token!
     // 优先请求"当前选中剧集"的播放链接；无则回退
     const episodeUrl = getSelectedEpisodeUrl()
@@ -1841,6 +1870,7 @@ onUnmounted(() => {
   // 清理跳过片尾状态
   skipOutroTriggered.value = false
   skipOutroCurrentUrl.value = ''
+  skipOutroLastTriggerTime.value = 0 // 重置冷却时间
   
   // 清理下一集预加载状态
   clearNextEpisodePreload()
