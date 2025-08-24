@@ -563,12 +563,22 @@ const handleSave = async () => {
       message.success(isEdit.value ? '保存成功' : '创建成功')
       // 设置保存成功标志
       hasSaved.value = true
-      // 保存成功后清除草稿并直接返回
+      // 保存成功后清除草稿
       clearDraft()
       // 停止草稿定时器，避免保存后继续保存草稿
       stopDraftTimer()
-      // 无论编辑还是创建，保存成功后都返回列表
-      router.push('/video-source-management')
+      
+      // 根据操作类型决定跳转行为
+      if (isEdit.value) {
+        // 编辑模式：留在当前页面
+        // 更新当前页面的ID，以便后续保存时使用
+        if ((response as any).data && (response as any).data.id) {
+          formData.value.id = (response as any).data.id
+        }
+      } else {
+        // 创建模式：返回列表页面
+        router.push('/video-source-management')
+      }
     }
     else { message.error((response as any).message || '保存失败') }
   } catch (err: any) { message.error(err.message || '网络错误') }
@@ -652,11 +662,16 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', stopDrag as any)
 })
 
-// 全局快捷键：F5 运行脚本；ESC 退出全屏；屏蔽 ⌘S / Ctrl+S
+// 全局快捷键：F5 运行脚本；ESC 退出全屏；Ctrl+S / Cmd+S 保存
 document.addEventListener('keydown', (e: KeyboardEvent) => {
-  // 仅处理保存与运行，不影响其它系统/编辑器快捷键（如 ⌘A / ⌘Z）
+  // 处理保存快捷键
   const isSave = (e.key && e.key.toLowerCase() === 's') && (e.metaKey || e.ctrlKey)
-  if (isSave) { e.preventDefault(); e.stopPropagation(); return }
+  if (isSave) { 
+    e.preventDefault(); 
+    e.stopPropagation(); 
+    handleSave(); 
+    return 
+  }
   if (e.key === 'F5') { e.preventDefault(); runScript(); return }
   if (e.key === 'Escape' && isFullscreen.value) { e.preventDefault(); exitFullscreen(); return }
 }, { passive: false })
