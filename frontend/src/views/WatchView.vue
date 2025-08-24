@@ -232,8 +232,8 @@
               
               <!-- 视频信息 -->
               <div class="card-info">
-                <p v-if="result.actor" class="card-actor">主演：{{ result.actor }}</p>
                 <p v-if="result.director" class="card-director">导演：{{ result.director }}</p>
+                <p v-if="result.actor" class="card-actor">主演：{{ result.actor }}</p>
                 <p v-if="result.release_date" class="card-date">上映：{{ result.release_date }}</p>
                 <p v-if="result.region" class="card-region">地区：{{ result.region }}</p>
               </div>
@@ -2549,7 +2549,7 @@ function attachProgressDrag(container: HTMLElement) {
   padding: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
-  height: 160px;
+  height: 180px;
   overflow: hidden;
 }
 
@@ -2604,16 +2604,19 @@ function attachProgressDrag(container: HTMLElement) {
 
 .card-info {
   margin: 0 0 4px 0;
-  font-size: 11px;
+  font-size: 12px;
   color: #666;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .card-info p {
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
 }
 
 .card-actor,
@@ -2621,7 +2624,7 @@ function attachProgressDrag(container: HTMLElement) {
 .card-date,
 .card-region {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: #666;
 }
 
@@ -2668,7 +2671,7 @@ function attachProgressDrag(container: HTMLElement) {
   }
   
   .result-card {
-    height: 140px;
+    height: 160px;
     padding: 8px;
   }
   
