@@ -65,6 +65,7 @@
                   <a-button class="teal-btn" size="small" @click="onFillDefault">默认代码</a-button>
                   <a-button class="teal-btn" size="small" @click="openDocs">打开文档</a-button>
                   <a-button class="teal-btn" size="small" :loading="debugLoading" @click="runScript">脚本调试</a-button>
+                  <a-button class="teal-btn" size="small" @click="showAdvancedDebug">高级调试</a-button>
                   <a-button class="teal-btn" size="small" @click="toggleFullscreen">
                     {{ isFullscreen ? '退出全屏' : '全屏' }}
                   </a-button>
@@ -140,9 +141,91 @@
           </div>
           <div class="shortcut-item">
             <div class="shortcut-key">
+              <kbd>F6</kbd>
+            </div>
+            <div class="shortcut-desc">高级调试</div>
+          </div>
+          <div class="shortcut-item">
+            <div class="shortcut-key">
               <kbd>ESC</kbd>
             </div>
             <div class="shortcut-desc">退出全屏模式</div>
+          </div>
+        </div>
+      </a-modal>
+
+      <!-- 高级调试模态框 -->
+      <a-modal
+        v-model:open="advancedDebugVisible"
+        title="高级调试"
+        :footer="null"
+        width="90%"
+        :destroyOnClose="true"
+        style="max-width: 1200px;"
+      >
+        <div class="advanced-debug-content">
+          <!-- 方法选择 -->
+          <div class="method-selector">
+            <a-radio-group v-model:value="selectedMethod" button-style="solid">
+              <a-radio-button value="search_video">搜索视频</a-radio-button>
+              <a-radio-button value="get_video_detail">获取视频详情</a-radio-button>
+              <a-radio-button value="get_play_video_detail">获取播放链接</a-radio-button>
+            </a-radio-group>
+          </div>
+
+          <!-- 参数输入 -->
+          <div class="param-input">
+            <a-form layout="vertical">
+              <a-form-item label="输入参数 (JSON格式)">
+                <a-textarea
+                  v-model:value="debugParams"
+                  :rows="4"
+                  placeholder="请输入JSON格式的参数，例如：&#10;{&#10;  &quot;keyword&quot;: &quot;测试视频&quot;&#10;}"
+                />
+              </a-form-item>
+            </a-form>
+          </div>
+
+          <!-- 调试按钮 -->
+          <div class="debug-actions">
+            <a-button type="primary" @click="runAdvancedDebug" :loading="advancedDebugLoading">
+              执行调试
+            </a-button>
+            <a-button @click="clearAdvancedDebug">清空结果</a-button>
+          </div>
+
+          <!-- 结果显示 -->
+          <div class="debug-results" v-if="debugResults">
+            <a-tabs v-model:activeKey="activeResultTab">
+              <a-tab-pane key="original" tab="原始结果">
+                <div class="result-content">
+                  <pre class="json-display">{{ debugResults.original }}</pre>
+                </div>
+              </a-tab-pane>
+              <a-tab-pane key="converted" tab="结构体转换结果">
+                <div class="result-content">
+                  <pre class="json-display">{{ debugResults.converted }}</pre>
+                </div>
+              </a-tab-pane>
+              <a-tab-pane key="diff" tab="差异对比">
+                <div class="result-content">
+                  <div class="diff-viewer">
+                    <div class="diff-section">
+                      <h4>原始结果</h4>
+                      <pre class="json-display">{{ debugResults.original }}</pre>
+                    </div>
+                    <div class="diff-section">
+                      <h4>转换结果</h4>
+                      <pre class="json-display">{{ debugResults.converted }}</pre>
+                    </div>
+                    <div class="diff-section">
+                      <h4>差异高亮</h4>
+                      <div class="diff-highlight" v-html="debugResults.diffHtml"></div>
+                    </div>
+                  </div>
+                </div>
+              </a-tab-pane>
+            </a-tabs>
           </div>
         </div>
       </a-modal>
@@ -185,6 +268,12 @@ const debugLoading = ref(false)
 const outputText = ref('')
 const docsOpen = ref(false)
 const shortcutsVisible = ref(false) // 快捷键提示模态框显示状态
+const advancedDebugVisible = ref(false) // 高级调试模态框显示状态
+const selectedMethod = ref('search_video') // 选中的调试方法
+const debugParams = ref('{\n  "keyword": "测试视频"\n}') // 调试参数
+const advancedDebugLoading = ref(false) // 高级调试加载状态
+const debugResults = ref<any>(null) // 调试结果
+const activeResultTab = ref('original') // 当前激活的结果标签页
 const logsRef = ref<HTMLDivElement | null>(null)
 const hasSaved = ref(false) // 标记是否已保存成功
 const isFullscreen = ref(false) // 全屏状态
@@ -429,6 +518,122 @@ const openDocs = () => {
 
 const showShortcuts = () => {
   shortcutsVisible.value = true
+}
+
+const showAdvancedDebug = () => {
+  advancedDebugVisible.value = true
+}
+
+// 执行高级调试
+const runAdvancedDebug = async () => {
+  if (!authStore.token) {
+    message.error('未登录，无法调试脚本')
+    return
+  }
+
+  // 验证参数格式
+  let params
+  try {
+    params = JSON.parse(debugParams.value)
+  } catch (error) {
+    message.error('参数格式错误，请输入有效的JSON格式')
+    return
+  }
+
+  advancedDebugLoading.value = true
+  debugResults.value = null
+
+  try {
+    const isJS = formData.value.engine_type === 1
+    const endpoint = isJS ? '/api/js/advanced-test' : '/api/lua/advanced-test'
+    
+    const response = await fetch(`${window.location.origin}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({
+        script: scriptContent.value,
+        method: selectedMethod.value,
+        params: params
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const result = await response.json()
+    
+    if (result.code === 0) {
+      debugResults.value = {
+        original: JSON.stringify(result.data.original, null, 2),
+        converted: JSON.stringify(result.data.converted, null, 2),
+        diffHtml: generateDiffHtml(result.data.original, result.data.converted)
+      }
+      message.success('调试执行成功')
+    } else {
+      throw new Error(result.message || '调试执行失败')
+    }
+  } catch (error: any) {
+    message.error(`调试失败: ${error.message}`)
+    debugResults.value = {
+      original: '调试失败',
+      converted: '调试失败',
+      diffHtml: `<div class="error">${error.message}</div>`
+    }
+  } finally {
+    advancedDebugLoading.value = false
+  }
+}
+
+// 清空高级调试结果
+const clearAdvancedDebug = () => {
+  debugResults.value = null
+  activeResultTab.value = 'original'
+}
+
+// 生成差异高亮HTML
+const generateDiffHtml = (original: any, converted: any): string => {
+  const originalStr = JSON.stringify(original, null, 2)
+  const convertedStr = JSON.stringify(converted, null, 2)
+  
+  if (originalStr === convertedStr) {
+    return '<div class="no-diff">✅ 两个结果完全一致，无差异</div>'
+  }
+
+  // 简单的行级差异比较
+  const originalLines = originalStr.split('\n')
+  const convertedLines = convertedStr.split('\n')
+  
+  let diffHtml = '<div class="diff-lines">'
+  
+  // 比较每一行
+  const maxLines = Math.max(originalLines.length, convertedLines.length)
+  for (let i = 0; i < maxLines; i++) {
+    const originalLine = originalLines[i] || ''
+    const convertedLine = convertedLines[i] || ''
+    
+    if (originalLine === convertedLine) {
+      diffHtml += `<div class="diff-line same">${escapeHtml(originalLine)}</div>`
+    } else {
+      diffHtml += `<div class="diff-line different">
+        <div class="diff-original">- ${escapeHtml(originalLine)}</div>
+        <div class="diff-converted">+ ${escapeHtml(convertedLine)}</div>
+      </div>`
+    }
+  }
+  
+  diffHtml += '</div>'
+  return diffHtml
+}
+
+// HTML转义
+const escapeHtml = (text: string): string => {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
 }
 
 const toggleFullscreen = () => {
@@ -715,6 +920,7 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     return 
   }
   if (e.key === 'F5') { e.preventDefault(); runScript(); return }
+  if (e.key === 'F6') { e.preventDefault(); showAdvancedDebug(); return }
   if (e.key === 'Escape' && isFullscreen.value) { e.preventDefault(); exitFullscreen(); return }
 }, { passive: false })
 </script>
@@ -899,6 +1105,130 @@ kbd {
   
   .shortcut-desc {
     font-size: 14px;
+  }
+}
+
+/* 高级调试样式 */
+.advanced-debug-content {
+  padding: 16px 0;
+}
+
+.method-selector {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.param-input {
+  margin-bottom: 20px;
+}
+
+.debug-actions {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.debug-results {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 20px;
+}
+
+.result-content {
+  max-height: 400px;
+  overflow: auto;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.json-display {
+  margin: 0;
+  padding: 12px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-viewer {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.diff-section h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.diff-lines {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.diff-line {
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.diff-line.same {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.diff-line.different {
+  background: #fff2e8;
+  margin: 2px 0;
+}
+
+.diff-original {
+  color: #ff4d4f;
+  background: #fff1f0;
+  padding: 2px 4px;
+  border-radius: 2px;
+  margin-bottom: 2px;
+}
+
+.diff-converted {
+  color: #52c41a;
+  background: #f6ffed;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.no-diff {
+  color: #52c41a;
+  font-weight: 600;
+  text-align: center;
+  padding: 20px;
+  background: #f6ffed;
+  border-radius: 6px;
+}
+
+.error {
+  color: #ff4d4f;
+  background: #fff2f0;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #ffccc7;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .diff-viewer {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .result-content {
+    max-height: 300px;
+  }
+  
+  .json-display {
+    font-size: 11px;
   }
 }
 </style>
