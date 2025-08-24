@@ -418,7 +418,10 @@ function ensurePlyr() {
   plyr.on('ended', () => {
     try {
       console.log('[Plyr] 视频播放完成，尝试切换下一集')
+      console.log('[Plyr] 当前剧集URL:', currentPlayUrl.value)
+      console.log('[Plyr] canNext状态:', canNext.value)
       if (canNext.value) {
+        console.log('[Plyr] 调用playNext()切换到下一集')
         playNext()
       } else {
         console.log('[Plyr] 没有下一集，播放结束')
@@ -745,42 +748,50 @@ function bindPlayerEvents() {
           ? dur * 0.8  // 视频长度较短时，在80%处触发
           : dur - skipOutro.value.seconds  // 正常情况，在片尾前指定秒数触发
         
+        console.log(`[跳过片尾检查] 当前时间: ${ct}s, 总时长: ${dur}s, 跳过秒数: ${skipOutro.value.seconds}s, 触发点: ${outroTriggerPoint}s, 是否已触发: ${skipOutroTriggered.value}`)
+        
         if (ct > outroTriggerPoint) {
           // 检查当前剧集URL是否发生变化，如果变化了说明切换了剧集，需要重置状态
           if (skipOutroCurrentUrl.value !== currentPlayUrl.value) {
+            console.log(`[跳过片尾] 检测到剧集切换，重置状态: ${skipOutroCurrentUrl.value} -> ${currentPlayUrl.value}`)
             skipOutroTriggered.value = false
             skipOutroCurrentUrl.value = currentPlayUrl.value
-            console.log(`检测到剧集切换，重置跳过片尾状态: ${currentPlayUrl.value}`)
+            console.log(`[跳过片尾] 状态已重置，当前剧集: ${currentPlayUrl.value}`)
           }
           
           // 检查冷却时间
           const currentTime = Date.now()
           const timeSinceLastTrigger = currentTime - skipOutroLastTriggerTime.value
+          console.log(`[跳过片尾] 冷却检查: 距离上次触发 ${timeSinceLastTrigger}ms, 冷却时间 ${skipOutroCooldownTime}ms`)
           if (timeSinceLastTrigger < skipOutroCooldownTime) {
             const remainingCooldown = Math.ceil((skipOutroCooldownTime - timeSinceLastTrigger) / 1000)
-            console.log(`跳过片尾冷却中，剩余 ${remainingCooldown} 秒`)
+            console.log(`[跳过片尾] 冷却中，剩余 ${remainingCooldown} 秒，跳过本次触发`)
             return
           }
           
           // 如果已经触发过跳过片尾，则不再触发
           if (skipOutroTriggered.value) {
+            console.log(`[跳过片尾] 当前剧集已触发过跳过片尾，跳过本次触发`)
             return
           }
           
           // 标记已触发，避免重复触发
           skipOutroTriggered.value = true
           skipOutroLastTriggerTime.value = currentTime
-          console.log(`触发跳过片尾，当前剧集: ${currentPlayUrl.value}`)
+          console.log(`[跳过片尾] 开始触发跳过片尾，当前剧集: ${currentPlayUrl.value}, 时间戳: ${currentTime}`)
           
           // 如果接近片尾，自动切换到下一集
           if (canNext.value) {
-            console.log(`跳过片尾，自动切换到下一集`)
+            console.log(`[跳过片尾] 有下一集，准备自动切换`)
+            console.log(`[跳过片尾] 当前索引: ${currentIndex.value}, 总剧集数: ${currentSourceEpisodes.value.length}`)
             
             // 如果有预加载的URL，直接使用
             if (nextEpisodeUrl.value) {
               const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+              console.log(`[跳过片尾] 使用预加载URL切换到下一集: ${nextEpisode?.name}`)
               playEpisodeWithUrl(nextEpisode, nextEpisodeUrl.value)
             } else {
+              console.log(`[跳过片尾] 调用playNext()切换到下一集`)
               playNext()
             }
           } else {
@@ -789,7 +800,7 @@ function bindPlayerEvents() {
               ? Math.max(0, dur * 0.9)  // 视频长度较短时，跳转到90%处
               : Math.max(0, dur - skipOutro.value.seconds)  // 正常情况，跳转到片尾前指定秒数
             v.currentTime = jumpToTime
-            console.log(`跳过片尾，跳转到 ${jumpToTime} 秒`)
+            console.log(`[跳过片尾] 没有下一集，跳转到 ${jumpToTime} 秒`)
           }
         }
       }
@@ -800,7 +811,10 @@ function bindPlayerEvents() {
   v.addEventListener('ended', () => {
     try {
       console.log('[Video] 视频播放完成，尝试切换下一集')
+      console.log('[Video] 当前剧集URL:', currentPlayUrl.value)
+      console.log('[Video] canNext状态:', canNext.value)
       if (canNext.value) {
+        console.log('[Video] 调用playNext()切换到下一集')
         playNext()
       } else {
         console.log('[Video] 没有下一集，播放结束')
@@ -1181,7 +1195,11 @@ function isCurrentEpisode(ep: { url: string }) {
 
 // 使用预加载的URL播放剧集
 async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUrl: string, sourceName?: string) {
-  if (!ep?.url || !preloadedUrl) return
+  console.log(`[playEpisodeWithUrl] 开始播放剧集: ${ep?.name}, URL: ${ep?.url}, 预加载URL: ${preloadedUrl}`)
+  if (!ep?.url || !preloadedUrl) {
+    console.log(`[playEpisodeWithUrl] 剧集URL或预加载URL为空，退出`)
+    return
+  }
   
   // 清理预加载状态
   clearNextEpisodePreload()
@@ -1190,6 +1208,7 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
   currentPlayUrl.value = ep.url
   
   // 重置跳过片尾状态，新剧集可以重新触发
+  console.log(`[playEpisodeWithUrl] 重置跳过片尾状态，新剧集: ${ep.url}`)
   skipOutroTriggered.value = false
   skipOutroCurrentUrl.value = ep.url
   skipOutroLastTriggerTime.value = 0 // 重置冷却时间
@@ -1247,7 +1266,11 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
 }
 
 async function playEpisode(ep: { name: string; url: string }, sourceName?: string) {
-  if (!ep?.url) return
+  console.log(`[playEpisode] 开始播放剧集: ${ep?.name}, URL: ${ep?.url}`)
+  if (!ep?.url) {
+    console.log(`[playEpisode] 剧集URL为空，退出`)
+    return
+  }
   
   // 清理预加载状态
   clearNextEpisodePreload()
@@ -1256,6 +1279,7 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
   currentPlayUrl.value = ep.url
   
   // 重置跳过片尾状态，新剧集可以重新触发
+  console.log(`[playEpisode] 重置跳过片尾状态，新剧集: ${ep.url}`)
   skipOutroTriggered.value = false
   skipOutroCurrentUrl.value = ep.url
   skipOutroLastTriggerTime.value = 0 // 重置冷却时间
@@ -1359,7 +1383,11 @@ function clearNextEpisodePreload() {
 }
 
 function playNext() {
-  if (!canNext.value) return
+  console.log(`[playNext] 开始执行，canNext: ${canNext.value}, 当前索引: ${currentIndex.value}`)
+  if (!canNext.value) {
+    console.log(`[playNext] 没有下一集，退出`)
+    return
+  }
   
   // 清理预加载状态
   clearNextEpisodePreload()
@@ -1367,9 +1395,12 @@ function playNext() {
   // 如果有预加载的URL，直接使用
   if (nextEpisodeUrl.value) {
     const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+    console.log(`[playNext] 使用预加载URL播放下一集: ${nextEpisode?.name}`)
     playEpisodeWithUrl(nextEpisode, nextEpisodeUrl.value)
   } else {
-    playEpisode(currentSourceEpisodes.value[currentIndex.value + 1])
+    const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+    console.log(`[playNext] 直接播放下一集: ${nextEpisode?.name}`)
+    playEpisode(nextEpisode)
   }
 }
 
