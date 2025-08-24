@@ -176,11 +176,12 @@
           <!-- 参数输入 -->
           <div class="param-input">
             <a-form layout="vertical">
-              <a-form-item label="输入参数 (JSON格式)">
-                <a-textarea
+              <a-form-item :label="getParamLabel()">
+                <a-input
                   v-model:value="debugParams"
-                  :rows="4"
-                  placeholder="请输入JSON格式的参数，例如：&#10;{&#10;  &quot;keyword&quot;: &quot;测试视频&quot;&#10;}"
+                  :placeholder="getParamPlaceholder()"
+                  size="large"
+                  @keydown.enter="runAdvancedDebug"
                 />
               </a-form-item>
             </a-form>
@@ -192,6 +193,19 @@
               执行调试
             </a-button>
             <a-button @click="clearAdvancedDebug">清空结果</a-button>
+          </div>
+
+          <!-- Console输出 -->
+          <div class="debug-console" v-if="advancedDebugOutput">
+            <div class="console-header">
+              <span class="console-title">Console 输出</span>
+              <a-button size="small" @click="clearAdvancedDebugOutput">清空</a-button>
+            </div>
+            <div class="console-content">
+              <div v-for="(line, idx) in advancedDebugColoredLines" :key="idx" class="console-line" :class="line.type">
+                {{ line.text }}
+              </div>
+            </div>
           </div>
 
           <!-- 结果显示 -->
@@ -270,10 +284,11 @@ const docsOpen = ref(false)
 const shortcutsVisible = ref(false) // 快捷键提示模态框显示状态
 const advancedDebugVisible = ref(false) // 高级调试模态框显示状态
 const selectedMethod = ref('search_video') // 选中的调试方法
-const debugParams = ref('{\n  "keyword": "测试视频"\n}') // 调试参数
+const debugParams = ref('测试视频') // 调试参数
 const advancedDebugLoading = ref(false) // 高级调试加载状态
 const debugResults = ref<any>(null) // 调试结果
 const activeResultTab = ref('original') // 当前激活的结果标签页
+const advancedDebugOutput = ref('') // 高级调试console输出
 const logsRef = ref<HTMLDivElement | null>(null)
 const hasSaved = ref(false) // 标记是否已保存成功
 const isFullscreen = ref(false) // 全屏状态
@@ -524,6 +539,50 @@ const showAdvancedDebug = () => {
   advancedDebugVisible.value = true
 }
 
+// 获取参数标签
+const getParamLabel = () => {
+  switch (selectedMethod.value) {
+    case 'search_video':
+      return '搜索关键词'
+    case 'get_video_detail':
+      return '视频详情页URL'
+    case 'get_play_video_detail':
+      return '播放页URL'
+    default:
+      return '输入参数'
+  }
+}
+
+// 获取参数占位符
+const getParamPlaceholder = () => {
+  switch (selectedMethod.value) {
+    case 'search_video':
+      return '请输入搜索关键词，例如：测试视频'
+    case 'get_video_detail':
+      return '请输入视频详情页URL，例如：http://example.com/video/123'
+    case 'get_play_video_detail':
+      return '请输入播放页URL，例如：http://example.com/play/123'
+    default:
+      return '请输入参数'
+  }
+}
+
+// 监听方法选择变化，更新参数
+watch(selectedMethod, (newMethod) => {
+  // 根据方法类型设置默认参数
+  switch (newMethod) {
+    case 'search_video':
+      debugParams.value = '测试视频'
+      break
+    case 'get_video_detail':
+      debugParams.value = 'http://example.com/video/123'
+      break
+    case 'get_play_video_detail':
+      debugParams.value = 'http://example.com/play/123'
+      break
+  }
+})
+
 // 执行高级调试
 const runAdvancedDebug = async () => {
   if (!authStore.token) {
@@ -531,21 +590,35 @@ const runAdvancedDebug = async () => {
     return
   }
 
-  // 验证参数格式
-  let params
-  try {
-    params = JSON.parse(debugParams.value)
-  } catch (error) {
-    message.error('参数格式错误，请输入有效的JSON格式')
+  // 验证参数
+  if (!debugParams.value.trim()) {
+    message.error('请输入参数')
     return
   }
 
   advancedDebugLoading.value = true
   debugResults.value = null
+  advancedDebugOutput.value = ''
 
   try {
     const isJS = formData.value.engine_type === 1
     const endpoint = isJS ? '/api/js/advanced-test' : '/api/lua/advanced-test'
+    
+    // 构建参数对象
+    let params
+    switch (selectedMethod.value) {
+      case 'search_video':
+        params = { keyword: debugParams.value.trim() }
+        break
+      case 'get_video_detail':
+        params = { video_url: debugParams.value.trim() }
+        break
+      case 'get_play_video_detail':
+        params = { video_url: debugParams.value.trim() }
+        break
+      default:
+        throw new Error('未知的方法类型')
+    }
     
     const response = await fetch(`${window.location.origin}${endpoint}`, {
       method: 'POST',
@@ -572,6 +645,12 @@ const runAdvancedDebug = async () => {
         converted: JSON.stringify(result.data.converted, null, 2),
         diffHtml: generateDiffHtml(result.data.original, result.data.converted)
       }
+      
+      // 处理console输出
+      if (result.data.console) {
+        advancedDebugOutput.value = result.data.console
+      }
+      
       message.success('调试执行成功')
     } else {
       throw new Error(result.message || '调试执行失败')
@@ -593,6 +672,23 @@ const clearAdvancedDebug = () => {
   debugResults.value = null
   activeResultTab.value = 'original'
 }
+
+// 清空高级调试console输出
+const clearAdvancedDebugOutput = () => {
+  advancedDebugOutput.value = ''
+}
+
+// 高级调试console输出着色
+const advancedDebugColoredLines = computed(() => {
+  const lines = (advancedDebugOutput.value || '').split(/\r?\n/)
+  return lines.filter(Boolean).map((t) => {
+    if (t.startsWith('[ERROR]') || t.includes('[ERROR]')) return { type: 'err', text: t }
+    if (t.startsWith('[INFO]') || t.includes('[INFO]')) return { type: 'info', text: t }
+    if (t.startsWith('[LOG]') || t.includes('[LOG]')) return { type: 'log', text: t }
+    if (t.startsWith('[PRINT]') || t.includes('[PRINT]')) return { type: 'print', text: t }
+    return { type: 'plain', text: t }
+  })
+})
 
 // 生成差异高亮HTML
 const generateDiffHtml = (original: any, converted: any): string => {
@@ -909,7 +1005,7 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', stopDrag as any)
 })
 
-// 全局快捷键：F5 运行脚本；ESC 退出全屏；Ctrl+S / Cmd+S 保存
+// 全局快捷键：F5 运行脚本；F6 高级调试；ESC 退出全屏；Ctrl+S / Cmd+S 保存
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   // 处理保存快捷键
   const isSave = (e.key && e.key.toLowerCase() === 's') && (e.metaKey || e.ctrlKey)
@@ -919,7 +1015,18 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     handleSave(); 
     return 
   }
-  if (e.key === 'F5') { e.preventDefault(); runScript(); return }
+  
+  // 如果高级调试模态框打开，F5执行高级调试
+  if (e.key === 'F5') { 
+    e.preventDefault(); 
+    if (advancedDebugVisible.value) {
+      runAdvancedDebug()
+    } else {
+      runScript()
+    }
+    return 
+  }
+  
   if (e.key === 'F6') { e.preventDefault(); showAdvancedDebug(); return }
   if (e.key === 'Escape' && isFullscreen.value) { e.preventDefault(); exitFullscreen(); return }
 }, { passive: false })
@@ -1125,6 +1232,67 @@ kbd {
 .debug-actions {
   margin-bottom: 20px;
   text-align: center;
+}
+
+.debug-console {
+  margin-bottom: 20px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #d9d9d9;
+  border-radius: 6px 6px 0 0;
+}
+
+.console-title {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.console-content {
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px 12px;
+  background: #000;
+  color: #fff;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 0 0 6px 6px;
+}
+
+.console-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 2px;
+}
+
+.console-line.err {
+  color: #ff4d4f;
+}
+
+.console-line.info {
+  color: #1890ff;
+}
+
+.console-line.log {
+  color: #52c41a;
+}
+
+.console-line.print {
+  color: #faad14;
+}
+
+.console-line.plain {
+  color: #fff;
 }
 
 .debug-results {
