@@ -342,3 +342,181 @@ func jsonEscape(s string) string {
 	escaped, _ := json.Marshal(s)
 	return string(escaped)
 }
+
+// AdvancedTestJSScriptSSE JS 高级调试(SSE)
+func (c *LuaTestController) AdvancedTestJSScriptSSE(ctx *gin.Context) {
+	if ctx.Request.Method != "GET" {
+		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持GET方法", nil)
+		return
+	}
+
+	// 从查询参数获取数据
+	script := ctx.Query("script")
+	method := ctx.Query("method")
+	paramsStr := ctx.Query("params")
+
+	if script == "" || method == "" || paramsStr == "" {
+		utils.SendResponse(ctx, http.StatusBadRequest, "缺少必要参数", nil)
+		return
+	}
+
+	// 解析参数
+	var params map[string]interface{}
+	if err := json.Unmarshal([]byte(paramsStr), &params); err != nil {
+		utils.SendResponse(ctx, http.StatusBadRequest, "参数格式错误", nil)
+		return
+	}
+
+	// 验证方法类型
+	validMethods := map[string]bool{
+		"search_video":           true,
+		"get_video_detail":       true,
+		"get_play_video_detail":  true,
+	}
+	if !validMethods[method] {
+		utils.SendResponse(ctx, http.StatusBadRequest, "不支持的方法类型: "+method, nil)
+		return
+	}
+
+	// 设置SSE响应头
+	ctx.Header("Content-Type", "text/event-stream")
+	ctx.Header("Cache-Control", "no-cache")
+	ctx.Header("Connection", "keep-alive")
+	ctx.Header("Access-Control-Allow-Origin", "*")
+	ctx.Header("Access-Control-Allow-Headers", "Cache-Control")
+
+	// 设置上下文
+	reqCtx := ctx.Request.Context()
+	if ua := ctx.GetHeader("User-Agent"); ua != "" {
+		reqCtx = context.WithValue(reqCtx, services.CtxKeyRequestUA, ua)
+	}
+
+	// 获取输出通道
+	outputChan, err := c.jsTestService.ExecuteAdvancedTestSSE(reqCtx, script, method, params)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "event: error\ndata: {\"message\":\"%s\"}\n\n", err.Error())
+		return
+	}
+
+	// 创建响应写入器
+	writer := ctx.Writer
+	flusher, ok := writer.(http.Flusher)
+	if !ok {
+		ctx.String(http.StatusInternalServerError, "event: error\ndata: {\"message\":\"服务器不支持流式响应\"}\n\n")
+		return
+	}
+
+	// 发送连接建立事件
+	writer.Write([]byte("event: connected\ndata: {\"message\":\"连接已建立\"}\n\n"))
+	flusher.Flush()
+
+	// 流式返回输出
+	for {
+		select {
+		case msg, ok := <-outputChan:
+			if !ok {
+				// 通道关闭，发送完成事件
+				writer.Write([]byte("event: complete\ndata: {\"message\":\"执行完成\"}\n\n"))
+				flusher.Flush()
+				return
+			}
+
+			// 发送消息
+			writer.Write([]byte(msg + "\n"))
+			flusher.Flush()
+
+		case <-ctx.Request.Context().Done():
+			// 客户端断开连接
+			return
+		}
+	}
+}
+
+// AdvancedTestLuaScriptSSE Lua 高级调试(SSE)
+func (c *LuaTestController) AdvancedTestLuaScriptSSE(ctx *gin.Context) {
+	if ctx.Request.Method != "GET" {
+		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持GET方法", nil)
+		return
+	}
+
+	// 从查询参数获取数据
+	script := ctx.Query("script")
+	method := ctx.Query("method")
+	paramsStr := ctx.Query("params")
+
+	if script == "" || method == "" || paramsStr == "" {
+		utils.SendResponse(ctx, http.StatusBadRequest, "缺少必要参数", nil)
+		return
+	}
+
+	// 解析参数
+	var params map[string]interface{}
+	if err := json.Unmarshal([]byte(paramsStr), &params); err != nil {
+		utils.SendResponse(ctx, http.StatusBadRequest, "参数格式错误", nil)
+		return
+	}
+
+	// 验证方法类型
+	validMethods := map[string]bool{
+		"search_video":           true,
+		"get_video_detail":       true,
+		"get_play_video_detail":  true,
+	}
+	if !validMethods[method] {
+		utils.SendResponse(ctx, http.StatusBadRequest, "不支持的方法类型: "+method, nil)
+		return
+	}
+
+	// 设置SSE响应头
+	ctx.Header("Content-Type", "text/event-stream")
+	ctx.Header("Cache-Control", "no-cache")
+	ctx.Header("Connection", "keep-alive")
+	ctx.Header("Access-Control-Allow-Origin", "*")
+	ctx.Header("Access-Control-Allow-Headers", "Cache-Control")
+
+	// 设置上下文
+	reqCtx := ctx.Request.Context()
+	if ua := ctx.GetHeader("User-Agent"); ua != "" {
+		reqCtx = context.WithValue(reqCtx, services.CtxKeyRequestUA, ua)
+	}
+
+	// 获取输出通道
+	outputChan, err := c.luaTestService.ExecuteAdvancedTestSSE(reqCtx, script, method, params)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "event: error\ndata: {\"message\":\"%s\"}\n\n", err.Error())
+		return
+	}
+
+	// 创建响应写入器
+	writer := ctx.Writer
+	flusher, ok := writer.(http.Flusher)
+	if !ok {
+		ctx.String(http.StatusInternalServerError, "event: error\ndata: {\"message\":\"服务器不支持流式响应\"}\n\n")
+		return
+	}
+
+	// 发送连接建立事件
+	writer.Write([]byte("event: connected\ndata: {\"message\":\"连接已建立\"}\n\n"))
+	flusher.Flush()
+
+	// 流式返回输出
+	for {
+		select {
+		case msg, ok := <-outputChan:
+			if !ok {
+				// 通道关闭，发送完成事件
+				writer.Write([]byte("event: complete\ndata: {\"message\":\"执行完成\"}\n\n"))
+				flusher.Flush()
+				return
+			}
+
+			// 发送消息
+			writer.Write([]byte(msg + "\n"))
+			flusher.Flush()
+
+		case <-ctx.Request.Context().Done():
+			// 客户端断开连接
+			return
+		}
+	}
+}

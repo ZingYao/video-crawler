@@ -143,6 +143,14 @@ func (h *Handler) HandleApi(c *gin.Context) {
 		// Lua高级调试
 		luaTestController := controllers.NewLuaTestController(h.luaTestService)
 		luaTestController.AdvancedTestLuaScript(c)
+	case "/api/js/advanced-test-sse":
+		// JS高级调试(SSE)
+		luaTestController := controllers.NewLuaTestController(h.luaTestService)
+		luaTestController.AdvancedTestJSScriptSSE(c)
+	case "/api/lua/advanced-test-sse":
+		// Lua高级调试(SSE)
+		luaTestController := controllers.NewLuaTestController(h.luaTestService)
+		luaTestController.AdvancedTestLuaScriptSSE(c)
 	}
 }
 

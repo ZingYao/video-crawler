@@ -195,14 +195,17 @@
             <a-button @click="clearAdvancedDebug">清空结果</a-button>
           </div>
 
-          <!-- Console输出 -->
-          <div class="debug-console" v-if="advancedDebugOutput">
-            <div class="console-header">
-              <span class="console-title">Console 输出</span>
+          <!-- 普通日志输出区 -->
+          <div class="debug-logs">
+            <div class="logs-header">
+              <span class="logs-title">执行日志</span>
               <a-button size="small" @click="clearAdvancedDebugOutput">清空</a-button>
             </div>
-            <div class="console-content">
-              <div v-for="(line, idx) in advancedDebugColoredLines" :key="idx" class="console-line" :class="line.type">
+            <div class="logs-content">
+              <div v-if="advancedDebugColoredLines.length === 0" class="log-placeholder">
+                等待执行...
+              </div>
+              <div v-for="(line, idx) in advancedDebugColoredLines" :key="idx" class="log-line" :class="line.type">
                 {{ line.text }}
               </div>
             </div>
@@ -240,6 +243,11 @@
                 </div>
               </a-tab-pane>
             </a-tabs>
+          </div>
+          <div class="debug-results" v-else>
+            <div class="result-placeholder">
+              <div class="placeholder-text">等待执行结果...</div>
+            </div>
           </div>
         </div>
       </a-modal>
@@ -602,7 +610,7 @@ const runAdvancedDebug = async () => {
 
   try {
     const isJS = formData.value.engine_type === 1
-    const endpoint = isJS ? '/api/js/advanced-test' : '/api/lua/advanced-test'
+    const endpoint = isJS ? '/api/js/advanced-test-sse' : '/api/lua/advanced-test-sse'
     
     // 构建参数对象
     let params
@@ -619,50 +627,60 @@ const runAdvancedDebug = async () => {
       default:
         throw new Error('未知的方法类型')
     }
-    
-    const response = await fetch(`${window.location.origin}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: JSON.stringify({
-        script: scriptContent.value,
-        method: selectedMethod.value,
-        params: params
-      })
+
+    // 创建EventSource连接
+    const eventSource = new EventSource(`${window.location.origin}${endpoint}?` + new URLSearchParams({
+      script: scriptContent.value,
+      method: selectedMethod.value,
+      params: JSON.stringify(params)
+    }))
+
+    // 监听连接建立
+    eventSource.onopen = () => {
+      console.log('高级调试连接已建立')
+    }
+
+    // 监听普通日志输出
+    eventSource.addEventListener('log', (event: any) => {
+      const data = JSON.parse(event.data)
+      advancedDebugOutput.value += data.message + '\n'
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    // 监听结果输出
+    eventSource.addEventListener('result', (event: any) => {
+      const data = JSON.parse(event.data)
+      debugResults.value = {
+        original: JSON.stringify(data.original, null, 2),
+        converted: JSON.stringify(data.converted, null, 2),
+        diffHtml: generateDiffHtml(data.original, data.converted)
+      }
+    })
+
+    // 监听错误
+    eventSource.addEventListener('error', (event: any) => {
+      const data = JSON.parse(event.data)
+      message.error(`调试失败: ${data.message}`)
+      eventSource.close()
+      advancedDebugLoading.value = false
+    })
+
+    // 监听完成
+    eventSource.addEventListener('complete', (event) => {
+      message.success('调试执行完成')
+      eventSource.close()
+      advancedDebugLoading.value = false
+    })
+
+    // 监听连接错误
+    eventSource.onerror = (error) => {
+      console.error('EventSource错误:', error)
+      message.error('连接错误，请重试')
+      eventSource.close()
+      advancedDebugLoading.value = false
     }
 
-    const result = await response.json()
-    
-    if (result.code === 0) {
-      debugResults.value = {
-        original: JSON.stringify(result.data.original, null, 2),
-        converted: JSON.stringify(result.data.converted, null, 2),
-        diffHtml: generateDiffHtml(result.data.original, result.data.converted)
-      }
-      
-      // 处理console输出
-      if (result.data.console) {
-        advancedDebugOutput.value = result.data.console
-      }
-      
-      message.success('调试执行成功')
-    } else {
-      throw new Error(result.message || '调试执行失败')
-    }
   } catch (error: any) {
     message.error(`调试失败: ${error.message}`)
-    debugResults.value = {
-      original: '调试失败',
-      converted: '调试失败',
-      diffHtml: `<div class="error">${error.message}</div>`
-    }
-  } finally {
     advancedDebugLoading.value = false
   }
 }
@@ -671,14 +689,15 @@ const runAdvancedDebug = async () => {
 const clearAdvancedDebug = () => {
   debugResults.value = null
   activeResultTab.value = 'original'
+  advancedDebugOutput.value = ''
 }
 
-// 清空高级调试console输出
+// 清空高级调试日志输出
 const clearAdvancedDebugOutput = () => {
   advancedDebugOutput.value = ''
 }
 
-// 高级调试console输出着色
+// 高级调试日志输出着色
 const advancedDebugColoredLines = computed(() => {
   const lines = (advancedDebugOutput.value || '').split(/\r?\n/)
   return lines.filter(Boolean).map((t) => {
@@ -686,6 +705,7 @@ const advancedDebugColoredLines = computed(() => {
     if (t.startsWith('[INFO]') || t.includes('[INFO]')) return { type: 'info', text: t }
     if (t.startsWith('[LOG]') || t.includes('[LOG]')) return { type: 'log', text: t }
     if (t.startsWith('[PRINT]') || t.includes('[PRINT]')) return { type: 'print', text: t }
+    if (t.startsWith('[TEST]') || t.includes('[TEST]')) return { type: 'info', text: t }
     return { type: 'plain', text: t }
   })
 })
@@ -1234,14 +1254,14 @@ kbd {
   text-align: center;
 }
 
-.debug-console {
+.debug-logs {
   margin-bottom: 20px;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
   background: #fafafa;
 }
 
-.console-header {
+.logs-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1251,13 +1271,13 @@ kbd {
   border-radius: 6px 6px 0 0;
 }
 
-.console-title {
+.logs-title {
   font-weight: 600;
   color: #333;
   font-size: 14px;
 }
 
-.console-content {
+.logs-content {
   max-height: 200px;
   overflow: auto;
   padding: 8px 12px;
@@ -1269,30 +1289,51 @@ kbd {
   border-radius: 0 0 6px 6px;
 }
 
-.console-line {
+.log-line {
   white-space: pre-wrap;
   word-break: break-word;
   margin-bottom: 2px;
 }
 
-.console-line.err {
+.log-line.err {
   color: #ff4d4f;
 }
 
-.console-line.info {
+.log-line.info {
   color: #1890ff;
 }
 
-.console-line.log {
+.log-line.log {
   color: #52c41a;
 }
 
-.console-line.print {
+.log-line.print {
   color: #faad14;
 }
 
-.console-line.plain {
+.log-line.plain {
   color: #fff;
+}
+
+.log-placeholder {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.result-placeholder {
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fafafa;
+  padding: 40px;
+  text-align: center;
+}
+
+.placeholder-text {
+  color: #666;
+  font-style: italic;
+  font-size: 14px;
 }
 
 .debug-results {
