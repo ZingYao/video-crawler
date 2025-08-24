@@ -135,6 +135,14 @@ func (h *Handler) HandleApi(c *gin.Context) {
 		// JS脚本测试(流式)
 		luaTestController := controllers.NewLuaTestController(h.luaTestService)
 		luaTestController.TestJSScript(c)
+	case "/api/js/advanced-test":
+		// JS高级调试
+		luaTestController := controllers.NewLuaTestController(h.luaTestService)
+		luaTestController.AdvancedTestJSScript(c)
+	case "/api/lua/advanced-test":
+		// Lua高级调试
+		luaTestController := controllers.NewLuaTestController(h.luaTestService)
+		luaTestController.AdvancedTestLuaScript(c)
 	}
 }
 

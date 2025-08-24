@@ -233,6 +233,110 @@ func (c *LuaTestController) TestJSScript(ctx *gin.Context) {
 	}
 }
 
+// AdvancedTestJSScript JS 高级调试
+func (c *LuaTestController) AdvancedTestJSScript(ctx *gin.Context) {
+	if ctx.Request.Method != "POST" {
+		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持POST方法", nil)
+		return
+	}
+
+	var request struct {
+		Script string                 `json:"script" binding:"required"`
+		Method string                 `json:"method" binding:"required"`
+		Params map[string]interface{} `json:"params" binding:"required"`
+	}
+
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		utils.SendResponse(ctx, http.StatusBadRequest, "参数错误: "+err.Error(), nil)
+		return
+	}
+
+	// 验证方法类型
+	validMethods := map[string]bool{
+		"search_video":           true,
+		"get_video_detail":       true,
+		"get_play_video_detail":  true,
+	}
+	if !validMethods[request.Method] {
+		utils.SendResponse(ctx, http.StatusBadRequest, "不支持的方法类型: "+request.Method, nil)
+		return
+	}
+
+	// 设置上下文
+	reqCtx := ctx.Request.Context()
+	if ua := ctx.GetHeader("User-Agent"); ua != "" {
+		reqCtx = context.WithValue(reqCtx, services.CtxKeyRequestUA, ua)
+	}
+
+	// 执行高级调试
+	result, consoleOutput, err := c.jsTestService.ExecuteAdvancedTest(reqCtx, request.Script, request.Method, request.Params)
+	if err != nil {
+		utils.SendResponse(ctx, http.StatusInternalServerError, "执行失败: "+err.Error(), nil)
+		return
+	}
+
+	// 返回结果
+	response := map[string]interface{}{
+		"original":  result.Original,
+		"converted": result.Converted,
+		"console":   consoleOutput,
+	}
+
+	utils.SendResponse(ctx, http.StatusOK, "执行成功", response)
+}
+
+// AdvancedTestLuaScript Lua 高级调试
+func (c *LuaTestController) AdvancedTestLuaScript(ctx *gin.Context) {
+	if ctx.Request.Method != "POST" {
+		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持POST方法", nil)
+		return
+	}
+
+	var request struct {
+		Script string                 `json:"script" binding:"required"`
+		Method string                 `json:"method" binding:"required"`
+		Params map[string]interface{} `json:"params" binding:"required"`
+	}
+
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		utils.SendResponse(ctx, http.StatusBadRequest, "参数错误: "+err.Error(), nil)
+		return
+	}
+
+	// 验证方法类型
+	validMethods := map[string]bool{
+		"search_video":           true,
+		"get_video_detail":       true,
+		"get_play_video_detail":  true,
+	}
+	if !validMethods[request.Method] {
+		utils.SendResponse(ctx, http.StatusBadRequest, "不支持的方法类型: "+request.Method, nil)
+		return
+	}
+
+	// 设置上下文
+	reqCtx := ctx.Request.Context()
+	if ua := ctx.GetHeader("User-Agent"); ua != "" {
+		reqCtx = context.WithValue(reqCtx, services.CtxKeyRequestUA, ua)
+	}
+
+	// 执行高级调试
+	result, consoleOutput, err := c.luaTestService.ExecuteAdvancedTest(reqCtx, request.Script, request.Method, request.Params)
+	if err != nil {
+		utils.SendResponse(ctx, http.StatusInternalServerError, "执行失败: "+err.Error(), nil)
+		return
+	}
+
+	// 返回结果
+	response := map[string]interface{}{
+		"original":  result.Original,
+		"converted": result.Converted,
+		"console":   consoleOutput,
+	}
+
+	utils.SendResponse(ctx, http.StatusOK, "执行成功", response)
+}
+
 // jsonEscape 转义JSON字符串
 func jsonEscape(s string) string {
 	escaped, _ := json.Marshal(s)
