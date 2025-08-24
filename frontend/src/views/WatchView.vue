@@ -2025,12 +2025,15 @@ function goOriginal() {
 }
 
 // 搜索其他站点
-function searchOtherSites() {
+async function searchOtherSites() {
   // 使用当前视频标题作为默认搜索关键词
   searchKeyword.value = base.value.name || displayTitle.value || ''
   otherSitesModalVisible.value = true
   hasSearchedOtherSites.value = false
   otherSitesResults.value = []
+  
+  // 立即执行搜索
+  await handleSearchOtherSites()
 }
 
 // 处理其他站点搜索
