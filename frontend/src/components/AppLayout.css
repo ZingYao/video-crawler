@@ -421,9 +421,15 @@
   }
 }
 
+@media (max-width: 768px) {
+  .page-content {
+    padding: 12px;
+  }
+}
+
 @media (max-width: 480px) {
   .page-content {
-    padding: 16px;
+    padding: 10px;
   }
   
   .top-header {
