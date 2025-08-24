@@ -423,13 +423,13 @@
 
 @media (max-width: 768px) {
   .page-content {
-    padding: 12px;
+    padding: 8px;
   }
 }
 
 @media (max-width: 480px) {
   .page-content {
-    padding: 10px;
+    padding: 6px;
   }
   
   .top-header {

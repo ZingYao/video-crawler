@@ -2825,7 +2825,7 @@ function attachProgressDrag(container: HTMLElement) {
  
 .ep-list { 
   display: grid; 
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: 8px; 
   min-width: 0;
 }
@@ -2864,7 +2864,7 @@ function attachProgressDrag(container: HTMLElement) {
   
   /* 移动端剧集列表优化 */
   .ep-list {
-    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
     gap: 6px;
   }
   
