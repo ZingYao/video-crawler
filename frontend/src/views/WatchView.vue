@@ -4,7 +4,6 @@
       <template #title>
         <div class="card-header">
           <div class="header-info">
-            <h2>视频详情</h2>
             <div v-if="currentSourceName" class="source-info">
               <a-tag color="blue" size="small">
                 <template #icon>
@@ -2841,6 +2840,7 @@ function attachProgressDrag(container: HTMLElement) {
 .source-info {
   display: flex;
   align-items: center;
+  margin-top: 8px;
 }
   .kv-list { grid-template-columns: 1fr; }
   .card-header h2 { white-space: normal; font-size: 18px; }
