@@ -55,7 +55,7 @@
           </a-select>
         </a-form-item>
 
-          <div class="editor-logs-wrap" :style="gridStyle">
+          <div class="editor-logs-wrap" :style="gridStyle" ref="fullscreenContainer">
             <div class="editor-panel">
               <div class="panel-title">
                 <div class="title-left">
@@ -66,6 +66,9 @@
                   <a-button class="teal-btn" size="small" @click="openDocs">打开文档</a-button>
                   <a-button class="teal-btn" size="small" @click="onFillDemo">填充完整 Demo</a-button>
                   <a-button class="teal-btn" size="small" :loading="debugLoading" @click="runScript">脚本调试</a-button>
+                  <a-button class="teal-btn" size="small" @click="toggleFullscreen">
+                    {{ isFullscreen ? '退出全屏' : '全屏' }}
+                  </a-button>
                 </div>
               </div>
               <div class="editor-gradient">
@@ -140,6 +143,8 @@ const outputText = ref('')
 const docsOpen = ref(false)
 const logsRef = ref<HTMLDivElement | null>(null)
 const hasSaved = ref(false) // 标记是否已保存成功
+const isFullscreen = ref(false) // 全屏状态
+const fullscreenContainer = ref<HTMLDivElement | null>(null) // 全屏容器
 // 已移除最大化功能
 
 const isEdit = computed(() => !!route.params.id)
@@ -377,6 +382,24 @@ const openDocs = () => {
   console.log('[Docs] open clicked. engine_type=', formData.value.engine_type)
   docsOpen.value = true
 }
+
+const toggleFullscreen = () => {
+  if (isFullscreen.value) {
+    exitFullscreen()
+  } else {
+    enterFullscreen()
+  }
+  isFullscreen.value=!isFullscreen.value
+  monaco?.layout?.()
+}
+
+const enterFullscreen = () => {
+  fullscreenContainer.value?.classList.add('full-screen-box')
+}
+
+const exitFullscreen = () => {
+  fullscreenContainer.value?.classList.remove('full-screen-box')
+}
 watch(docsOpen, (v) => {
   console.log('[Docs] docsOpen changed:', v, 'engine_type=', formData.value.engine_type)
 })
@@ -514,8 +537,8 @@ const handleSave = async () => {
   try { await formRef.value?.validate() } catch { return }
   saveLoading.value = true
   try {
-    const payload: any = { 
-      id: formData.value.id || '', 
+    const payload: any = {
+      id: formData.value.id || '',
       name: formData.value.name,
       domain: formData.value.domain,
       source_type: formData.value.source_type,
@@ -629,12 +652,13 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', stopDrag as any)
 })
 
-// 全局快捷键：F5 运行脚本；屏蔽 ⌘S / Ctrl+S
+// 全局快捷键：F5 运行脚本；ESC 退出全屏；屏蔽 ⌘S / Ctrl+S
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   // 仅处理保存与运行，不影响其它系统/编辑器快捷键（如 ⌘A / ⌘Z）
   const isSave = (e.key && e.key.toLowerCase() === 's') && (e.metaKey || e.ctrlKey)
   if (isSave) { e.preventDefault(); e.stopPropagation(); return }
   if (e.key === 'F5') { e.preventDefault(); runScript(); return }
+  if (e.key === 'Escape' && isFullscreen.value) { e.preventDefault(); exitFullscreen(); return }
 }, { passive: false })
 </script>
 
@@ -730,6 +754,20 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 /* 防止在侧边栏展开时产生横向溢出 */
 .page-wrap, .content-card, .video-source-form { max-width: 100%; width: 100%; box-sizing: border-box; overflow-x: hidden; }
 .monaco { width: 100%; }
+
+/* 全屏模式样式 */
+.full-screen-box {
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  .editor-panel,.side{
+    height: 100% !important;
+    margin-bottom: 0 !important;
+  }
+}
 
 /* 移动端自适应（不影响 PC） */
 @media (max-width: 900px) {
