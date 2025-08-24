@@ -70,6 +70,17 @@
                     迅雷下载
                   </a-button>
                   <a-button size="small" type="default" @click="goOriginal" :disabled="!originalUrl">原站点</a-button>
+                  <a-button 
+                    size="small" 
+                    type="primary" 
+                    @click="searchOtherSites"
+                    :loading="searchingOtherSites"
+                  >
+                    <template #icon>
+                      <SearchOutlined />
+                    </template>
+                    其他站点
+                  </a-button>
                 </a-space>
               </div>
               
@@ -173,6 +184,72 @@
       </div>
     </a-card>
   </AppLayout>
+
+  <!-- 其他站点搜索结果弹窗 -->
+  <a-modal
+    v-model:open="otherSitesModalVisible"
+    title="其他站点搜索结果"
+    width="90%"
+    :footer="null"
+    :destroyOnClose="true"
+  >
+    <div class="other-sites-search">
+      <div class="search-header">
+        <a-input
+          v-model:value="searchKeyword"
+          placeholder="输入搜索关键词"
+          size="large"
+          style="width: 300px;"
+          @pressEnter="handleSearchOtherSites"
+        >
+          <template #suffix>
+            <a-button 
+              type="primary" 
+              @click="handleSearchOtherSites"
+              :loading="searchingOtherSites"
+            >
+              搜索
+            </a-button>
+          </template>
+        </a-input>
+      </div>
+
+      <div class="search-results" v-if="otherSitesResults.length > 0">
+        <div class="results-header">
+          <span>找到 {{ otherSitesResults.length }} 个结果</span>
+        </div>
+        <div class="results-grid">
+          <div 
+            v-for="result in otherSitesResults" 
+            :key="`${result.sourceId}-${result.url}`"
+            class="result-card"
+            @click="playFromOtherSite(result)"
+          >
+            <div class="card-cover">
+              <img 
+                :src="result.cover || result.poster || '/favicon.ico'" 
+                :alt="result.name"
+                @error="handleImageError"
+              />
+            </div>
+            <div class="card-content">
+              <h4 class="card-title">{{ result.name || result.title || '未知标题' }}</h4>
+              <p class="card-source">来源：{{ result.sourceName }}</p>
+              <p class="card-desc" v-if="result.description">{{ result.description }}</p>
+              <div class="card-meta">
+                <span v-if="result.rate" class="rating">评分：{{ result.rate }}</span>
+                <span v-if="result.type" class="type">{{ result.type }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="hasSearchedOtherSites" class="no-results">
+        <a-empty description="未找到相关视频" />
+      </div>
+    </div>
+  </a-modal>
   
 </template>
 
@@ -182,11 +259,11 @@ import { useRoute, useRouter } from 'vue-router'
  
 import AppLayout from '@/components/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
-import { videoAPI } from '@/api'
+import { videoAPI, videoSourceAPI } from '@/api'
 import Plyr from 'plyr'
 import Hls from 'hls.js'
 import 'plyr/dist/plyr.css'
-import { ThunderboltOutlined, PlayCircleOutlined, ClockCircleOutlined } from '@ant-design/icons-vue'
+import { ThunderboltOutlined, PlayCircleOutlined, ClockCircleOutlined, SearchOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
 const route = useRoute()
@@ -198,6 +275,13 @@ const error = ref('')
 const detailData = ref<any>(null)
 const fromCache = ref(false)
 const downloading = ref(false)
+
+// 其他站点搜索相关变量
+const otherSitesModalVisible = ref(false)
+const searchingOtherSites = ref(false)
+const searchKeyword = ref('')
+const otherSitesResults = ref<any[]>([])
+const hasSearchedOtherSites = ref(false)
 
 const networkSpeed = ref('')
 const originalRate = ref(1) // 保存原始播放速率
@@ -1940,6 +2024,113 @@ function goOriginal() {
   }
 }
 
+// 搜索其他站点
+function searchOtherSites() {
+  // 使用当前视频标题作为默认搜索关键词
+  searchKeyword.value = base.value.name || displayTitle.value || ''
+  otherSitesModalVisible.value = true
+  hasSearchedOtherSites.value = false
+  otherSitesResults.value = []
+}
+
+// 处理其他站点搜索
+async function handleSearchOtherSites() {
+  if (!searchKeyword.value.trim()) {
+    message.warning('请输入搜索关键词')
+    return
+  }
+
+  searchingOtherSites.value = true
+  hasSearchedOtherSites.value = true
+  otherSitesResults.value = []
+  
+  try {
+    // 1) 拉取站点列表并按 sort 降序（越大越靠前）
+    const token = auth.token!
+    const listResp: any = await videoSourceAPI.getVideoSourceList(token)
+    const sources: Array<{ id: string; name: string; sort: number; status: number }> = (listResp?.data || [])
+      // 仅搜索正常状态的站点（status=1）
+      .filter((s: any) => Number(s.status) === 1)
+      // 排除当前站点
+      .filter((s: any) => s.id !== sourceId.value)
+      // 按 sort 降序
+      .sort((a: any, b: any) => b.sort - a.sort)
+
+    // 2) 并发度=2 线程池，按顺序调度
+    const concurrency = 2
+    const queue = [...sources]
+    const results: any[] = []
+
+    const runner = async () => {
+      while (queue.length > 0) {
+        const source = queue.shift()
+        if (!source) break
+
+        try {
+          const searchResp: any = await videoAPI.search(token, source.id, searchKeyword.value)
+          if (searchResp?.code === 0 && searchResp?.data) {
+            const videos = Array.isArray(searchResp.data) ? searchResp.data : [searchResp.data]
+            videos.forEach((video: any) => {
+              results.push({
+                ...video,
+                sourceId: source.id,
+                sourceName: source.name
+              })
+            })
+          }
+        } catch (error) {
+          console.error(`搜索站点 ${source.name} 失败:`, error)
+        }
+      }
+    }
+
+    // 启动并发搜索
+    const runners = Array(concurrency).fill(null).map(() => runner())
+    await Promise.all(runners)
+
+    otherSitesResults.value = results
+    message.success(`搜索完成，找到 ${results.length} 个结果`)
+  } catch (error: any) {
+    message.error(error?.message || '搜索失败')
+  } finally {
+    searchingOtherSites.value = false
+  }
+}
+
+// 从其他站点播放视频
+async function playFromOtherSite(result: any) {
+  try {
+    const token = auth.token!
+    const detailResp: any = await videoAPI.detail(token, result.sourceId, result.url)
+    
+    if (detailResp?.code === 0 && detailResp?.data) {
+      // 关闭弹窗
+      otherSitesModalVisible.value = false
+      
+      // 跳转到播放页面
+      router.push({
+        name: 'watch',
+        params: { sourceId: result.sourceId },
+        query: {
+          url: result.url,
+          title: result.name || result.title,
+          original_url: result.url
+        }
+      })
+    } else {
+      message.error('获取视频详情失败')
+    }
+  } catch (error: any) {
+    message.error(error?.message || '播放失败')
+  }
+}
+
+// 处理图片加载错误
+function handleImageError(event: Event) {
+  const img = event.target as HTMLImageElement
+  img.src = '/favicon.ico'
+}
+
  
 
 
@@ -2306,7 +2497,158 @@ function attachProgressDrag(container: HTMLElement) {
 
 .player-actions-row {
   display: flex;
-  align-items: center;
+}
+
+/* 其他站点搜索结果样式 */
+.other-sites-search {
+  padding: 16px 0;
+}
+
+.search-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.search-results {
+  margin-top: 16px;
+}
+
+.results-header {
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.result-card {
+  display: flex;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  height: 120px;
+  overflow: hidden;
+}
+
+.result-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.card-cover {
+  flex-shrink: 0;
+  width: 80px;
+  height: 100px;
+  margin-right: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.card-title {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.card-source {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.card-desc {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #999;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.card-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.rating {
+  color: #fa8c16;
+  font-weight: 500;
+}
+
+.type {
+  color: #52c41a;
+  background: #f6ffed;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.no-results {
+  text-align: center;
+  padding: 40px 0;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .results-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .result-card {
+    height: 100px;
+    padding: 8px;
+  }
+  
+  .card-cover {
+    width: 60px;
+    height: 80px;
+    margin-right: 8px;
+  }
+  
+  .card-title {
+    font-size: 13px;
+  }
+  
+  .card-desc {
+    font-size: 11px;
+  }
 }
 
 .skip-label {
