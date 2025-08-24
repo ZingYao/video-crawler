@@ -365,7 +365,7 @@ const basePoster = computed(() => String((detailData.value?.cover || detailData.
 
 // 播放方案显示
 const playerScheme = computed(() => {
-  if (!playerSource.value) return '未加载'
+  if (!playerSource.value || typeof playerSource.value !== 'string') return '未加载'
   
   const url = playerSource.value.toLowerCase()
   if (url.includes('.m3u8')) {
@@ -387,7 +387,7 @@ const playerScheme = computed(() => {
 
 // 当前播放器方案显示
 const currentPlayerScheme = computed(() => {
-  if (!playerSource.value) return '未加载'
+  if (!playerSource.value || typeof playerSource.value !== 'string') return '未加载'
   
   const url = playerSource.value.toLowerCase()
   
@@ -1255,6 +1255,10 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
   router.replace({ name: 'watch', params: route.params, query: q })
   
   try {
+    if (!preloadedUrl || typeof preloadedUrl !== 'string') {
+      console.error('[playEpisodeWithUrl] 预加载URL无效')
+      return
+    }
     playerSource.value = preloadedUrl
     await nextTick()
     ensurePlyr()
@@ -1330,7 +1334,7 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
       savePlayUrlCache(ep.url, url)
     }
     
-    if (!url) {
+    if (!url || typeof url !== 'string') {
       console.error('[playEpisode] 获取播放链接失败')
       return
     }
@@ -1928,7 +1932,7 @@ async function resolvePlayUrl() {
       console.log(`[resolvePlayUrl] 使用缓存的播放链接: ${episodeUrl}`)
     }
     
-    if (!url) {
+    if (!url || typeof url !== 'string') {
       console.error('[resolvePlayUrl] 获取播放链接失败')
       return
     }
