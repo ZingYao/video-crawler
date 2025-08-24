@@ -2825,13 +2825,12 @@ function attachProgressDrag(container: HTMLElement) {
  
 .ep-list { 
   display: grid; 
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px; 
   min-width: 0;
 }
 .ep-btn { 
   width: 100%;
-  min-width: 80px;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -2840,6 +2839,8 @@ function attachProgressDrag(container: HTMLElement) {
   align-items: center;
   justify-content: center;
   height: 32px;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
@@ -2864,14 +2865,14 @@ function attachProgressDrag(container: HTMLElement) {
   
   /* 移动端剧集列表优化 */
   .ep-list {
-    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
   }
   
   .ep-btn {
-    min-width: 70px;
     font-size: 12px;
-    padding: 4px 8px;
+    padding: 0 2px;
+    height: 28px;
   }
   .card-header h2 { white-space: normal; font-size: 18px; }
   
