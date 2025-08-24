@@ -188,31 +188,25 @@
   <!-- 其他站点搜索结果弹窗 -->
   <a-modal
     v-model:open="otherSitesModalVisible"
-    title="其他站点搜索结果"
+    :title="`${base.name || displayTitle || '视频'} 搜索结果`"
     width="90%"
     :footer="null"
     :destroyOnClose="true"
   >
-    <div class="other-sites-search">
-      <div class="search-header">
-        <a-input
-          v-model:value="searchKeyword"
-          placeholder="输入搜索关键词"
-          size="large"
-          style="width: 300px;"
-          @pressEnter="handleSearchOtherSites"
-        >
-          <template #suffix>
-            <a-button 
-              type="primary" 
-              @click="handleSearchOtherSites"
-              :loading="searchingOtherSites"
-            >
-              搜索
-            </a-button>
-          </template>
-        </a-input>
-      </div>
+          <div class="other-sites-search">
+        <div class="search-header">
+          <a-button 
+            type="primary" 
+            @click="handleSearchOtherSites"
+            :loading="searchingOtherSites"
+            size="large"
+          >
+            <template #icon>
+              <ReloadOutlined />
+            </template>
+            刷新
+          </a-button>
+        </div>
 
       <div class="search-results" v-if="otherSitesResults.length > 0">
         <div class="results-header">
@@ -245,7 +239,7 @@
         </div>
       </div>
 
-      <div v-else-if="hasSearchedOtherSites" class="no-results">
+      <div v-else-if="hasSearchedOtherSites && !searchingOtherSites" class="no-results">
         <a-empty description="未找到相关视频" />
       </div>
     </div>
@@ -263,7 +257,7 @@ import { videoAPI, videoSourceAPI } from '@/api'
 import Plyr from 'plyr'
 import Hls from 'hls.js'
 import 'plyr/dist/plyr.css'
-import { ThunderboltOutlined, PlayCircleOutlined, ClockCircleOutlined, SearchOutlined } from '@ant-design/icons-vue'
+import { ThunderboltOutlined, PlayCircleOutlined, ClockCircleOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
 const route = useRoute()
@@ -279,7 +273,6 @@ const downloading = ref(false)
 // 其他站点搜索相关变量
 const otherSitesModalVisible = ref(false)
 const searchingOtherSites = ref(false)
-const searchKeyword = ref('')
 const otherSitesResults = ref<any[]>([])
 const hasSearchedOtherSites = ref(false)
 
@@ -2026,8 +2019,6 @@ function goOriginal() {
 
 // 搜索其他站点
 async function searchOtherSites() {
-  // 使用当前视频标题作为默认搜索关键词
-  searchKeyword.value = base.value.name || displayTitle.value || ''
   otherSitesModalVisible.value = true
   hasSearchedOtherSites.value = false
   otherSitesResults.value = []
@@ -2038,8 +2029,10 @@ async function searchOtherSites() {
 
 // 处理其他站点搜索
 async function handleSearchOtherSites() {
-  if (!searchKeyword.value.trim()) {
-    message.warning('请输入搜索关键词')
+  // 使用当前视频标题作为搜索关键词
+  const keyword = base.value.name || displayTitle.value || ''
+  if (!keyword.trim()) {
+    message.warning('无法获取视频标题')
     return
   }
 
@@ -2054,7 +2047,7 @@ async function handleSearchOtherSites() {
     const sources: Array<{ id: string; name: string; sort: number; status: number }> = (listResp?.data || [])
       // 仅搜索正常状态的站点（status=1）
       .filter((s: any) => Number(s.status) === 1)
-      // 排除当前站点
+      // 排除当前站点（通过URL中的资源ID过滤）
       .filter((s: any) => s.id !== sourceId.value)
       // 按 sort 降序
       .sort((a: any, b: any) => b.sort - a.sort)
@@ -2070,7 +2063,7 @@ async function handleSearchOtherSites() {
         if (!source) break
 
         try {
-          const searchResp: any = await videoAPI.search(token, source.id, searchKeyword.value)
+          const searchResp: any = await videoAPI.search(token, source.id, keyword)
           if (searchResp?.code === 0 && searchResp?.data) {
             const videos = Array.isArray(searchResp.data) ? searchResp.data : [searchResp.data]
             videos.forEach((video: any) => {
