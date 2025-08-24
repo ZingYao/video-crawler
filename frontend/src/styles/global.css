@@ -253,3 +253,12 @@ html, body {
   background-color: #667eea;
   color: white;
 }
+
+/* 移动端卡片宽度优化 */
+@media (max-width: 768px) {
+  .content-card {
+    width: calc(100vw - 20px) !important;
+    margin: 0 auto !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+}

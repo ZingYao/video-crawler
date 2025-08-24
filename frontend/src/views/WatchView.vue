@@ -2836,6 +2836,10 @@ function attachProgressDrag(container: HTMLElement) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
 }
 
 @media (max-width: 768px) {
