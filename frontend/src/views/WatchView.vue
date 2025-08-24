@@ -2823,8 +2823,20 @@ function attachProgressDrag(container: HTMLElement) {
 .res-name { font-weight: 600; margin-bottom: 4px; }
 .res-url { color: #334155; word-break: break-all; overflow-wrap: anywhere; }
  
-.ep-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.ep-btn { max-width: 100%; }
+.ep-list { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px; 
+  min-width: 0;
+}
+.ep-btn { 
+  width: 100%;
+  min-width: 80px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 @media (max-width: 768px) {
   .card-header { 
@@ -2845,6 +2857,18 @@ function attachProgressDrag(container: HTMLElement) {
   align-items: center;
 }
   .kv-list { grid-template-columns: 1fr; }
+  
+  /* 移动端剧集列表优化 */
+  .ep-list {
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 6px;
+  }
+  
+  .ep-btn {
+    min-width: 70px;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
   .card-header h2 { white-space: normal; font-size: 18px; }
   
   /* 移动端播放器控制区域优化 */
