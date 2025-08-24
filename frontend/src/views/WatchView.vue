@@ -2446,6 +2446,7 @@ function attachProgressDrag(container: HTMLElement) {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  margin-bottom: 16px;
 }
 .card-header h2 {
   margin: 0;
