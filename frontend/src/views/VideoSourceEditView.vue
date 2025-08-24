@@ -64,7 +64,6 @@
                 <div class="title-actions">
                   <a-button class="teal-btn" size="small" @click="onFillDefault">默认代码</a-button>
                   <a-button class="teal-btn" size="small" @click="openDocs">打开文档</a-button>
-                  <a-button class="teal-btn" size="small" @click="onFillDemo">填充完整 Demo</a-button>
                   <a-button class="teal-btn" size="small" :loading="debugLoading" @click="runScript">脚本调试</a-button>
                   <a-button class="teal-btn" size="small" @click="toggleFullscreen">
                     {{ isFullscreen ? '退出全屏' : '全屏' }}
@@ -161,7 +160,7 @@ import { ArrowLeftOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue
 import AppLayout from '@/components/AppLayout.vue'
 import LuaDocs from '@/components/LuaDocs.vue'
 import JSDocs from '@/components/JSDocs.vue'
-import { defaultTemplateLua, defaultDemo, defaultTemplateJS, demoTemplateJS } from '@/constants/scriptTemplates'
+import { defaultTemplateLua, defaultTemplateJS } from '@/constants/scriptTemplates'
 
 import MonacoEditor, { loader } from '@guolao/vue-monaco-editor'
 
@@ -456,7 +455,7 @@ const onEditorMount = async (editor: any) => {
   editorRef.value = editor
   await defineLightHighContrastTheme()
 }
-const resetDemo = () => { scriptContent.value = (formData.value.engine_type === 1 ? demoTemplateJS : defaultDemo) }
+
 const onFillDefault = () => {
   const current = scriptContent.value?.trim() || ''
   const tpl = formData.value.engine_type === 1 ? defaultTemplateJS : defaultTemplateLua
@@ -477,13 +476,7 @@ const clearLogs = () => {
 
 // 最大化功能移除，相关重排逻辑一并删去
 
-const onFillDemo = () => {
-  const current = scriptContent.value?.trim() || ''
-  const demo = formData.value.engine_type === 1 ? demoTemplateJS : defaultDemo
-  if (current.length > 0 && current !== demo.trim()) {
-    Modal.confirm({ title: '确认覆盖当前脚本？', content: '填充 Demo 将覆盖编辑器中的现有内容。', okText: '覆盖', cancelText: '取消', onOk: () => resetDemo() })
-  } else { resetDemo() }
-}
+
 
 // 同步当前脚本到对应语言的缓存
 watch(scriptContent, (val) => {
@@ -661,18 +654,18 @@ watch(() => formData.value.engine_type, (val, oldVal) => {
       scriptContent.value = jsCode.value
       message.success('已切换到 JavaScript（使用现有代码）')
     } else {
-      scriptContent.value = demoTemplateJS
+      scriptContent.value = defaultTemplateJS
       clearDraft()
-      message.success('已切换到 JavaScript（填充 Demo 代码）')
+      message.success('已切换到 JavaScript（填充默认代码）')
     }
   } else {
     if (luaCode.value && luaCode.value.trim()) {
       scriptContent.value = luaCode.value
       message.success('已切换到 Lua（使用现有代码）')
     } else {
-      scriptContent.value = defaultDemo
+      scriptContent.value = defaultTemplateLua
       clearDraft()
-      message.success('已切换到 Lua（填充 Demo 代码）')
+      message.success('已切换到 Lua（填充默认代码）')
     }
   }
 })

@@ -1370,6 +1370,15 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
       // 自动播放
       try { await videoRef.value.play() } catch {}
       bindPlayerEvents()
+      
+      // 滚动到视频播放器
+      await nextTick()
+      if (videoRef.value) {
+        videoRef.value.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        })
+      }
     }
     // 保存所选剧集
     savePlayState({ url: ep.url, title: ep.name, source: q.source })
@@ -1450,6 +1459,15 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
       // 自动播放
       try { await videoRef.value.play() } catch {}
       bindPlayerEvents()
+      
+      // 滚动到视频播放器
+      await nextTick()
+      if (videoRef.value) {
+        videoRef.value.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        })
+      }
     }
     // 保存所选剧集
     savePlayState({ url: ep.url, title: ep.name, source: q.source })
