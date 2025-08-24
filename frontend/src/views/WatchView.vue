@@ -229,9 +229,21 @@
             <div class="card-content">
               <h4 class="card-title">{{ result.name || result.title || '未知标题' }}</h4>
               <p class="card-source">来源：{{ result.sourceName }}</p>
+              
+              <!-- 视频信息 -->
+              <div class="card-info">
+                <p v-if="result.actor" class="card-actor">主演：{{ result.actor }}</p>
+                <p v-if="result.director" class="card-director">导演：{{ result.director }}</p>
+                <p v-if="result.release_date" class="card-date">上映：{{ result.release_date }}</p>
+                <p v-if="result.region" class="card-region">地区：{{ result.region }}</p>
+              </div>
+              
+              <!-- 描述信息 -->
               <p class="card-desc" v-if="result.description">{{ result.description }}</p>
+              
+              <!-- 评分和类型 -->
               <div class="card-meta">
-                <span v-if="result.rate" class="rating">评分：{{ result.rate }}</span>
+                <span v-if="result.rate || result.score" class="rating">评分：{{ result.rate || result.score }}</span>
                 <span v-if="result.type" class="type">{{ result.type }}</span>
               </div>
             </div>
@@ -2537,7 +2549,7 @@ function attachProgressDrag(container: HTMLElement) {
   padding: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
-  height: 120px;
+  height: 160px;
   overflow: hidden;
 }
 
@@ -2568,6 +2580,7 @@ function attachProgressDrag(container: HTMLElement) {
   flex-direction: column;
   justify-content: space-between;
   min-width: 0;
+  overflow: hidden;
 }
 
 .card-title {
@@ -2586,6 +2599,29 @@ function attachProgressDrag(container: HTMLElement) {
 .card-source {
   margin: 0 0 4px 0;
   font-size: 12px;
+  color: #666;
+}
+
+.card-info {
+  margin: 0 0 4px 0;
+  font-size: 11px;
+  color: #666;
+  line-height: 1.3;
+}
+
+.card-info p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-actor,
+.card-director,
+.card-date,
+.card-region {
+  margin: 0;
+  font-size: 11px;
   color: #666;
 }
 
@@ -2632,7 +2668,7 @@ function attachProgressDrag(container: HTMLElement) {
   }
   
   .result-card {
-    height: 100px;
+    height: 140px;
     padding: 8px;
   }
   

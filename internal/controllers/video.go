@@ -48,7 +48,15 @@ func (c *VideoController) Search(ctx *gin.Context) {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
-	utils.SuccessResponse(ctx, data)
+	
+	// 验证并规范化搜索结果
+	validResults, err := entities.ValidateSearchVideoResult(data)
+	if err != nil {
+		utils.SendResponse(ctx, http.StatusInternalServerError, "搜索结果格式错误: "+err.Error(), nil)
+		return
+	}
+	
+	utils.SuccessResponse(ctx, validResults)
 }
 
 // Detail 视频详情
@@ -72,6 +80,16 @@ func (c *VideoController) Detail(ctx *gin.Context) {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
+	
+	// 验证并规范化视频详情结果
+	validResult, err := entities.ValidateVideoDetailResult(data)
+	if err != nil {
+		utils.SendResponse(ctx, http.StatusInternalServerError, "视频详情格式错误: "+err.Error(), nil)
+		return
+	}
+	// 使用验证后的结果
+	utils.SuccessResponse(ctx, validResult)
+	
 	// 异步记录观看历史，失败不影响接口返回
 	go func(sourceIDCopy, urlCopy string, dataCopy interface{}) {
 		userIDVal, exists := ctx.Get("user_id")
@@ -107,9 +125,7 @@ func (c *VideoController) Detail(ctx *gin.Context) {
 			0,
 			0,
 		)
-	}(sourceID, url, data)
-
-	utils.SuccessResponse(ctx, data)
+	}(sourceID, url, validResult)
 }
 
 // PlayURL 获取可播放地址
@@ -133,7 +149,15 @@ func (c *VideoController) PlayURL(ctx *gin.Context) {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
-	utils.SuccessResponse(ctx, data)
+	
+	// 验证并规范化播放详情结果
+	validResult, err := entities.ValidatePlayVideoDetailResult(data)
+	if err != nil {
+		utils.SendResponse(ctx, http.StatusInternalServerError, "播放详情格式错误: "+err.Error(), nil)
+		return
+	}
+	
+	utils.SuccessResponse(ctx, validResult)
 }
 
 // executeLuaFunction 组合 Lua 脚本并执行指定函数，返回其返回的数据表
