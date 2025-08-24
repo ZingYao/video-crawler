@@ -298,6 +298,9 @@ const searchingOtherSites = ref(false)
 const otherSitesResults = ref<any[]>([])
 const hasSearchedOtherSites = ref(false)
 
+// 站点名称缓存
+const sourceNameCache = ref<Map<string, string>>(new Map())
+
 const networkSpeed = ref('')
 const originalRate = ref(1) // 保存原始播放速率
 const isLongPressActive = ref(false) // 长按状态
@@ -337,10 +340,57 @@ const displayTitle = computed(() => {
   return String(route.query.title || base.value.name || '')
 })
 
+// 获取站点名称
+async function getSourceName(sourceId: string): Promise<string> {
+  // 先从缓存获取
+  if (sourceNameCache.value.has(sourceId)) {
+    return sourceNameCache.value.get(sourceId) || ''
+  }
+  
+  try {
+    const token = auth.token!
+    const response: any = await videoSourceAPI.getVideoSourceDetail(token, sourceId)
+    if (response?.code === 0 && response?.data) {
+      const sourceName = response.data.name || ''
+      // 缓存站点名称
+      sourceNameCache.value.set(sourceId, sourceName)
+      return sourceName
+    }
+  } catch (error) {
+    console.error('获取站点名称失败:', error)
+  }
+  
+  return ''
+}
+
 // 当前站点名称
-const currentSourceName = computed(() => {
-  return String(route.query.source || (base.value as any)?.source_name || '')
-})
+const currentSourceName = ref('')
+
+// 预加载所有站点名称
+async function preloadAllSourceNames() {
+  try {
+    const token = auth.token!
+    const response: any = await videoSourceAPI.getVideoSourceList(token)
+    if (response?.code === 0 && response?.data) {
+      const sources = Array.isArray(response.data) ? response.data : []
+      sources.forEach((source: any) => {
+        if (source.id && source.name) {
+          sourceNameCache.value.set(source.id, source.name)
+        }
+      })
+      console.log(`[SourceName] 预加载了 ${sources.length} 个站点名称`)
+    }
+  } catch (error) {
+    console.error('预加载站点名称失败:', error)
+  }
+}
+
+// 更新当前站点名称
+async function updateCurrentSourceName() {
+  if (sourceId.value) {
+    currentSourceName.value = await getSourceName(sourceId.value)
+  }
+}
 
 const cacheKey = computed(() => `watch_detail:${sourceId.value}:${encodeURIComponent(videoUrl.value)}`)
 // 使用 sourceId + 当前播放的剧集URL 作为进度键，确保每个剧集都有独立的缓存
@@ -2141,8 +2191,7 @@ async function playFromOtherSite(result: any) {
         query: {
           url: result.url,
           title: result.name || result.title,
-          original_url: result.url,
-          source: result.sourceName // 添加站点名称到查询参数
+          original_url: result.url
         }
       })
       
@@ -2168,6 +2217,9 @@ function handleImageError(event: Event) {
 
 // 初始化页面数据
 async function initializePage() {
+  // 获取当前站点名称
+  await updateCurrentSourceName()
+  
   await fetchDetail(false)
   const state = loadPlayState()
   if (state?.url) {
@@ -2198,6 +2250,9 @@ onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
   
+  // 预加载所有站点名称
+  await preloadAllSourceNames()
+  
   await initializePage()
 })
 
@@ -2212,6 +2267,7 @@ watch(
     fromCache.value = false
     currentPlayUrl.value = ''
     playerSource.value = ''
+    currentSourceName.value = '' // 重置站点名称
     
     // 重新初始化页面
     await initializePage()
