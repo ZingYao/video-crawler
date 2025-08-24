@@ -3,7 +3,17 @@
     <a-card class="content-card">
       <template #title>
         <div class="card-header">
-          <h2>视频详情</h2>
+          <div class="header-info">
+            <h2>视频详情</h2>
+            <div v-if="currentSourceName" class="source-info">
+              <a-tag color="blue" size="small">
+                <template #icon>
+                  <PlayCircleOutlined />
+                </template>
+                {{ currentSourceName }}
+              </a-tag>
+            </div>
+          </div>
           <div class="header-actions">
             <a-space>
               <a-button type="primary" :loading="loading" @click="refreshDetail">重新获取</a-button>
@@ -325,6 +335,11 @@ const displayTitle = computed(() => {
   const ep = flatEpisodes.value.find(e => e.url === currentPlayUrl.value)
   if (ep) return `${base.value.name || ''} - ${ep.name}`.trim()
   return String(route.query.title || base.value.name || '')
+})
+
+// 当前站点名称
+const currentSourceName = computed(() => {
+  return String(route.query.source || (base.value as any)?.source_name || '')
 })
 
 const cacheKey = computed(() => `watch_detail:${sourceId.value}:${encodeURIComponent(videoUrl.value)}`)
@@ -2120,15 +2135,19 @@ async function playFromOtherSite(result: any) {
       otherSitesModalVisible.value = false
       
       // 跳转到播放页面
-      router.push({
+      await router.push({
         name: 'watch',
         params: { sourceId: result.sourceId },
         query: {
           url: result.url,
           title: result.name || result.title,
-          original_url: result.url
+          original_url: result.url,
+          source: result.sourceName // 添加站点名称到查询参数
         }
       })
+      
+      // 强制刷新页面数据
+      await initializePage()
     } else {
       message.error('获取视频详情失败')
     }
@@ -2147,11 +2166,8 @@ function handleImageError(event: Event) {
 
 
 
-onMounted(async () => {
-  // 初始化移动设备检测
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-  
+// 初始化页面数据
+async function initializePage() {
   await fetchDetail(false)
   const state = loadPlayState()
   if (state?.url) {
@@ -2175,7 +2191,33 @@ onMounted(async () => {
   currentPlayUrl.value = loadPlayState()?.url || currentPlayUrl.value || videoUrl.value
   const idx = sourcesByTab.value.findIndex(s => s.episodes.some(e => e.url === currentPlayUrl.value))
   if (idx >= 0) activeSourceKey.value = String(idx)
+}
+
+onMounted(async () => {
+  // 初始化移动设备检测
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  
+  await initializePage()
 })
+
+// 监听路由变化，确保页面内容刷新
+watch(
+  () => [route.params.sourceId, route.query.url, route.query.original_url],
+  async () => {
+    // 重置状态
+    loading.value = false
+    error.value = ''
+    detailData.value = null
+    fromCache.value = false
+    currentPlayUrl.value = ''
+    playerSource.value = ''
+    
+    // 重新初始化页面
+    await initializePage()
+  },
+  { immediate: false }
+)
 
 // 清理事件监听
 onUnmounted(() => {
@@ -2728,7 +2770,22 @@ function attachProgressDrag(container: HTMLElement) {
 .ep-btn { max-width: 100%; }
 
 @media (max-width: 768px) {
-  .card-header { flex-direction: column; align-items: flex-start; }
+  .card-header { 
+  flex-direction: column; 
+  align-items: flex-start; 
+}
+
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.source-info {
+  display: flex;
+  align-items: center;
+}
   .kv-list { grid-template-columns: 1fr; }
   .card-header h2 { white-space: normal; font-size: 18px; }
   
