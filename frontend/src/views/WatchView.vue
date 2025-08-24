@@ -739,48 +739,58 @@ function bindPlayerEvents() {
       }
       
       // 检查是否需要跳过片尾
-      if (skipOutro.value.enabled && dur > 0 && ct > dur - skipOutro.value.seconds) {
-        // 检查当前剧集URL是否发生变化，如果变化了说明切换了剧集，需要重置状态
-        if (skipOutroCurrentUrl.value !== currentPlayUrl.value) {
-          skipOutroTriggered.value = false
-          skipOutroCurrentUrl.value = currentPlayUrl.value
-          console.log(`检测到剧集切换，重置跳过片尾状态: ${currentPlayUrl.value}`)
-        }
+      if (skipOutro.value.enabled && dur > 0) {
+        // 计算片尾触发点：如果视频长度比跳过秒数短，则在视频播放到80%时触发
+        const outroTriggerPoint = dur <= skipOutro.value.seconds 
+          ? dur * 0.8  // 视频长度较短时，在80%处触发
+          : dur - skipOutro.value.seconds  // 正常情况，在片尾前指定秒数触发
         
-        // 检查冷却时间
-        const currentTime = Date.now()
-        const timeSinceLastTrigger = currentTime - skipOutroLastTriggerTime.value
-        if (timeSinceLastTrigger < skipOutroCooldownTime) {
-          const remainingCooldown = Math.ceil((skipOutroCooldownTime - timeSinceLastTrigger) / 1000)
-          console.log(`跳过片尾冷却中，剩余 ${remainingCooldown} 秒`)
-          return
-        }
-        
-        // 如果已经触发过跳过片尾，则不再触发
-        if (skipOutroTriggered.value) {
-          return
-        }
-        
-        // 标记已触发，避免重复触发
-        skipOutroTriggered.value = true
-        skipOutroLastTriggerTime.value = currentTime
-        console.log(`触发跳过片尾，当前剧集: ${currentPlayUrl.value}`)
-        
-        // 如果接近片尾，自动切换到下一集
-        if (canNext.value) {
-          console.log(`跳过片尾，自动切换到下一集`)
-          
-          // 如果有预加载的URL，直接使用
-          if (nextEpisodeUrl.value) {
-            const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
-            playEpisodeWithUrl(nextEpisode, nextEpisodeUrl.value)
-          } else {
-            playNext()
+        if (ct > outroTriggerPoint) {
+          // 检查当前剧集URL是否发生变化，如果变化了说明切换了剧集，需要重置状态
+          if (skipOutroCurrentUrl.value !== currentPlayUrl.value) {
+            skipOutroTriggered.value = false
+            skipOutroCurrentUrl.value = currentPlayUrl.value
+            console.log(`检测到剧集切换，重置跳过片尾状态: ${currentPlayUrl.value}`)
           }
-        } else {
-          // 没有下一集，跳转到片尾前指定秒数
-          v.currentTime = Math.max(0, dur - skipOutro.value.seconds)
-          console.log(`跳过片尾，跳转到 ${Math.max(0, dur - skipOutro.value.seconds)} 秒`)
+          
+          // 检查冷却时间
+          const currentTime = Date.now()
+          const timeSinceLastTrigger = currentTime - skipOutroLastTriggerTime.value
+          if (timeSinceLastTrigger < skipOutroCooldownTime) {
+            const remainingCooldown = Math.ceil((skipOutroCooldownTime - timeSinceLastTrigger) / 1000)
+            console.log(`跳过片尾冷却中，剩余 ${remainingCooldown} 秒`)
+            return
+          }
+          
+          // 如果已经触发过跳过片尾，则不再触发
+          if (skipOutroTriggered.value) {
+            return
+          }
+          
+          // 标记已触发，避免重复触发
+          skipOutroTriggered.value = true
+          skipOutroLastTriggerTime.value = currentTime
+          console.log(`触发跳过片尾，当前剧集: ${currentPlayUrl.value}`)
+          
+          // 如果接近片尾，自动切换到下一集
+          if (canNext.value) {
+            console.log(`跳过片尾，自动切换到下一集`)
+            
+            // 如果有预加载的URL，直接使用
+            if (nextEpisodeUrl.value) {
+              const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+              playEpisodeWithUrl(nextEpisode, nextEpisodeUrl.value)
+            } else {
+              playNext()
+            }
+          } else {
+            // 没有下一集，跳转到片尾前指定秒数
+            const jumpToTime = dur <= skipOutro.value.seconds 
+              ? Math.max(0, dur * 0.9)  // 视频长度较短时，跳转到90%处
+              : Math.max(0, dur - skipOutro.value.seconds)  // 正常情况，跳转到片尾前指定秒数
+            v.currentTime = jumpToTime
+            console.log(`跳过片尾，跳转到 ${jumpToTime} 秒`)
+          }
         }
       }
     } catch {}
