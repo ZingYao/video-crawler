@@ -69,6 +69,12 @@
                   <a-button class="teal-btn" size="small" @click="toggleFullscreen">
                     {{ isFullscreen ? '退出全屏' : '全屏' }}
                   </a-button>
+                  <a-button class="teal-btn" size="small" @click="showShortcuts">
+                    <template #icon>
+                      <QuestionCircleOutlined />
+                    </template>
+                    快捷键
+                  </a-button>
                 </div>
               </div>
               <div class="editor-gradient">
@@ -103,6 +109,44 @@
       </a-form>
     </a-card>
       <component :is="formData.engine_type === 1 ? JSDocs : LuaDocs" v-model:open="docsOpen" />
+      
+      <!-- 快捷键提示模态框 -->
+      <a-modal
+        v-model:open="shortcutsVisible"
+        title="快捷键说明"
+        :footer="null"
+        width="500px"
+        :destroyOnClose="true"
+      >
+        <div class="shortcuts-content">
+          <div class="shortcut-item">
+            <div class="shortcut-key">
+              <kbd>Ctrl</kbd> + <kbd>S</kbd>
+              <span class="shortcut-platform">(Windows/Linux)</span>
+            </div>
+            <div class="shortcut-desc">保存资源站点</div>
+          </div>
+          <div class="shortcut-item">
+            <div class="shortcut-key">
+              <kbd>⌘</kbd> + <kbd>S</kbd>
+              <span class="shortcut-platform">(macOS)</span>
+            </div>
+            <div class="shortcut-desc">保存资源站点</div>
+          </div>
+          <div class="shortcut-item">
+            <div class="shortcut-key">
+              <kbd>F5</kbd>
+            </div>
+            <div class="shortcut-desc">运行脚本调试</div>
+          </div>
+          <div class="shortcut-item">
+            <div class="shortcut-key">
+              <kbd>ESC</kbd>
+            </div>
+            <div class="shortcut-desc">退出全屏模式</div>
+          </div>
+        </div>
+      </a-modal>
     </div>
   </AppLayout>
 </template>
@@ -113,7 +157,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { videoSourceAPI } from '@/api'
 import { message, Modal } from 'ant-design-vue'
-import { ArrowLeftOutlined } from '@ant-design/icons-vue'
+import { ArrowLeftOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
 import LuaDocs from '@/components/LuaDocs.vue'
 import JSDocs from '@/components/JSDocs.vue'
@@ -141,6 +185,7 @@ const saveLoading = ref(false)
 const debugLoading = ref(false)
 const outputText = ref('')
 const docsOpen = ref(false)
+const shortcutsVisible = ref(false) // 快捷键提示模态框显示状态
 const logsRef = ref<HTMLDivElement | null>(null)
 const hasSaved = ref(false) // 标记是否已保存成功
 const isFullscreen = ref(false) // 全屏状态
@@ -381,6 +426,10 @@ const handleBack = () => {
 const openDocs = () => {
   console.log('[Docs] open clicked. engine_type=', formData.value.engine_type)
   docsOpen.value = true
+}
+
+const showShortcuts = () => {
+  shortcutsVisible.value = true
 }
 
 const toggleFullscreen = () => {
@@ -784,6 +833,55 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
   }
 }
 
+/* 快捷键提示样式 */
+.shortcuts-content {
+  padding: 16px 0;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.shortcut-item:last-child {
+  border-bottom: none;
+}
+
+.shortcut-key {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+.shortcut-platform {
+  font-size: 12px;
+  color: #666;
+  margin-left: 8px;
+}
+
+kbd {
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+  color: #333;
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 0 2px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.shortcut-desc {
+  color: #333;
+  font-weight: 500;
+}
+
 /* 移动端自适应（不影响 PC） */
 @media (max-width: 900px) {
   .page-wrap { padding: 8px; }
@@ -794,5 +892,20 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
   .logs-panel.side { height: 36vh; }
   .logs-box.scrollable { overflow: auto; }
   .monaco { height: 100%; min-height: 0; }
+  
+  /* 移动端快捷键提示优化 */
+  .shortcut-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .shortcut-key {
+    font-size: 13px;
+  }
+  
+  .shortcut-desc {
+    font-size: 14px;
+  }
 }
 </style>
