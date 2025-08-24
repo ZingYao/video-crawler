@@ -7,6 +7,17 @@
   box-sizing: border-box;
 }
 
+/* 处理滚动条宽度 */
+:root {
+  --scrollbar-width: 0px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --scrollbar-width: 8px; /* 移动端滚动条宽度 */
+  }
+}
+
 html, body {
   height: 100%;
   overflow-x: hidden;
@@ -259,16 +270,20 @@ html, body {
 /* 移动端卡片宽度优化 */
 @media (max-width: 768px) {
   .content-card {
-    width: calc(100vw - 24px) !important;
+    width: calc(100% - 24px) !important;
     margin: 0 auto !important;
-    max-width: calc(100vw - 24px) !important;
+    max-width: calc(100% - 24px) !important;
+    /* 确保在滚动条出现时不会溢出 */
+    box-sizing: border-box;
   }
 }
 
 @media (max-width: 480px) {
   .content-card {
-    width: calc(100vw - 20px) !important;
+    width: calc(100% - 20px) !important;
     margin: 0 auto !important;
-    max-width: calc(100vw - 20px) !important;
+    max-width: calc(100% - 20px) !important;
+    /* 确保在滚动条出现时不会溢出 */
+    box-sizing: border-box;
   }
 }
