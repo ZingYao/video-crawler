@@ -84,6 +84,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: '观看' }
     },
     {
+      path: '/404',
+      name: 'not-found-404',
+      component: NotFoundView,
+      meta: { requiresAuth: false, title: '页面未找到' }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: NotFoundView,
@@ -105,13 +111,13 @@ router.beforeEach(async (to, from, next) => {
   // 初始化认证状态
   authStore.initAuth()
   
-  // 如果系统配置为不需要登录，重定向登录注册相关页面到首页
+  // 如果系统配置为不需要登录，登录注册相关页面展示404
   if (!configStore.needsLogin()) {
     if (to.path === '/login' || to.path === '/register' || to.path === '/user-management' || to.path === '/profile' || to.path.startsWith('/user/edit')) {
-      next('/')
+      next('/404')
       return
     }
-    // 不需要登录时，所有页面都允许访问
+    // 不需要登录时，其他页面都允许访问
     next()
     return
   }
