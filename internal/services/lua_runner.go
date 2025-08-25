@@ -404,10 +404,31 @@ return {data = result, err = nil}
 						originalResult = data
 					}
 
-					// 转换结果
+					// 根据方法类型验证和转换结果
 					var convertedResult interface{}
 					if originalResult != nil {
-						convertedResult = originalResult
+						switch method {
+						case "search_video":
+							if validated, err := entities.ValidateSearchVideoResult(originalResult); err == nil {
+								convertedResult = validated
+							} else {
+								convertedResult = originalResult
+							}
+						case "get_video_detail":
+							if validated, err := entities.ValidateVideoDetailResult(originalResult); err == nil {
+								convertedResult = validated
+							} else {
+								convertedResult = originalResult
+							}
+						case "get_play_video_detail":
+							if validated, err := entities.ValidatePlayVideoDetailResult(originalResult); err == nil {
+								convertedResult = validated
+							} else {
+								convertedResult = originalResult
+							}
+						default:
+							convertedResult = originalResult
+						}
 					}
 
 					// 发送结果事件
