@@ -628,56 +628,86 @@ const runAdvancedDebug = async () => {
         throw new Error('未知的方法类型')
     }
 
-    // 创建EventSource连接
-    const eventSource = new EventSource(`${window.location.origin}${endpoint}?` + new URLSearchParams({
-      script: scriptContent.value,
-      method: selectedMethod.value,
-      params: JSON.stringify(params)
-    }))
-
-    // 监听连接建立
-    eventSource.onopen = () => {
-      console.log('高级调试连接已建立')
-    }
-
-    // 监听普通日志输出
-    eventSource.addEventListener('log', (event: any) => {
-      const data = JSON.parse(event.data)
-      advancedDebugOutput.value += data.message + '\n'
+    // 创建EventSource连接 - 使用POST请求
+    const response = await fetch(`${window.location.origin}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({
+        script: scriptContent.value,
+        method: selectedMethod.value,
+        params: params
+      })
     })
 
-    // 监听结果输出
-    eventSource.addEventListener('result', (event: any) => {
-      const data = JSON.parse(event.data)
-      debugResults.value = {
-        original: JSON.stringify(data.original, null, 2),
-        converted: JSON.stringify(data.converted, null, 2),
-        diffHtml: generateDiffHtml(data.original, data.converted)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    // 创建ReadableStream来处理SSE
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('无法读取响应流')
+    }
+
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    const processChunk = async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              const eventType = line.substring(7)
+              const dataLine = lines[lines.indexOf(line) + 1]
+              if (dataLine && dataLine.startsWith('data: ')) {
+                const data = JSON.parse(dataLine.substring(6))
+                
+                switch (eventType) {
+                  case 'log':
+                    advancedDebugOutput.value += data.message + '\n'
+                    break
+                  case 'result':
+                    debugResults.value = {
+                      original: JSON.stringify(data.original, null, 2),
+                      converted: JSON.stringify(data.converted, null, 2),
+                      diffHtml: generateDiffHtml(data.original, data.converted)
+                    }
+                    break
+                  case 'error':
+                    message.error(`调试失败: ${data.message}`)
+                    advancedDebugLoading.value = false
+                    return
+                  case 'complete':
+                    message.success('调试执行完成')
+                    advancedDebugLoading.value = false
+                    return
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('处理SSE流时出错:', error)
+        message.error('处理响应流时出错')
+        advancedDebugLoading.value = false
+      } finally {
+        reader.releaseLock()
       }
-    })
-
-    // 监听错误
-    eventSource.addEventListener('error', (event: any) => {
-      const data = JSON.parse(event.data)
-      message.error(`调试失败: ${data.message}`)
-      eventSource.close()
-      advancedDebugLoading.value = false
-    })
-
-    // 监听完成
-    eventSource.addEventListener('complete', (event) => {
-      message.success('调试执行完成')
-      eventSource.close()
-      advancedDebugLoading.value = false
-    })
-
-    // 监听连接错误
-    eventSource.onerror = (error) => {
-      console.error('EventSource错误:', error)
-      message.error('连接错误，请重试')
-      eventSource.close()
-      advancedDebugLoading.value = false
     }
+
+    processChunk()
+
+    console.log('高级调试连接已建立')
 
   } catch (error: any) {
     message.error(`调试失败: ${error.message}`)

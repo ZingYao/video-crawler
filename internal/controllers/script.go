@@ -253,9 +253,9 @@ func (c *LuaTestController) AdvancedTestJSScript(ctx *gin.Context) {
 
 	// 验证方法类型
 	validMethods := map[string]bool{
-		"search_video":           true,
-		"get_video_detail":       true,
-		"get_play_video_detail":  true,
+		"search_video":          true,
+		"get_video_detail":      true,
+		"get_play_video_detail": true,
 	}
 	if !validMethods[request.Method] {
 		utils.SendResponse(ctx, http.StatusBadRequest, "不支持的方法类型: "+request.Method, nil)
@@ -305,9 +305,9 @@ func (c *LuaTestController) AdvancedTestLuaScript(ctx *gin.Context) {
 
 	// 验证方法类型
 	validMethods := map[string]bool{
-		"search_video":           true,
-		"get_video_detail":       true,
-		"get_play_video_detail":  true,
+		"search_video":          true,
+		"get_video_detail":      true,
+		"get_play_video_detail": true,
 	}
 	if !validMethods[request.Method] {
 		utils.SendResponse(ctx, http.StatusBadRequest, "不支持的方法类型: "+request.Method, nil)
@@ -345,33 +345,32 @@ func jsonEscape(s string) string {
 
 // AdvancedTestJSScriptSSE JS 高级调试(SSE)
 func (c *LuaTestController) AdvancedTestJSScriptSSE(ctx *gin.Context) {
-	if ctx.Request.Method != "GET" {
-		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持GET方法", nil)
+	if ctx.Request.Method != "POST" {
+		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持POST方法", nil)
 		return
 	}
 
-	// 从查询参数获取数据
-	script := ctx.Query("script")
-	method := ctx.Query("method")
-	paramsStr := ctx.Query("params")
+	// 从请求体获取数据
+	var request struct {
+		Script string                 `json:"script" binding:"required"`
+		Method string                 `json:"method" binding:"required"`
+		Params map[string]interface{} `json:"params" binding:"required"`
+	}
 
-	if script == "" || method == "" || paramsStr == "" {
-		utils.SendResponse(ctx, http.StatusBadRequest, "缺少必要参数", nil)
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		utils.SendResponse(ctx, http.StatusBadRequest, "参数错误: "+err.Error(), nil)
 		return
 	}
 
-	// 解析参数
-	var params map[string]interface{}
-	if err := json.Unmarshal([]byte(paramsStr), &params); err != nil {
-		utils.SendResponse(ctx, http.StatusBadRequest, "参数格式错误", nil)
-		return
-	}
+	script := request.Script
+	method := request.Method
+	params := request.Params
 
 	// 验证方法类型
 	validMethods := map[string]bool{
-		"search_video":           true,
-		"get_video_detail":       true,
-		"get_play_video_detail":  true,
+		"search_video":          true,
+		"get_video_detail":      true,
+		"get_play_video_detail": true,
 	}
 	if !validMethods[method] {
 		utils.SendResponse(ctx, http.StatusBadRequest, "不支持的方法类型: "+method, nil)
@@ -434,33 +433,32 @@ func (c *LuaTestController) AdvancedTestJSScriptSSE(ctx *gin.Context) {
 
 // AdvancedTestLuaScriptSSE Lua 高级调试(SSE)
 func (c *LuaTestController) AdvancedTestLuaScriptSSE(ctx *gin.Context) {
-	if ctx.Request.Method != "GET" {
-		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持GET方法", nil)
+	if ctx.Request.Method != "POST" {
+		utils.SendResponse(ctx, http.StatusMethodNotAllowed, "只支持POST方法", nil)
 		return
 	}
 
-	// 从查询参数获取数据
-	script := ctx.Query("script")
-	method := ctx.Query("method")
-	paramsStr := ctx.Query("params")
+	// 从请求体获取数据
+	var request struct {
+		Script string                 `json:"script" binding:"required"`
+		Method string                 `json:"method" binding:"required"`
+		Params map[string]interface{} `json:"params" binding:"required"`
+	}
 
-	if script == "" || method == "" || paramsStr == "" {
-		utils.SendResponse(ctx, http.StatusBadRequest, "缺少必要参数", nil)
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		utils.SendResponse(ctx, http.StatusBadRequest, "参数错误: "+err.Error(), nil)
 		return
 	}
 
-	// 解析参数
-	var params map[string]interface{}
-	if err := json.Unmarshal([]byte(paramsStr), &params); err != nil {
-		utils.SendResponse(ctx, http.StatusBadRequest, "参数格式错误", nil)
-		return
-	}
+	script := request.Script
+	method := request.Method
+	params := request.Params
 
 	// 验证方法类型
 	validMethods := map[string]bool{
-		"search_video":           true,
-		"get_video_detail":       true,
-		"get_play_video_detail":  true,
+		"search_video":          true,
+		"get_video_detail":      true,
+		"get_play_video_detail": true,
 	}
 	if !validMethods[method] {
 		utils.SendResponse(ctx, http.StatusBadRequest, "不支持的方法类型: "+method, nil)

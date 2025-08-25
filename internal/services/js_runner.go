@@ -266,16 +266,16 @@ return {data: result, err: null};
 	go func() {
 		defer close(out)
 		defer browser.Close()
-		
+
 		out <- fmt.Sprintf("event: log\ndata: {\"message\":\"[INFO] 开始执行JS高级调试...\"}\n\n")
-		
+
 		// 直接执行脚本，保留调用方在结尾 return 的 {data, err}
 		m, err := eng.ExecuteWrapped(testScript)
 		if err != nil {
 			out <- fmt.Sprintf("event: error\ndata: {\"message\":\"%s\"}\n\n", jsonEscape(err.Error()))
 			return
 		}
-		
+
 		// 获取原始结果
 		var originalResult interface{}
 		if m != nil {
@@ -297,9 +297,9 @@ return {data: result, err: null};
 		}
 		resultJSON, _ := json.Marshal(resultData)
 		out <- fmt.Sprintf("event: result\ndata: %s\n\n", string(resultJSON))
-		
+
 		out <- fmt.Sprintf("event: log\ndata: {\"message\":\"[INFO] JS高级调试执行完成\"}\n\n")
 	}()
-	
+
 	return out, nil
 }
