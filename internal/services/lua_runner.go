@@ -433,5 +433,6 @@ return {data = result, err = nil}
 // jsonEscape 转义JSON字符串
 func jsonEscape(s string) string {
 	escaped, _ := json.Marshal(s)
-	return string(escaped)
+	// 移除外层引号，只返回转义后的内容
+	return string(escaped[1 : len(escaped)-1])
 }

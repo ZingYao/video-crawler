@@ -339,7 +339,8 @@ func (c *LuaTestController) AdvancedTestLuaScript(ctx *gin.Context) {
 // jsonEscape 转义JSON字符串
 func jsonEscape(s string) string {
 	escaped, _ := json.Marshal(s)
-	return string(escaped)
+	// 移除外层引号，只返回转义后的内容
+	return string(escaped[1 : len(escaped)-1])
 }
 
 // AdvancedTestJSScriptSSE JS 高级调试(SSE)
