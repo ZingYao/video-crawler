@@ -95,6 +95,7 @@ go run cmd/video-crawler/main.go
 
 ## Debug APIs
 
+### Basic Debug
 - Lua (Chunked): `POST /api/lua/test`
 - Lua (SSE): `POST /api/lua/test-sse`
 - JavaScript (Chunked): `POST /api/js/test`
@@ -107,6 +108,29 @@ Body:
 
 Output order guaranteed: `[INFO]` → Lua `[PRINT]/[LOG]` → `[RESULT]` → final `[INFO]`.
 
+### Advanced Debug
+- Lua Advanced Debug (SSE): `POST /api/lua/advanced-test-sse`
+- JavaScript Advanced Debug (SSE): `POST /api/js/advanced-test-sse`
+
+Body:
+```json
+{
+  "script": "script content",
+  "method": "search_video|get_video_detail|get_play_video_detail",
+  "params": {
+    "keyword": "search keyword" // or "video_url": "video link"
+  }
+}
+```
+
+Advanced Debug Features:
+- Support three methods: search video, get video detail, get play video detail
+- Automatic validation of required script functions
+- Return original result and struct conversion result comparison
+- Support debug parameter caching (isolated by site ID)
+- Real-time log output with expand/collapse and auto-scroll
+- Code diff comparison with foldable identical content
+
 ## Frontend Editing Page
 
 - Fields: site name, domain, sort, source type, crawler engine (Lua/JavaScript), status
@@ -114,6 +138,21 @@ Output order guaranteed: `[INFO]` → Lua `[PRINT]/[LOG]` → `[RESULT]` → fin
 - Required functions: `search_video`, `get_video_detail`, `get_play_video_detail`
 - Drafts: auto-save; restore/delete prompt (double confirm for delete)
 - UX: F5 debug, block Cmd/Ctrl+S, resizable panes with persistence, clear logs, auto-scroll
+
+### Advanced Debug Features
+
+- **Real-time Debugging**: Support both basic and advanced debug modes
+- **Parameter Caching**: Debug parameters automatically cached by site ID, restored when switching sites
+- **Log Management**: Support log expand/collapse, auto-scroll, clear logs
+- **Result Comparison**: Side-by-side display of original and struct conversion results
+- **Diff Highlighting**: Custom TextDiffViewer component with:
+  - GoLand-style left-right comparison view
+  - Red/green background highlighting for differences
+  - Line numbers display
+  - Foldable identical content (hidden by default)
+  - Context lines display (10 lines by default)
+  - Mobile responsive adaptation
+- **Draft Comparison**: Code comparison modal when drafts are found, support version selection
 
 ### JavaScript Script Guidelines
 
@@ -127,7 +166,26 @@ Output order guaranteed: `[INFO]` → Lua `[PRINT]/[LOG]` → `[RESULT]` → fin
 `configs/config.yaml` key:
 ```yaml
 env: dev  # print logs to console in dev
+auth:
+  require_login: true  # whether login/register is required: true or false
 ```
+
+### Login Control Configuration
+
+The system supports controlling whether login/register functionality is required through configuration:
+
+- **Enable Login**: `auth.require_login: true`
+  - Users must login to access the system
+  - Display user info, profile, user management menus
+  - All APIs require JWT authentication
+
+- **Disable Login**: `auth.require_login: false`
+  - No login required to access the system
+  - Hide user-related menus and UI elements
+  - All APIs skip JWT authentication
+  - Automatically redirect login/register pages to home
+
+**Note**: When configuration cannot be retrieved or corresponding fields are missing, defaults to `false` (no login required)
 
 ## License
 

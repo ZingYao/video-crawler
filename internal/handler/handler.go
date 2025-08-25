@@ -67,7 +67,7 @@ func (h *Handler) HandleApi(c *gin.Context) {
 	case "/api/config":
 		// 系统配置信息
 		c.JSON(200, gin.H{
-			"code": 0,
+			"code":    0,
 			"message": "success",
 			"data": gin.H{
 				"require_login": h.config.Auth.RequireLogin,

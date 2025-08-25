@@ -27,7 +27,7 @@ func JWTAuthMiddleware(cfg *config.Config, jwtManager *utils.JWTManager, userSer
 			c.Next()
 			return
 		}
-		
+
 		if slices.Contains(routerWhiteList, c.Request.URL.Path) {
 			c.Next()
 			return

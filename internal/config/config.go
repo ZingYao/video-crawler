@@ -24,7 +24,7 @@ type ServerConfig struct {
 
 // AuthConfig 认证配置
 type AuthConfig struct {
-	RequireLogin bool `yaml:"require_login"` // 是否需要登录注册
+	RequireLogin bool `yaml:"require_login"` // 是否需要登录注册，默认为false
 }
 
 var conf *Config
@@ -48,6 +48,11 @@ func Load(force bool) (*Config, error) {
 	var conf Config
 	if err := yaml.Unmarshal(data, &conf); err != nil {
 		return nil, fmt.Errorf("解析 YAML 配置失败: %w", err)
+	}
+
+	// 设置默认值
+	if conf.Auth.RequireLogin == false {
+		conf.Auth.RequireLogin = false // 默认为false
 	}
 
 	return &conf, nil

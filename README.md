@@ -89,6 +89,7 @@ go run cmd/video-crawler/main.go
 
 ## 调试接口
 
+### 基础调试
 - Lua (Chunked)：`POST /api/lua/test`
 - Lua (SSE)：`POST /api/lua/test-sse`
 - JavaScript (Chunked)：`POST /api/js/test`
@@ -101,6 +102,29 @@ go run cmd/video-crawler/main.go
 
 输出顺序严格：`[INFO]` → Lua `[PRINT]/[LOG]` → `[RESULT]` → `[INFO]` 完成
 
+### 高级调试
+- Lua 高级调试 (SSE)：`POST /api/lua/advanced-test-sse`
+- JavaScript 高级调试 (SSE)：`POST /api/js/advanced-test-sse`
+
+请求体：
+```json
+{
+  "script": "脚本内容",
+  "method": "search_video|get_video_detail|get_play_video_detail",
+  "params": {
+    "keyword": "搜索关键词" // 或 "video_url": "视频链接"
+  }
+}
+```
+
+高级调试功能：
+- 支持三种方法：搜索视频、获取视频详情、获取播放链接
+- 自动验证脚本必需函数
+- 返回原始结果和结构体转换结果对比
+- 支持调试参数缓存（按站点ID隔离）
+- 实时日志输出，支持展开/收起和自动滚动
+- 代码差异对比，支持折叠相同内容
+
 ## 前端编辑页（视频源）
 
 - 字段：站点名称、站点域名、排序值、资源类型、爬虫引擎（Lua/JavaScript）与状态
@@ -109,6 +133,21 @@ go run cmd/video-crawler/main.go
 - 必需函数校验：`search_video` / `get_video_detail` / `get_play_video_detail`
 - 草稿：定时保存、进入页提示恢复/删除（删除二次确认）
 - 交互：F5 调试、Cmd/Ctrl+S 禁用、可拖拽分栏并持久化、清空日志、自动滚动
+
+### 高级调试功能
+
+- **实时调试**：支持基础调试和高级调试两种模式
+- **参数缓存**：调试参数按站点ID自动缓存，切换站点时自动恢复
+- **日志管理**：支持日志展开/收起、自动滚动、清空日志
+- **结果对比**：原始结果与结构体转换结果并排显示
+- **差异高亮**：使用自定义 TextDiffViewer 组件，支持：
+  - GoLand 风格的左右对比视图
+  - 红色/绿色背景高亮差异
+  - 行号显示
+  - 折叠相同内容（默认隐藏）
+  - 上下文行显示（默认10行）
+  - 移动端响应式适配
+- **草稿对比**：发现草稿时显示代码对比弹窗，支持选择版本
 
 ### JavaScript 脚本规范
 
@@ -122,7 +161,26 @@ go run cmd/video-crawler/main.go
 `configs/config.yaml` 关键项：
 ```yaml
 env: dev  # dev 环境打印日志到控制台
+auth:
+  require_login: true  # 是否需要登录注册: true 或 false
 ```
+
+### 登录控制配置
+
+系统支持通过配置文件控制是否需要登录注册功能：
+
+- **启用登录功能**：`auth.require_login: true`
+  - 需要用户登录才能访问系统
+  - 显示用户信息、个人中心、用户管理等菜单
+  - 所有接口都需要JWT认证
+
+- **禁用登录功能**：`auth.require_login: false`
+  - 无需登录即可访问系统
+  - 隐藏用户相关菜单和界面元素
+  - 所有接口跳过JWT认证
+  - 自动重定向登录注册页面到首页
+
+**注意**：配置获取不到或没有对应字段时，默认为 `false`（不需要登录）
 
 ## 许可
 
