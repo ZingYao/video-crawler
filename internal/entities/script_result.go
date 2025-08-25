@@ -1,6 +1,9 @@
 package entities
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // SearchVideoResult 搜索视频结果结构体
 type SearchVideoResult struct {
@@ -162,6 +165,72 @@ func ValidatePlayVideoDetailResult(data interface{}) (*PlayVideoDetailResult, er
 	}
 
 	return nil, nil
+}
+
+// FilterSearchVideoResult 通过JSON序列化反序列化过滤搜索视频结果字段
+func FilterSearchVideoResult(data interface{}) ([]SearchVideoResult, error) {
+	if data == nil {
+		return nil, nil
+	}
+
+	// 先序列化为JSON字节数组
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("序列化失败: %w", err)
+	}
+
+	// 反序列化到结构体，自动过滤未定义字段
+	var results []SearchVideoResult
+	err = json.Unmarshal(jsonBytes, &results)
+	if err != nil {
+		return nil, fmt.Errorf("反序列化失败: %w", err)
+	}
+
+	return results, nil
+}
+
+// FilterVideoDetailResult 通过JSON序列化反序列化过滤视频详情结果字段
+func FilterVideoDetailResult(data interface{}) (*VideoDetailResult, error) {
+	if data == nil {
+		return nil, nil
+	}
+
+	// 先序列化为JSON字节数组
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("序列化失败: %w", err)
+	}
+
+	// 反序列化到结构体，自动过滤未定义字段
+	var result VideoDetailResult
+	err = json.Unmarshal(jsonBytes, &result)
+	if err != nil {
+		return nil, fmt.Errorf("反序列化失败: %w", err)
+	}
+
+	return &result, nil
+}
+
+// FilterPlayVideoDetailResult 通过JSON序列化反序列化过滤播放详情结果字段
+func FilterPlayVideoDetailResult(data interface{}) (*PlayVideoDetailResult, error) {
+	if data == nil {
+		return nil, nil
+	}
+
+	// 先序列化为JSON字节数组
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("序列化失败: %w", err)
+	}
+
+	// 反序列化到结构体，自动过滤未定义字段
+	var result PlayVideoDetailResult
+	err = json.Unmarshal(jsonBytes, &result)
+	if err != nil {
+		return nil, fmt.Errorf("反序列化失败: %w", err)
+	}
+
+	return &result, nil
 }
 
 // getString 安全地从 map 中获取字符串值

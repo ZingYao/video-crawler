@@ -289,20 +289,20 @@ return {data: result, err: null};
 		if originalResult != nil {
 			switch method {
 			case "search_video":
-				if validated, err := entities.ValidateSearchVideoResult(originalResult); err == nil {
-					convertedResult = validated
+				if filtered, err := entities.FilterSearchVideoResult(originalResult); err == nil {
+					convertedResult = filtered
 				} else {
 					convertedResult = originalResult
 				}
 			case "get_video_detail":
-				if validated, err := entities.ValidateVideoDetailResult(originalResult); err == nil {
-					convertedResult = validated
+				if filtered, err := entities.FilterVideoDetailResult(originalResult); err == nil {
+					convertedResult = filtered
 				} else {
 					convertedResult = originalResult
 				}
 			case "get_play_video_detail":
-				if validated, err := entities.ValidatePlayVideoDetailResult(originalResult); err == nil {
-					convertedResult = validated
+				if filtered, err := entities.FilterPlayVideoDetailResult(originalResult); err == nil {
+					convertedResult = filtered
 				} else {
 					convertedResult = originalResult
 				}
