@@ -281,6 +281,41 @@ const debugParams = ref('测试视频') // 调试参数
 const advancedDebugLoading = ref(false) // 高级调试加载状态
 const debugResults = ref<any>(null) // 调试结果
 
+// 调试参数缓存相关函数
+const getDebugCacheKey = (siteId: string) => `debug_params_${siteId}`
+
+const saveDebugParams = (siteId: string, params: any) => {
+  if (!siteId) return
+  try {
+    const cacheKey = getDebugCacheKey(siteId)
+    localStorage.setItem(cacheKey, JSON.stringify(params))
+  } catch (error) {
+    console.error('保存调试参数缓存失败:', error)
+  }
+}
+
+const loadDebugParams = (siteId: string) => {
+  if (!siteId) return null
+  try {
+    const cacheKey = getDebugCacheKey(siteId)
+    const cached = localStorage.getItem(cacheKey)
+    return cached ? JSON.parse(cached) : null
+  } catch (error) {
+    console.error('加载调试参数缓存失败:', error)
+    return null
+  }
+}
+
+const clearDebugParams = (siteId: string) => {
+  if (!siteId) return
+  try {
+    const cacheKey = getDebugCacheKey(siteId)
+    localStorage.removeItem(cacheKey)
+  } catch (error) {
+    console.error('清除调试参数缓存失败:', error)
+  }
+}
+
 const advancedDebugOutput = ref('') // 高级调试console输出
 const logsRef = ref<HTMLDivElement | null>(null)
 const isLogExpanded = ref(true) // 控制日志区域展开/收起
@@ -589,6 +624,15 @@ const runAdvancedDebug = async () => {
     message.error('请输入参数')
     return
   }
+
+  // 保存调试参数到缓存
+  const siteId = formData.value.id || 'new'
+  const paramsToCache = {
+    method: selectedMethod.value,
+    params: debugParams.value.trim(),
+    timestamp: Date.now()
+  }
+  saveDebugParams(siteId, paramsToCache)
 
   advancedDebugLoading.value = true
   debugResults.value = null
@@ -968,6 +1012,14 @@ const fetchVideoSourceDetail = async (id: string) => {
           luaCode.value = data.lua_script.trim() ? data.lua_script : defaultTemplateLua
           scriptContent.value = luaCode.value
         }
+      }
+      
+      // 加载缓存的调试参数
+      const cachedParams = loadDebugParams(data.id || '')
+      if (cachedParams) {
+        selectedMethod.value = cachedParams.method || 'search_video'
+        debugParams.value = cachedParams.params || '测试视频'
+        console.log('已恢复缓存的调试参数:', cachedParams)
       }
       
       // 检查是否有草稿需要恢复
