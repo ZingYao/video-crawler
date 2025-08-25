@@ -4,3 +4,5 @@ server:
   jwt_secret: "your-jwt-secret-here"
   jwt_expire: 72
 env: "dev" # 运行环境: dev 或 prod
+auth:
+  require_login: true  # 是否需要登录注册: true 或 false

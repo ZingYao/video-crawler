@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Server ServerConfig `yaml:"server"`
 	Env    string       `yaml:"env"` // 运行环境: dev, prod
+	Auth   AuthConfig   `yaml:"auth"`
 }
 
 // ServerConfig 服务器配置
@@ -19,6 +20,11 @@ type ServerConfig struct {
 	Host      string `yaml:"host"`
 	JwtSecret string `yaml:"jwt_secret"`
 	JwtExpire int    `yaml:"jwt_expire"`
+}
+
+// AuthConfig 认证配置
+type AuthConfig struct {
+	RequireLogin bool `yaml:"require_login"` // 是否需要登录注册
 }
 
 var conf *Config

@@ -42,6 +42,7 @@ func (h *Handler) HandleApi(c *gin.Context) {
 				"GET / - 首页",
 				"GET /api - API 信息",
 				"GET /health - 健康检查",
+				"GET /api/config - 系统配置信息",
 				"GET /api/video-source/list - 站点列表",
 				"GET /api/video-source/detail - 站点详情",
 				"POST /api/video-source/save - 保存站点",
@@ -61,6 +62,16 @@ func (h *Handler) HandleApi(c *gin.Context) {
 				"GET /api/user/list - 用户列表",
 				"POST /api/lua/test - Lua脚本测试(流式)",
 				"POST /api/lua/test-sse - Lua脚本测试(SSE)",
+			},
+		})
+	case "/api/config":
+		// 系统配置信息
+		c.JSON(200, gin.H{
+			"code": 0,
+			"message": "success",
+			"data": gin.H{
+				"require_login": h.config.Auth.RequireLogin,
+				"env":           h.config.Env,
 			},
 		})
 	case "/api/video-source/list":

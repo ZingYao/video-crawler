@@ -88,14 +88,14 @@ func (a *App) registerRoutes() {
 	a.engine.StaticFS("/", static.GetStaticFS())
 
 	// 处理所有其他路由
-	a.engine.NoRoute(func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.URL.Path, "/api") {
-			middleware.CustomMiddleware(c, middleware.RequestIdMiddleware(), middleware.LoggerMiddleware(), middleware.JWTAuthMiddleware(jwtManager, a.userService), a.httpHandler.HandleApi)
-			return
-		} else if strings.HasPrefix(c.Request.URL.Path, "/health") {
-			middleware.CustomMiddleware(c, middleware.RequestIdMiddleware(), middleware.LoggerMiddleware(), a.httpHandler.HandleHealth)
-			return
-		} else {
+			a.engine.NoRoute(func(c *gin.Context) {
+			if strings.HasPrefix(c.Request.URL.Path, "/api") {
+				middleware.CustomMiddleware(c, middleware.RequestIdMiddleware(), middleware.LoggerMiddleware(), middleware.JWTAuthMiddleware(a.config, jwtManager, a.userService), a.httpHandler.HandleApi)
+				return
+			} else if strings.HasPrefix(c.Request.URL.Path, "/health") {
+				middleware.CustomMiddleware(c, middleware.RequestIdMiddleware(), middleware.LoggerMiddleware(), a.httpHandler.HandleHealth)
+				return
+			} else {
 			// 打印所有请求头
 			for key, values := range c.Request.Header {
 				fmt.Printf("%s: %v\n", key, values)

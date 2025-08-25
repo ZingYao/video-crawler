@@ -55,7 +55,7 @@
           </div>
           
           <!-- 用户信息区域 -->
-          <div class="user-info-section">
+          <div v-if="configStore.needsLogin()" class="user-info-section">
             <a-dropdown :trigger="['click']" placement="bottomRight">
               <div class="user-info-card">
                 <div class="user-avatar">
@@ -102,6 +102,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 import { DownOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons-vue'
 
 // Props
@@ -117,6 +118,7 @@ const props = withDefaults(defineProps<Props>(), {
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const configStore = useConfigStore()
 const sidebarVisible = ref(false) // 默认收起，让用户手动控制
 const activeMenu = ref('')
 
@@ -179,6 +181,13 @@ const menuItems: MenuItem[] = [
 // 计算属性
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
+    // 如果不需要登录，隐藏用户管理相关菜单
+    if (!configStore.needsLogin()) {
+      if (item.id === 'user-management' || item.id === 'watch-history') {
+        return false
+      }
+    }
+    
     if (item.requiresAdmin) {
       // 仅管理员
       return authStore.user?.isAdmin === true

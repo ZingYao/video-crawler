@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 
+	"video-crawler/internal/config"
 	"video-crawler/internal/consts"
 	"video-crawler/internal/logger"
 	"video-crawler/internal/services"
@@ -19,8 +20,14 @@ var routerWhiteList = []string{
 }
 
 // JWTAuthMiddleware JWT 认证中间件
-func JWTAuthMiddleware(jwtManager *utils.JWTManager, userService services.UserServiceInterface) gin.HandlerFunc {
+func JWTAuthMiddleware(cfg *config.Config, jwtManager *utils.JWTManager, userService services.UserServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 如果配置为不需要登录，直接跳过鉴权
+		if !cfg.Auth.RequireLogin {
+			c.Next()
+			return
+		}
+		
 		if slices.Contains(routerWhiteList, c.Request.URL.Path) {
 			c.Next()
 			return
@@ -89,7 +96,7 @@ func JWTAuthMiddleware(jwtManager *utils.JWTManager, userService services.UserSe
 }
 
 // OptionalJWTAuthMiddleware 可选的 JWT 认证中间件（不强制要求认证）
-func OptionalJWTAuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
+func OptionalJWTAuthMiddleware(cfg *config.Config, jwtManager *utils.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if slices.Contains(routerWhiteList, c.Request.URL.Path) {
 			c.Next()
