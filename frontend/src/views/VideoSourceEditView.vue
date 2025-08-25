@@ -219,14 +219,11 @@
           <!-- 结果显示 -->
           <div class="debug-results" v-if="debugResults">
             <div class="result-content">
-              <TextCompare
+              <TextDiffViewer
                 :old-text="formatJson(debugResults.original)"
                 :new-text="formatJson(debugResults.converted)"
-                :old-title="'原始结果'"
-                :new-title="'转换结果'"
-                :show-line-numbers="true"
-                :highlight-changes="true"
-                :theme="'light'"
+                left-title="原始结果"
+                right-title="转换结果"
                 class="text-compare-container"
               />
             </div>
@@ -243,7 +240,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { videoSourceAPI } from '@/api'
@@ -253,7 +250,7 @@ import AppLayout from '@/components/AppLayout.vue'
 import LuaDocs from '@/components/LuaDocs.vue'
 import JSDocs from '@/components/JSDocs.vue'
 import { defaultTemplateLua, defaultTemplateJS } from '@/constants/scriptTemplates'
-import TextCompare from 'text-compare-vue3'
+import TextDiffViewer from '@/components/TextDiffViewer.vue'
 
 import MonacoEditor, { loader } from '@guolao/vue-monaco-editor'
 
@@ -888,9 +885,21 @@ watch(scriptContent, (val) => {
 const showDraftRestoreDialog = (draft: any) => {
   Modal.confirm({
     title: '发现草稿',
-    content: '检测到您有未保存的草稿，是否要恢复？',
-    okText: '恢复草稿',
-    cancelText: '删除草稿',
+    content: h('div', { class: 'draft-compare-modal' }, [
+      h('p', '检测到您有未保存的草稿，请选择要使用的版本：'),
+      h(TextDiffViewer, {
+        oldText: scriptContent.value,
+        newText: draft.script,
+        leftTitle: '当前代码',
+        rightTitle: '草稿代码',
+        showAllByDefault: true,
+        contextLines: 10,
+        class: 'draft-diff-viewer'
+      })
+    ]),
+    width: '90%',
+    okText: '使用草稿',
+    cancelText: '使用当前',
     onOk: () => {
       formData.value.name = draft.name || ''
       formData.value.domain = draft.domain
@@ -1429,7 +1438,7 @@ kbd {
 }
 
 .result-content {
-  max-height: 400px;
+  max-height: 600px;
   overflow: auto;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
@@ -1447,9 +1456,12 @@ kbd {
 }
 
 .text-compare-container {
-  height: 400px;
+  min-height: 400px;
+  max-height: 600px;
+  height: auto;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
+  overflow: hidden;
 }
 
 .error {
@@ -1460,6 +1472,23 @@ kbd {
   border: 1px solid #ffccc7;
 }
 
+/* 草稿对比弹窗样式 */
+.draft-compare-modal {
+  padding: 16px 0;
+}
+
+.draft-compare-modal p {
+  margin-bottom: 16px;
+  color: #333;
+  font-size: 14px;
+}
+
+.draft-diff-viewer {
+  max-height: 400px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .diff-viewer {
@@ -1468,11 +1497,20 @@ kbd {
   }
   
   .result-content {
-    max-height: 300px;
+    max-height: 400px;
+  }
+  
+  .text-compare-container {
+    min-height: 300px;
+    max-height: 400px;
   }
   
   .json-display {
     font-size: 11px;
+  }
+  
+  .draft-diff-viewer {
+    max-height: 300px;
   }
 }
 </style>
