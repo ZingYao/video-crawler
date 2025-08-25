@@ -28,8 +28,8 @@ type EpisodeItem struct {
 
 // SourceItem 来源站点对象结构体
 type SourceItem struct {
-	Name     string         `json:"name"`     // 来源站点名称（如：'线路1'、'线路2'、'备用线路'等）
-	Episodes []EpisodeItem  `json:"episodes"` // 剧集列表数组
+	Name     string        `json:"name"`     // 来源站点名称（如：'线路1'、'线路2'、'备用线路'等）
+	Episodes []EpisodeItem `json:"episodes"` // 剧集列表数组
 }
 
 // VideoDetailResult 视频详情结果结构体

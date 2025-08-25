@@ -197,11 +197,16 @@
 
           <!-- 普通日志输出区 -->
           <div class="debug-logs">
-            <div class="logs-header">
+            <div class="logs-header" @click="toggleLogExpanded">
               <span class="logs-title">执行日志</span>
-              <a-button size="small" @click="clearAdvancedDebugOutput">清空</a-button>
+              <div class="logs-actions">
+                <a-button size="small" @click.stop="clearAdvancedDebugOutput">清空</a-button>
+                <a-button size="small" type="text" @click.stop="toggleLogExpanded">
+                  {{ isLogExpanded ? '收起' : '展开' }}
+                </a-button>
+              </div>
             </div>
-            <div class="logs-content">
+            <div class="logs-content" v-show="isLogExpanded" ref="logsRef">
               <div v-if="advancedDebugColoredLines.length === 0" class="log-placeholder">
                 等待执行...
               </div>
@@ -213,36 +218,18 @@
 
           <!-- 结果显示 -->
           <div class="debug-results" v-if="debugResults">
-            <a-tabs v-model:activeKey="activeResultTab">
-              <a-tab-pane key="original" tab="原始结果">
-                <div class="result-content">
-                  <pre class="json-display">{{ debugResults.original }}</pre>
-                </div>
-              </a-tab-pane>
-              <a-tab-pane key="converted" tab="结构体转换结果">
-                <div class="result-content">
-                  <pre class="json-display">{{ debugResults.converted }}</pre>
-                </div>
-              </a-tab-pane>
-              <a-tab-pane key="diff" tab="差异对比">
-                <div class="result-content">
-                  <div class="diff-viewer">
-                    <div class="diff-section">
-                      <h4>原始结果</h4>
-                      <pre class="json-display">{{ debugResults.original }}</pre>
-                    </div>
-                    <div class="diff-section">
-                      <h4>转换结果</h4>
-                      <pre class="json-display">{{ debugResults.converted }}</pre>
-                    </div>
-                    <div class="diff-section">
-                      <h4>差异高亮</h4>
-                      <div class="diff-highlight" v-html="debugResults.diffHtml"></div>
-                    </div>
-                  </div>
-                </div>
-              </a-tab-pane>
-            </a-tabs>
+            <div class="result-content">
+              <TextCompare
+                :old-text="formatJson(debugResults.original)"
+                :new-text="formatJson(debugResults.converted)"
+                :old-title="'原始结果'"
+                :new-title="'转换结果'"
+                :show-line-numbers="true"
+                :highlight-changes="true"
+                :theme="'light'"
+                class="text-compare-container"
+              />
+            </div>
           </div>
           <div class="debug-results" v-else>
             <div class="result-placeholder">
@@ -266,6 +253,7 @@ import AppLayout from '@/components/AppLayout.vue'
 import LuaDocs from '@/components/LuaDocs.vue'
 import JSDocs from '@/components/JSDocs.vue'
 import { defaultTemplateLua, defaultTemplateJS } from '@/constants/scriptTemplates'
+import TextCompare from 'text-compare-vue3'
 
 import MonacoEditor, { loader } from '@guolao/vue-monaco-editor'
 
@@ -295,9 +283,10 @@ const selectedMethod = ref('search_video') // 选中的调试方法
 const debugParams = ref('测试视频') // 调试参数
 const advancedDebugLoading = ref(false) // 高级调试加载状态
 const debugResults = ref<any>(null) // 调试结果
-const activeResultTab = ref('original') // 当前激活的结果标签页
+
 const advancedDebugOutput = ref('') // 高级调试console输出
 const logsRef = ref<HTMLDivElement | null>(null)
+const isLogExpanded = ref(true) // 控制日志区域展开/收起
 const hasSaved = ref(false) // 标记是否已保存成功
 const isFullscreen = ref(false) // 全屏状态
 const fullscreenContainer = ref<HTMLDivElement | null>(null) // 全屏容器
@@ -687,14 +676,19 @@ const runAdvancedDebug = async () => {
                     case 'log':
                       console.log('SSE 处理 log 事件:', data.message)
                       advancedDebugOutput.value += data.message + '\n'
+                      // 自动滚动到最新日志
+                      nextTick(() => {
+                        if (logsRef.value && isLogExpanded.value) {
+                          logsRef.value.scrollTop = logsRef.value.scrollHeight
+                        }
+                      })
                       break
                     case 'result':
                       console.log('SSE 处理 result 事件:', data)
-                      debugResults.value = {
-                        original: JSON.stringify(data.original, null, 2),
-                        converted: JSON.stringify(data.converted, null, 2),
-                        diffHtml: generateDiffHtml(data.original, data.converted)
-                      }
+                                          debugResults.value = {
+                      original: data.original,
+                      converted: data.converted
+                    }
                       break
                     case 'error':
                       console.log('SSE 处理 error 事件:', data.message)
@@ -705,6 +699,8 @@ const runAdvancedDebug = async () => {
                       console.log('SSE 处理 complete 事件')
                       message.success('调试执行完成')
                       advancedDebugLoading.value = false
+                      // 执行完成后自动收起日志
+                      isLogExpanded.value = false
                       return
                     case 'connected':
                       console.log('SSE 处理 connected 事件:', data.message)
@@ -743,13 +739,17 @@ const runAdvancedDebug = async () => {
 // 清空高级调试结果
 const clearAdvancedDebug = () => {
   debugResults.value = null
-  activeResultTab.value = 'original'
   advancedDebugOutput.value = ''
 }
 
 // 清空高级调试日志输出
 const clearAdvancedDebugOutput = () => {
   advancedDebugOutput.value = ''
+}
+
+// 切换日志区域展开/收起
+const toggleLogExpanded = () => {
+  isLogExpanded.value = !isLogExpanded.value
 }
 
 // 高级调试日志输出着色
@@ -765,46 +765,66 @@ const advancedDebugColoredLines = computed(() => {
   })
 })
 
-// 生成差异高亮HTML
-const generateDiffHtml = (original: any, converted: any): string => {
-  const originalStr = JSON.stringify(original, null, 2)
-  const convertedStr = JSON.stringify(converted, null, 2)
-  
-  if (originalStr === convertedStr) {
-    return '<div class="no-diff">✅ 两个结果完全一致，无差异</div>'
-  }
 
-  // 简单的行级差异比较
-  const originalLines = originalStr.split('\n')
-  const convertedLines = convertedStr.split('\n')
-  
-  let diffHtml = '<div class="diff-lines">'
-  
-  // 比较每一行
-  const maxLines = Math.max(originalLines.length, convertedLines.length)
-  for (let i = 0; i < maxLines; i++) {
-    const originalLine = originalLines[i] || ''
-    const convertedLine = convertedLines[i] || ''
-    
-    if (originalLine === convertedLine) {
-      diffHtml += `<div class="diff-line same">${escapeHtml(originalLine)}</div>`
-    } else {
-      diffHtml += `<div class="diff-line different">
-        <div class="diff-original">- ${escapeHtml(originalLine)}</div>
-        <div class="diff-converted">+ ${escapeHtml(convertedLine)}</div>
-      </div>`
-    }
-  }
-  
-  diffHtml += '</div>'
-  return diffHtml
-}
 
 // HTML转义
 const escapeHtml = (text: string): string => {
   const div = document.createElement('div')
   div.textContent = text
   return div.innerHTML
+}
+
+// 格式化JSON，按字段排序
+const formatJson = (data: any): string => {
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data)
+      return JSON.stringify(parsed, null, 2)
+    } catch {
+      return data
+    }
+  }
+  
+  // 对对象进行排序
+  if (typeof data === 'object' && data !== null) {
+    if (Array.isArray(data)) {
+      // 数组：对每个元素进行排序
+      const sortedArray = data.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return sortObjectKeys(item)
+        }
+        return item
+      })
+      return JSON.stringify(sortedArray, null, 2)
+    } else {
+      // 对象：对字段进行排序
+      const sortedObj = sortObjectKeys(data)
+      return JSON.stringify(sortedObj, null, 2)
+    }
+  }
+  
+  return JSON.stringify(data, null, 2)
+}
+
+// 对对象字段进行 ASCII 排序
+const sortObjectKeys = (obj: any): any => {
+  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+    return obj
+  }
+  
+  const sortedObj: any = {}
+  const keys = Object.keys(obj).sort()
+  
+  for (const key of keys) {
+    const value = obj[key]
+    if (typeof value === 'object' && value !== null) {
+      sortedObj[key] = sortObjectKeys(value)
+    } else {
+      sortedObj[key] = value
+    }
+  }
+  
+  return sortedObj
 }
 
 const toggleFullscreen = () => {
@@ -1324,12 +1344,24 @@ kbd {
   background: #f5f5f5;
   border-bottom: 1px solid #d9d9d9;
   border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logs-header:hover {
+  background: #e6f7ff;
 }
 
 .logs-title {
   font-weight: 600;
   color: #333;
   font-size: 14px;
+}
+
+.logs-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .logs-content {
@@ -1414,61 +1446,9 @@ kbd {
   word-break: break-word;
 }
 
-.diff-viewer {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px;
-}
-
-.diff-section h4 {
-  margin: 0 0 8px 0;
-  color: #333;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.diff-lines {
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.diff-line {
-  padding: 2px 4px;
-  border-radius: 2px;
-}
-
-.diff-line.same {
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.diff-line.different {
-  background: #fff2e8;
-  margin: 2px 0;
-}
-
-.diff-original {
-  color: #ff4d4f;
-  background: #fff1f0;
-  padding: 2px 4px;
-  border-radius: 2px;
-  margin-bottom: 2px;
-}
-
-.diff-converted {
-  color: #52c41a;
-  background: #f6ffed;
-  padding: 2px 4px;
-  border-radius: 2px;
-}
-
-.no-diff {
-  color: #52c41a;
-  font-weight: 600;
-  text-align: center;
-  padding: 20px;
-  background: #f6ffed;
+.text-compare-container {
+  height: 400px;
+  border: 1px solid #d9d9d9;
   border-radius: 6px;
 }
 
@@ -1496,3 +1476,4 @@ kbd {
   }
 }
 </style>
+
