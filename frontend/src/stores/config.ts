@@ -1,5 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { configAPI } from '@/utils/api'
+
+// 导入Wails类型
+declare global {
+  interface Window {
+    go: {
+      main: {
+        App: {
+          GetConfig(): Promise<Record<string, any>>
+          GetServerPort(): Promise<number>
+        }
+      }
+    }
+  }
+}
 
 export const useConfigStore = defineStore('config', () => {
   const requireLogin = ref(true)
@@ -9,13 +24,16 @@ export const useConfigStore = defineStore('config', () => {
   // 加载系统配置
   const loadConfig = async () => {
     try {
-      const response = await fetch('/api/config')
-      const result = await response.json()
+      console.log('开始加载系统配置...')
+      const result = await configAPI.getConfig()
+      requireLogin.value = result.require_login
+      env.value = result.env
+      isLoaded.value = true
+      console.log('配置加载成功:', result)
       
-      if (result.code === 0) {
-        requireLogin.value = result.data.require_login
-        env.value = result.data.env
-        isLoaded.value = true
+      // 如果是Wails模式，记录服务器端口
+      if (result.server_port) {
+        console.log('Wails HTTP服务端口:', result.server_port)
       }
     } catch (error) {
       console.error('加载系统配置失败:', error)

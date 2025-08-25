@@ -48,14 +48,14 @@ func (c *VideoController) Search(ctx *gin.Context) {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
-	
+
 	// 验证并规范化搜索结果
 	validResults, err := entities.ValidateSearchVideoResult(data)
 	if err != nil {
 		utils.SendResponse(ctx, http.StatusInternalServerError, "搜索结果格式错误: "+err.Error(), nil)
 		return
 	}
-	
+
 	utils.SuccessResponse(ctx, validResults)
 }
 
@@ -80,7 +80,7 @@ func (c *VideoController) Detail(ctx *gin.Context) {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
-	
+
 	// 验证并规范化视频详情结果
 	validResult, err := entities.ValidateVideoDetailResult(data)
 	if err != nil {
@@ -89,7 +89,7 @@ func (c *VideoController) Detail(ctx *gin.Context) {
 	}
 	// 使用验证后的结果
 	utils.SuccessResponse(ctx, validResult)
-	
+
 	// 异步记录观看历史，失败不影响接口返回
 	go func(sourceIDCopy, urlCopy string, dataCopy interface{}) {
 		userIDVal, exists := ctx.Get("user_id")
@@ -149,14 +149,14 @@ func (c *VideoController) PlayURL(ctx *gin.Context) {
 		utils.SendResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
-	
+
 	// 验证并规范化播放详情结果
 	validResult, err := entities.ValidatePlayVideoDetailResult(data)
 	if err != nil {
 		utils.SendResponse(ctx, http.StatusInternalServerError, "播放详情格式错误: "+err.Error(), nil)
 		return
 	}
-	
+
 	utils.SuccessResponse(ctx, validResult)
 }
 

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
+	"video-crawler/internal/config"
 	"video-crawler/internal/entities"
 
 	"github.com/fsnotify/fsnotify"
@@ -19,6 +21,7 @@ type VideoSourceService interface {
 	Save(videoSource entities.VideoSourceEntity) error
 	Delete(videoSourceId string) error
 	UpdateStatus(videoSourceId string, status int) error
+	Import(importData []entities.VideoSourceEntity) (int, error)
 }
 
 type videoSourceService struct {
@@ -33,7 +36,16 @@ func NewVideoSourceService() VideoSourceService {
 		videoSourceList: []entities.VideoSourceEntity{},
 		isWriting:       false,
 	}
-	const videoSourceConfigFilePath = "./configs/video-source.json"
+
+	// 使用数据目录
+	dataDir := config.GetDataDir()
+	videoSourceConfigFilePath := filepath.Join(dataDir, "video-source.json")
+
+	// 确保目录存在
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		panic(err)
+	}
+
 	_, err := os.Stat(videoSourceConfigFilePath)
 	if os.IsNotExist(err) {
 		file, err := os.Create(videoSourceConfigFilePath)
@@ -115,7 +127,8 @@ func (s *videoSourceService) Detail(videoSourceId string) (entities.VideoSourceE
 }
 
 func (s *videoSourceService) reloadVideoSource() {
-	const videoSourceConfigFilePath = "./configs/video-source.json"
+	dataDir := config.GetDataDir()
+	videoSourceConfigFilePath := filepath.Join(dataDir, "video-source.json")
 	file, err := os.Open(videoSourceConfigFilePath)
 	if err != nil {
 		logrus.WithError(err).Error("failed to open video source config file")
@@ -212,7 +225,8 @@ func (s *videoSourceService) UpdateStatus(videoSourceId string, status int) erro
 }
 
 func (s *videoSourceService) saveToFile() error {
-	const videoSourceConfigFilePath = "./configs/video-source.json"
+	dataDir := config.GetDataDir()
+	videoSourceConfigFilePath := filepath.Join(dataDir, "video-source.json")
 
 	// 设置写入标志，防止文件监听器触发重载
 	s.isWriting = true
@@ -241,4 +255,36 @@ func (s *videoSourceService) saveToFile() error {
 	}
 
 	return nil
+}
+
+func (s *videoSourceService) Import(importData []entities.VideoSourceEntity) (int, error) {
+	importedCount := 0
+
+	for _, videoSource := range importData {
+		// 检查是否已存在（通过ID去重）
+		_, exists := s.videoSourceMap.Load(videoSource.Id)
+		if exists {
+			// 跳过已存在的站点
+			continue
+		}
+
+		// 如果是新站点（ID为空），生成新的UUID
+		if videoSource.Id == "" {
+			videoSource.Id = uuid.New().String()
+		}
+
+		// 保存到内存中
+		s.videoSourceMap.Store(videoSource.Id, videoSource)
+		importedCount++
+	}
+
+	// 如果有新导入的站点，保存到文件
+	if importedCount > 0 {
+		err := s.saveToFile()
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return importedCount, nil
 }

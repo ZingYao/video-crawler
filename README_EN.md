@@ -62,7 +62,9 @@ video-crawler/
 └── README.md / README_EN.md
 ```
 
-## Quick Start
+## Quick Start | [Makefile Guide](MAKEFILE_README_EN.md)
+
+> For the desktop build with Wails, see [README_WAILS_EN.md](README_WAILS_EN.md).
 
 1) Init configs
 ```bash

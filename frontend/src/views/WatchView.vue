@@ -275,7 +275,9 @@ import { useRoute, useRouter } from 'vue-router'
  
 import AppLayout from '@/components/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 import { videoAPI, videoSourceAPI } from '@/api'
+import { localHistoryManager } from '@/utils/localHistory'
 import Plyr from 'plyr'
 import Hls from 'hls.js'
 import 'plyr/dist/plyr.css'
@@ -285,6 +287,7 @@ import { message } from 'ant-design-vue'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const configStore = useConfigStore()
 
 const loading = ref(false)
 const error = ref('')
@@ -850,6 +853,13 @@ function bindPlayerEvents() {
       if (dur > 0 && Math.abs(ct - lastSavedSecond) >= 5) {
         lastSavedSecond = ct
         savePlayState({ currentTime: ct })
+        
+        // 更新观看历史（无需登录模式下使用本地缓存）
+        if (!configStore.needsLogin() && sourceId.value && videoUrl.value) {
+          const videoId = `${sourceId.value}|${videoUrl.value}`
+          const progress = dur > 0 ? ct / dur : 0
+          localHistoryManager.updateVideoProgress(videoId, ct, progress)
+        }
       }
       
       // 检查是否需要跳过片首
@@ -1992,6 +2002,21 @@ async function fetchDetail(force = false) {
     detailData.value = res?.data ?? res
     fromCache.value = false
     saveCache()
+    
+    // 记录观看历史（无需登录模式下使用本地缓存）
+    if (!configStore.needsLogin() && detailData.value) {
+      const videoTitle = displayTitle.value || '未知标题'
+      const videoId = `${sourceId.value}|${videoUrl.value}`
+      
+      localHistoryManager.addVideoHistory(
+        videoId,
+        videoTitle,
+        videoUrl.value,
+        sourceId.value,
+        currentSourceName.value || '未知站点'
+      )
+    }
+    
     await resolvePlayUrl() // detail 成功后拉取真实播放链接
   } catch (e: any) {
     error.value = e?.message || '获取详情失败'

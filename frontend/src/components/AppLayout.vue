@@ -55,7 +55,7 @@
           </div>
           
           <!-- 用户信息区域 -->
-          <div v-if="configStore.needsLogin()" class="user-info-section">
+          <div v-if="configStore.needsLogin() && authStore.isAuthenticated" class="user-info-section">
             <a-dropdown :trigger="['click']" placement="bottomRight">
               <div class="user-info-card">
                 <div class="user-avatar">
@@ -103,6 +103,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
+import { isWailsEnvironment } from '@/utils/api'
 import { DownOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons-vue'
 
 // Props
@@ -131,6 +132,7 @@ interface MenuItem {
   requiresAdmin: boolean
   route: string
   requiresSiteAdmin?: boolean
+  requiresWails?: boolean
 }
 
 // 菜单项配置
@@ -176,18 +178,35 @@ const menuItems: MenuItem[] = [
     requiresSiteAdmin: true,
     route: '/video-source-management'
   }
+  ,{
+    id: 'api-docs',
+    icon: '🧭',
+    label: '接口文档',
+    description: 'Wails模式API文档',
+    requiresAdmin: false,
+    route: '/api-docs',
+    requiresWails: true
+  }
 ]
 
 // 计算属性
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
-    // 如果不需要登录，隐藏用户管理相关菜单
+    // 仅在 Wails 环境展示的菜单
+    if (item.requiresWails && !isWailsEnvironment()) {
+      return false
+    }
+    // 如果不需要登录，显示所有菜单（除了用户管理）
     if (!configStore.needsLogin()) {
-      if (item.id === 'user-management' || item.id === 'watch-history') {
+      // 在无需登录模式下，只隐藏用户管理菜单，其他都显示
+      if (item.id === 'user-management') {
         return false
       }
+      // 其他菜单都显示，包括观看历史
+      return true
     }
     
+    // 需要登录模式下的权限检查
     if (item.requiresAdmin) {
       // 仅管理员
       return authStore.user?.isAdmin === true

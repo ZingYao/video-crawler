@@ -7,7 +7,7 @@ import (
 	"time"
 	"video-crawler/internal/crawler"
 	"video-crawler/internal/entities"
-	"video-crawler/internal/lua"
+	lua "video-crawler/internal/luaengine"
 
 	"github.com/sirupsen/logrus"
 )

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -37,8 +38,18 @@ func Load(force bool) (*Config, error) {
 
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
-		configPath = "configs/config.yaml"
+		// 检查是否为Wails应用模式
+		wailsConfigDir := os.Getenv("VIDEO_CRAWLER_CONFIG_DIR")
+		if wailsConfigDir != "" {
+			configPath = os.Getenv("VIDEO_CRAWLER_CONFIG_DIR") + "/config.yaml"
+		} else {
+			configPath = "configs/config.yaml"
+		}
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"configPath": configPath,
+	}).Info("加载配置文件")
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -56,4 +67,16 @@ func Load(force bool) (*Config, error) {
 	}
 
 	return &conf, nil
+}
+
+// GetDataDir 获取数据目录路径
+func GetDataDir() string {
+	// 检查是否为Wails应用模式
+	wailsConfigDir := os.Getenv("VIDEO_CRAWLER_CONFIG_DIR")
+	if wailsConfigDir != "" {
+		return wailsConfigDir
+	}
+
+	// 非Wails模式，使用相对路径
+	return "configs"
 }

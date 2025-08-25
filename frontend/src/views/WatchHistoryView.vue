@@ -35,7 +35,10 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 import { historyAPI } from '@/api'
+import { localHistoryManager } from '@/utils/localHistory'
+import type { LocalVideoHistory } from '@/utils/localHistory'
 import AppLayout from '@/components/AppLayout.vue'
 
 interface VideoHistory {
@@ -53,6 +56,7 @@ interface VideoHistory {
 
 const route = useRoute()
 const auth = useAuthStore()
+const configStore = useConfigStore()
 const router = useRouter()
 const loading = ref(false)
 const error = ref('')
@@ -72,17 +76,36 @@ const formatDateTime = (s?: string) => {
 }
 
 const loadHistory = async () => {
-  if (!auth.token) {
-    error.value = '未登录或登录已过期'
-    return
-  }
   loading.value = true
   error.value = ''
+  
   try {
-    const uidParam = (route.params.userId as string) || ''
-    const uid = (uidParam || (auth.user?.id ?? '')).trim()
-    const res: any = await historyAPI.getVideoHistory(auth.token, uid)
-    rows.value = (res?.data?.data as VideoHistory[]) || []
+    if (configStore.needsLogin()) {
+      // 需要登录模式：从服务器获取
+      if (!auth.token) {
+        error.value = '未登录或登录已过期'
+        return
+      }
+      const uidParam = (route.params.userId as string) || ''
+      const uid = (uidParam || (auth.user?.id ?? '')).trim()
+      const res: any = await historyAPI.getVideoHistory(auth.token, uid)
+      rows.value = (res?.data?.data as VideoHistory[]) || []
+    } else {
+      // 无需登录模式：从本地缓存获取
+      const localHistories = localHistoryManager.getVideoHistories()
+      rows.value = localHistories.map(h => ({
+        id: h.id,
+        user_id: 'local',
+        video_id: h.video_id,
+        video_title: h.video_title,
+        video_url: h.video_url,
+        source_id: h.source_id,
+        source_name: h.source_name,
+        progress: h.progress,
+        created_at: h.created_at,
+        updated_at: h.updated_at
+      }))
+    }
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {

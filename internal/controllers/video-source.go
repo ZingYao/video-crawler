@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"io"
 	"strings"
 	"video-crawler/internal/consts"
@@ -203,4 +204,63 @@ func (c *VideoSourceController) SetStatus(ctx *gin.Context) {
 		return
 	}
 	utils.SuccessResponse(ctx, gin.H{"id": req.Id, "status": req.Status})
+}
+
+// Export 导出视频源配置
+func (c *VideoSourceController) Export(ctx *gin.Context) {
+	// 站点管理：管理员或站点管理员可操作
+	isAdmin := ctx.GetBool("is_admin")
+	isSiteAdmin := ctx.GetBool("is_site_admin")
+	if !(isAdmin || isSiteAdmin) {
+		utils.SendResponse(ctx, consts.ResponseCodeNoPermission, "no permission", nil)
+		return
+	}
+
+	videoSourceList, err := c.videoSourceService.List()
+	if err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeGetVideoSourceListFailed, err.Error(), nil)
+		return
+	}
+
+	// 设置响应头，让浏览器下载文件
+	ctx.Header("Content-Type", "application/json")
+	ctx.Header("Content-Disposition", "attachment; filename=video-sources.json")
+	ctx.Status(200)
+
+	// 直接写入JSON数据
+	encoder := json.NewEncoder(ctx.Writer)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(videoSourceList); err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeSaveVideoSourceFailed, "导出失败: "+err.Error(), nil)
+		return
+	}
+}
+
+// Import 导入视频源配置
+func (c *VideoSourceController) Import(ctx *gin.Context) {
+	// 站点管理：管理员或站点管理员可操作
+	isAdmin := ctx.GetBool("is_admin")
+	isSiteAdmin := ctx.GetBool("is_site_admin")
+	if !(isAdmin || isSiteAdmin) {
+		utils.SendResponse(ctx, consts.ResponseCodeNoPermission, "no permission", nil)
+		return
+	}
+
+	var importData []entities.VideoSourceEntity
+	if err := ctx.ShouldBindJSON(&importData); err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeParamError, "参数错误: "+err.Error(), nil)
+		return
+	}
+
+	// 调用服务层进行导入
+	importedCount, err := c.videoSourceService.Import(importData)
+	if err != nil {
+		utils.SendResponse(ctx, consts.ResponseCodeSaveVideoSourceFailed, err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(ctx, gin.H{
+		"imported_count": importedCount,
+		"message":        "导入完成",
+	})
 }

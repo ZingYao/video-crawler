@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
+	"video-crawler/internal/config"
 	"video-crawler/internal/entities"
 	"video-crawler/internal/logger"
 	"video-crawler/internal/utils"
@@ -36,7 +38,16 @@ func NewUserService(jwtManager *utils.JWTManager) UserServiceInterface {
 		jwtManager:     jwtManager,
 		isWriting:      false,
 	}
-	const userConfigFilePath = "./configs/users.json"
+
+	// 使用数据目录
+	dataDir := config.GetDataDir()
+	userConfigFilePath := filepath.Join(dataDir, "users.json")
+
+	// 确保目录存在
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		panic(err)
+	}
+
 	// 判断文件是否存在，不存在自动创建初始化内容为 "[]"
 	_, err := os.Stat(userConfigFilePath)
 	if os.IsNotExist(err) {
@@ -135,7 +146,8 @@ func (s *userService) UserList() (userList []entities.UserList) {
 
 func (s *userService) reloadUsers() {
 	// 重新打开文件以确保文件指针在正确位置
-	const userConfigFilePath = "./configs/users.json"
+	dataDir := config.GetDataDir()
+	userConfigFilePath := filepath.Join(dataDir, "users.json")
 	file, err := os.Open(userConfigFilePath)
 	if err != nil {
 		logrus.WithError(err).Error("failed to open user config file for reload")
@@ -210,7 +222,8 @@ func (s *userService) saveMapChange(ctx *gin.Context) {
 	}()
 
 	// 重新打开文件进行写入，避免文件指针问题
-	const userConfigFilePath = "./configs/users.json"
+	dataDir := config.GetDataDir()
+	userConfigFilePath := filepath.Join(dataDir, "users.json")
 	file, err := os.OpenFile(userConfigFilePath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 	if err != nil {
 		logger.CtxLogger(ctx).WithError(err).Error("failed to open user config file for writing")
