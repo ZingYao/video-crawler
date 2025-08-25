@@ -1,6 +1,6 @@
 # Video Crawler
 
-[Chinese README](README.md) | English
+[Chinese README](README.md) | English | [Release Notes](release_en.md)
 
 A Go + Vue3 based visual video crawler / script runtime platform. It now supports both Lua (gopher-lua) and JavaScript (goja) engines, with real‑time debugging, chainable HTML parsing, Monaco editor with local assets, and chunked/SSE streaming outputs. The watch page uses Plyr + hls.js for HLS playback.
 
@@ -204,3 +204,21 @@ To improve mobile and touch scenarios, we tuned the video playback interactions 
 - Mobile control simplification: hide volume slider on mobile; keep mute and speed settings for a cleaner UI.
 
 All optimizations apply to both Plyr and native video to deliver a consistent mobile experience across engines.
+
+## Build & Cross Compilation (Updated)
+
+- Common targets:
+  - `make build`: local build (CGO=0)
+  - `make build-linux|build-darwin|build-windows`: per‑OS builds (CGO=0)
+  - `make build-android`: Android amd64/arm64 (CGO=1 with NDK clang)
+  - `make build-all`: all platforms (Android handled separately as below)
+
+- Android notes:
+  - Uses `scripts/build_android.sh`, auto-detects `ANDROID_NDK_HOME/ANDROID_NDK_ROOT`
+  - If not set, downloads and extracts `android-ndk-r29-beta3-darwin.zip` into project `.ndk/`
+  - Auto-picks NDK prebuilt host dir (`darwin-arm64` or `darwin-x86_64`) and sets `CC`
+  - Outputs: `bin/video-crawler-android-{amd64,arm64}`
+
+- Caveats:
+  - To avoid shell line-continuation issues, Android build logic is moved into a script. `build-all` skips `android/*` in the loop and invokes the script afterward to generate Android artifacts
+  - `.gitignore` ignores `.ndk/` and the downloaded NDK zip

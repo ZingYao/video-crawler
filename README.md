@@ -1,6 +1,6 @@
 # 视频爬虫 (Video Crawler)
 
-[English README](README_EN.md) | 中文说明
+[English README](README_EN.md) | 中文说明 | [发布说明](release.md)
 
 一个基于 Go + Vue3 的可视化视频爬虫/脚本运行平台，支持 Lua 与 JavaScript 两种脚本引擎、实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力，并内置基于 Plyr + hls.js 的 HLS 播放器与观影页。
 
@@ -199,3 +199,21 @@ MIT License
 - 移动端控件精简：移动端隐藏音量滑块，保留静音键与倍速设置，使界面更干净。
 
 上述优化同时作用于 Plyr 与原生 HTML5 video，避免不同内核在移动端上的体验割裂。
+
+## 构建与跨平台编译（已更新）
+
+- 常用命令：
+  - `make build`：本机构建（CGO=0）
+  - `make build-linux|build-darwin|build-windows`：分别构建对应系统（CGO=0）
+  - `make build-android`：构建 Android amd64/arm64（CGO=1，使用 NDK clang）
+  - `make build-all`：构建所有平台（Android 由脚本单独处理，详见下文）
+
+- Android 构建说明：
+  - 使用脚本 `scripts/build_android.sh`，自动检测 `ANDROID_NDK_HOME/ANDROID_NDK_ROOT`
+  - 若未配置，将自动在项目根目录 `.ndk/` 下载并解压 `android-ndk-r29-beta3-darwin.zip`
+  - 自动选择 NDK 预编译目录（`darwin-arm64` 或 `darwin-x86_64`）并设置 `CC`
+  - 产物输出到 `bin/video-crawler-android-{amd64,arm64}`
+
+- 注意事项：
+  - 为避免 Shell 续行解析问题，Android 构建被提取到独立脚本中；`build-all` 中会跳过 `android/*`，并在循环结束后调用脚本统一生成 Android 产物
+  - `.gitignore` 已忽略 `.ndk/` 与其中的 NDK 压缩包，避免提交到仓库

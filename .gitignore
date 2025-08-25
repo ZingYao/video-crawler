@@ -97,3 +97,7 @@ debug.html
 script/
 
 video_crack_server_linux
+# Ignore local NDK cache
+.ndk/
+.ndk/*.zip
+
