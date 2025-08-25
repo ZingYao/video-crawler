@@ -21,8 +21,14 @@ type ServerConfig struct {
 	JwtExpire int    `yaml:"jwt_expire"`
 }
 
+var conf *Config
+
 // Load 从 YAML 文件加载配置。默认从 configs/config.yaml 读取，也可通过环境变量 CONFIG_PATH 指定路径
-func Load() (*Config, error) {
+func Load(force bool) (*Config, error) {
+	if conf != nil && !force {
+		return conf, nil
+	}
+
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
 		configPath = "configs/config.yaml"
@@ -33,10 +39,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("读取配置文件失败: %w", err)
 	}
 
-	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	var conf Config
+	if err := yaml.Unmarshal(data, &conf); err != nil {
 		return nil, fmt.Errorf("解析 YAML 配置失败: %w", err)
 	}
 
-	return &cfg, nil
+	return &conf, nil
 }

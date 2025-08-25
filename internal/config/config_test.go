@@ -40,7 +40,7 @@ func TestLoad_FromYAML(t *testing.T) {
 		os.Setenv("CONFIG_PATH", path)
 		defer os.Unsetenv("CONFIG_PATH")
 
-		cfg, err := Load()
+		cfg, err := Load(false)
 		if err != nil {
 			t.Fatalf("Load() failed: %v", err)
 		}
@@ -57,7 +57,7 @@ func TestLoad_DefaultPathExists(t *testing.T) {
 	if _, err := os.Stat("configs/config.yaml"); err == nil {
 		// 确保不会被 CONFIG_PATH 覆盖
 		os.Unsetenv("CONFIG_PATH")
-		_, err := Load()
+		_, err := Load(false)
 		if err != nil {
 			t.Fatalf("Load() from default path failed: %v", err)
 		}

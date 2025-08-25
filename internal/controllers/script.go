@@ -114,14 +114,13 @@ func (c *LuaTestController) TestScriptSSE(ctx *gin.Context) {
 	}
 
 	// 设置SSE响应头
+	// 设置SSE响应头
+	ctx.Status(http.StatusOK) // 设置HTTP状态码为200
 	ctx.Header("Content-Type", "text/event-stream")
 	ctx.Header("Cache-Control", "no-cache")
 	ctx.Header("Connection", "keep-alive")
 	ctx.Header("Access-Control-Allow-Origin", "*")
 	ctx.Header("Access-Control-Allow-Headers", "Cache-Control")
-
-	// 设置响应状态码
-	ctx.Status(http.StatusOK)
 
 	// 从请求头提取 UA，写入上下文
 	ua := ctx.GetHeader("User-Agent")
@@ -466,6 +465,7 @@ func (c *LuaTestController) AdvancedTestLuaScriptSSE(ctx *gin.Context) {
 	}
 
 	// 设置SSE响应头
+	ctx.Status(http.StatusOK) // 设置HTTP状态码为200
 	ctx.Header("Content-Type", "text/event-stream")
 	ctx.Header("Cache-Control", "no-cache")
 	ctx.Header("Connection", "keep-alive")

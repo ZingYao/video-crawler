@@ -187,7 +187,7 @@ func (s *luaTestService) ExecuteAdvancedTest(ctx context.Context, script string,
 local result = search_video("%s")
 print("[TEST] 执行 search_video 方法")
 print("[TEST] 参数: %s")
-print("[TEST] 结果: " .. json.encode(result))
+print("[TEST] 结果: " .. json_encode(result))
 return {data = result, err = nil}
 `, script, keyword, keyword)
 		}
@@ -200,7 +200,7 @@ return {data = result, err = nil}
 local result = get_video_detail("%s")
 print("[TEST] 执行 get_video_detail 方法")
 print("[TEST] 参数: %s")
-print("[TEST] 结果: " .. json.encode(result))
+print("[TEST] 结果: " .. json_encode(result))
 return {data = result, err = nil}
 `, script, videoURL, videoURL)
 		}
@@ -213,7 +213,7 @@ return {data = result, err = nil}
 local result = get_play_video_detail("%s")
 print("[TEST] 执行 get_play_video_detail 方法")
 print("[TEST] 参数: %s")
-print("[TEST] 结果: " .. json.encode(result))
+print("[TEST] 结果: " .. json_encode(result))
 return {data = result, err = nil}
 `, script, videoURL, videoURL)
 		}
@@ -312,7 +312,7 @@ func (s *luaTestService) ExecuteAdvancedTestSSE(ctx context.Context, script stri
 local result = search_video("%s")
 print("[TEST] 执行 search_video 方法")
 print("[TEST] 参数: %s")
-print("[TEST] 结果: " .. json.encode(result))
+print("[TEST] 结果: " .. json_encode(result))
 return {data = result, err = nil}
 `, script, keyword, keyword)
 		}
@@ -325,7 +325,7 @@ return {data = result, err = nil}
 local result = get_video_detail("%s")
 print("[TEST] 执行 get_video_detail 方法")
 print("[TEST] 参数: %s")
-print("[TEST] 结果: " .. json.encode(result))
+print("[TEST] 结果: " .. json_encode(result))
 return {data = result, err = nil}
 `, script, videoURL, videoURL)
 		}
@@ -338,7 +338,7 @@ return {data = result, err = nil}
 local result = get_play_video_detail("%s")
 print("[TEST] 执行 get_play_video_detail 方法")
 print("[TEST] 参数: %s")
-print("[TEST] 结果: " .. json.encode(result))
+print("[TEST] 结果: " .. json_encode(result))
 return {data = result, err = nil}
 `, script, videoURL, videoURL)
 		}
