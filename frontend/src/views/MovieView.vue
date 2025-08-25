@@ -197,7 +197,9 @@ import { message } from 'ant-design-vue'
 import { SearchOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 import { videoSourceAPI, videoAPI } from '@/api'
+import { localHistoryManager } from '@/utils/localHistory'
 
 interface MovieResult {
   id: string
@@ -234,6 +236,7 @@ const searchHistoryOptions = computed(() => {
 const searchResults = ref<MovieResult[]>([])
 const router = useRouter()
 const auth = useAuthStore()
+const configStore = useConfigStore()
 
 // Tooltip 弹层样式：限制最大宽度、允许换行/长词换行
 const tooltipOverlayStyle = { maxWidth: '70vw', whiteSpace: 'normal', wordBreak: 'break-word' }
@@ -286,9 +289,16 @@ onBeforeUnmount(() => {
 
 // 加载搜索历史
 const loadSearchHistory = () => {
-  const history = localStorage.getItem('searchHistory')
-  if (history) {
-    searchHistory.value = JSON.parse(history)
+  if (configStore.needsLogin()) {
+    // 需要登录模式：使用简单的localStorage
+    const history = localStorage.getItem('searchHistory')
+    if (history) {
+      searchHistory.value = JSON.parse(history)
+    }
+  } else {
+    // 无需登录模式：使用本地历史记录管理器
+    const localHistories = localHistoryManager.getSearchHistories()
+    searchHistory.value = localHistories.map(h => h.keyword)
   }
 }
 
@@ -296,15 +306,30 @@ const loadSearchHistory = () => {
 const saveSearchHistory = (keyword: string) => {
   if (!keyword.trim()) return
   
-  const history = searchHistory.value.filter(item => item !== keyword)
-  history.unshift(keyword)
-  
-  if (history.length > 10) {
-    history.splice(10)
+  if (configStore.needsLogin()) {
+    // 需要登录模式：使用简单的localStorage
+    const history = searchHistory.value.filter(item => item !== keyword)
+    history.unshift(keyword)
+    
+    if (history.length > 10) {
+      history.splice(10)
+    }
+    
+    searchHistory.value = history
+    localStorage.setItem('searchHistory', JSON.stringify(history))
+  } else {
+    // 无需登录模式：使用本地历史记录管理器
+    // 为每个搜索的站点记录搜索历史
+    const sources = searchResults.value.map(r => r.source_id)
+    const uniqueSources = [...new Set(sources)]
+    
+    for (const sourceId of uniqueSources) {
+      localHistoryManager.addSearchHistory(keyword, sourceId)
+    }
+    
+    // 更新搜索历史显示
+    loadSearchHistory()
   }
-  
-  searchHistory.value = history
-  localStorage.setItem('searchHistory', JSON.stringify(history))
 }
 
 // 处理搜索

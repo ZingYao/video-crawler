@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"video-crawler/internal/config"
 	"video-crawler/internal/entities"
 	"video-crawler/internal/logger"
 
@@ -42,10 +43,11 @@ var historyServiceInstance *historyService
 
 func GetHistoryService() HistoryService {
 	if historyServiceInstance == nil {
+		dataDir := config.GetDataDir()
 		historyServiceInstance = &historyService{
-			searchHistoryDir: "./configs/search_history",
-			videoHistoryDir:  "./configs/video_history",
-			loginHistoryDir:  "./configs/login_history",
+			searchHistoryDir: filepath.Join(dataDir, "search_history"),
+			videoHistoryDir:  filepath.Join(dataDir, "video_history"),
+			loginHistoryDir:  filepath.Join(dataDir, "login_history"),
 		}
 		historyServiceInstance.initDirectories()
 	}

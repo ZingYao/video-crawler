@@ -84,6 +84,9 @@ func (a *App) registerRoutes() {
 	// a.engine.GET("/health", a.httpHandler.HandleHealth)
 	jwtManager := utils.NewJWTManager(a.config.Server.JwtSecret, time.Duration(a.config.Server.JwtExpire)*time.Hour)
 
+	// 添加CORS中间件
+	a.engine.Use(middleware.CORSMiddleware())
+
 	// 静态文件处理 - 只处理静态资源
 	a.engine.StaticFS("/", static.GetStaticFS())
 

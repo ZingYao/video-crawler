@@ -1,0 +1,19 @@
+{
+  "name": "video-crawler",
+  "outputfilename": "video-crawler",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "ZingYao",
+    "email": "zingyao@example.com"
+  },
+  "info": {
+    "companyName": "Video Crawler",
+    "productName": "Video Crawler Desktop",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright........",
+    "comments": "Built using Wails (https://wails.io)"
+  }
+}

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import HomeView from '../views/HomeView.vue'
+const ApiDocView = () => import('../views/ApiDocView.vue')
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import UserManagementView from '../views/UserManagementView.vue'
@@ -78,6 +79,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: '观影' }
     },
     {
+      path: '/api-docs',
+      name: 'api-docs',
+      component: ApiDocView,
+      meta: { requiresAuth: false, title: 'API接口文档' }
+    },
+    {
       path: '/watch/:sourceId',
       name: 'watch',
       component: WatchView,
@@ -111,9 +118,15 @@ router.beforeEach(async (to, from, next) => {
   // 初始化认证状态
   authStore.initAuth()
   
-  // 如果系统配置为不需要登录，登录注册相关页面展示404
+  // 如果系统配置为不需要登录
   if (!configStore.needsLogin()) {
-    if (to.path === '/login' || to.path === '/register' || to.path === '/user-management' || to.path === '/profile' || to.path.startsWith('/user/edit')) {
+    // 登录注册相关页面展示404
+    if (to.path === '/login' || to.path === '/register') {
+      next('/404')
+      return
+    }
+    // 用户管理相关页面展示404（因为不需要登录验证）
+    if (to.path === '/user-management' || to.path === '/profile' || to.path.startsWith('/user/edit')) {
       next('/404')
       return
     }

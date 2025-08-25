@@ -48,6 +48,8 @@ func (h *Handler) HandleApi(c *gin.Context) {
 				"POST /api/video-source/save - 保存站点",
 				"POST /api/video-source/delete - 删除站点",
 				"POST /api/video-source/set-status - 设置站点状态",
+				"GET /api/video-source/export - 导出站点配置",
+				"POST /api/video-source/import - 导入站点配置",
 				"GET /api/video/home/list - 视频首页推荐",
 				"GET /api/video/search - 视频搜索",
 				"GET /api/video/detail - 视频详情",
@@ -92,6 +94,12 @@ func (h *Handler) HandleApi(c *gin.Context) {
 	case "/api/video-source/set-status":
 		// 设置站点状态
 		videoSourceController.SetStatus(c)
+	case "/api/video-source/export":
+		// 导出站点配置
+		videoSourceController.Export(c)
+	case "/api/video-source/import":
+		// 导入站点配置
+		videoSourceController.Import(c)
 	case "/api/video/search":
 		// 视频搜索
 		videoController.Search(c)

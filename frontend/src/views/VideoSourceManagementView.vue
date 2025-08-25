@@ -30,6 +30,24 @@
               </template>
               批量检查
             </a-button>
+            <a-button @click="exportVideoSources">
+              <template #icon>
+                <DownloadOutlined />
+              </template>
+              导出配置
+            </a-button>
+            <a-upload
+              :show-upload-list="false"
+              :before-upload="importVideoSources"
+              accept=".json"
+            >
+              <a-button>
+                <template #icon>
+                  <UploadOutlined />
+                </template>
+                导入配置
+              </a-button>
+            </a-upload>
           </div>
         </div>
 
@@ -125,13 +143,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { videoSourceAPI } from '@/api'
+import { videoSourceAPI } from '@/utils/api'
 import { message, notification } from 'ant-design-vue'
 import {
   PlusOutlined,
   ReloadOutlined,
   EditOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  DownloadOutlined,
+  UploadOutlined
 } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
 
@@ -227,9 +247,8 @@ const getStatusText = (status: number) => {
 }
 
 async function updateStatus(id: string, status: number) {
-  if (!token.value) { message.error('未登录'); return }
   try {
-    const resp = await videoSourceAPI.setStatus(token.value, id, status)
+    const resp = await videoSourceAPI.setStatus(id, status)
     if (resp && resp.code === 0) {
       message.success('状态已更新')
       await refreshVideoSourceList()
@@ -252,13 +271,11 @@ const getSourceTypeText = (sourceType: number) => {
 }
 
 const fetchVideoSourceList = async () => {
-  if (!token.value) return
-
   loading.value = true
   error.value = ''
 
   try {
-    const response = await videoSourceAPI.getVideoSourceList(token.value)
+    const response = await videoSourceAPI.getList()
     if (response.code === 0) {
       // 按 sort 字段降序排序
       const data = response.data || []
@@ -286,10 +303,8 @@ const editVideoSource = (id: string) => {
 }
 
 const deleteVideoSource = async (id: string) => {
-  if (!token.value) return
-
   try {
-    const response = await videoSourceAPI.deleteVideoSource(token.value, id)
+    const response = await videoSourceAPI.delete(id)
     if (response.code === 0) {
       message.success('删除成功')
       fetchVideoSourceList()
@@ -301,9 +316,58 @@ const deleteVideoSource = async (id: string) => {
   }
 }
 
+// 导出视频源配置
+const exportVideoSources = async () => {
+  try {
+    const response = await videoSourceAPI.exportVideoSources()
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'video-sources.json'
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+    message.success('配置导出成功')
+  } catch (err: any) {
+    message.error(err.message || '导出失败')
+  }
+}
+
+// 导入视频源配置
+const importVideoSources = async (file: File) => {
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+    
+    if (!Array.isArray(data)) {
+      message.error('文件格式错误，请选择正确的JSON配置文件')
+      return false
+    }
+    
+    const response = await videoSourceAPI.importVideoSources(data)
+    if (response.code === 0) {
+      const importedCount = response.data.imported_count
+      if (importedCount > 0) {
+        message.success(`导入成功，新增 ${importedCount} 个站点`)
+        // 刷新列表
+        await fetchVideoSourceList()
+      } else {
+        message.info('没有新增站点，所有站点已存在')
+      }
+    } else {
+      message.error(response.message || '导入失败')
+    }
+  } catch (err: any) {
+    message.error(err.message || '导入失败')
+  }
+  
+  return false // 阻止默认上传行为
+}
+
 // 批量检查资源状态（逐个检查）
 const checkAllStatus = async () => {
-  if (!token.value) return
   checking.value = true
   try {
     for (const item of videoSourceList.value) {
@@ -325,7 +389,7 @@ const checkAllStatus = async () => {
 const checkStatus = async (item: VideoSource) => {
   try {
     checkingIds.value.add(item.id)
-    const res: any = await videoSourceAPI.checkStatus(token.value as string, item.id)
+    const res: any = await videoSourceAPI.checkStatus(item.id)
     if (res.code !== 0) {
       notification.error({
         message: `检查失败 - ${item.name}`,

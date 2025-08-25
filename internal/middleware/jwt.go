@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"log"
 	"slices"
 
 	"video-crawler/internal/config"
@@ -17,6 +18,7 @@ import (
 var routerWhiteList = []string{
 	"/api/user/login",
 	"/api/user/register",
+	"/api/config",
 }
 
 // JWTAuthMiddleware JWT 认证中间件
@@ -24,6 +26,9 @@ func JWTAuthMiddleware(cfg *config.Config, jwtManager *utils.JWTManager, userSer
 	return func(c *gin.Context) {
 		// 如果配置为不需要登录，直接跳过鉴权
 		if !cfg.Auth.RequireLogin {
+			// 如果不需要登录，则设置为管理员，所有功能都开放使用
+			c.Set("is_admin", true)
+			log.Printf("跳过JWT验证: RequireLogin = false, 路径 = %s", c.Request.URL.Path)
 			c.Next()
 			return
 		}

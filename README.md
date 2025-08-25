@@ -57,7 +57,9 @@ video-crawler/
 └── README.md / README_EN.md
 ```
 
-## 快速开始
+## 快速开始 | [Makefile 使用说明](MAKEFILE_README.md)
+
+> Wails 桌面模式请参阅：[README_WAILS.md](README_WAILS.md)。
 
 1) 初始化配置
 ```bash

@@ -243,7 +243,9 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineAsyncComponent, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { videoSourceAPI } from '@/api'
+import { useConfigStore } from '@/stores/config'
+import { videoSourceAPI } from '@/utils/api'
+import { getApiBaseUrl } from '@/utils/api'
 import { message, Modal } from 'ant-design-vue'
 import { ArrowLeftOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
 import AppLayout from '@/components/AppLayout.vue'
@@ -269,6 +271,7 @@ let monaco: any = null
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const configStore = useConfigStore()
 const formRef = ref()
 const saveLoading = ref(false)
 const debugLoading = ref(false)
@@ -614,10 +617,6 @@ watch(selectedMethod, (newMethod) => {
 
 // 执行高级调试
 const runAdvancedDebug = async () => {
-  if (!authStore.token) {
-    message.error('未登录，无法调试脚本')
-    return
-  }
 
   // 验证参数
   if (!debugParams.value.trim()) {
@@ -659,11 +658,11 @@ const runAdvancedDebug = async () => {
     }
 
     // 创建EventSource连接 - 使用POST请求
-    const response = await fetch(`${window.location.origin}${endpoint}`, {
+    const baseUrl = await getApiBaseUrl()
+    const response = await fetch(`${baseUrl}${endpoint}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         script: scriptContent.value,
@@ -985,9 +984,8 @@ const coloredLines = computed(() => {
 watch(outputText, async () => { await nextTick(); const el = logsRef.value; if (el) el.scrollTop = el.scrollHeight })
 
 const fetchVideoSourceDetail = async (id: string) => {
-  if (!authStore.token) return
   try {
-    const response = await videoSourceAPI.getVideoSourceDetail(authStore.token, id)
+    const response = await videoSourceAPI.getVideoSourceDetail(id)
     if ((response as any).code === 0) {
       const data = (response as any).data || {}
       formData.value.id = data.id || ''
@@ -1032,7 +1030,6 @@ const fetchVideoSourceDetail = async (id: string) => {
 }
 
 const handleSave = async () => {
-  if (!authStore.token) return
   try { await formRef.value?.validate() } catch { return }
   saveLoading.value = true
   try {
@@ -1057,7 +1054,7 @@ const handleSave = async () => {
       message.error('缺少必要方法：' + missing.join('、'))
       return
     }
-    const response = await videoSourceAPI.saveVideoSource(authStore.token, payload)
+    const response = await videoSourceAPI.saveVideoSource(payload)
     if ((response as any).code === 0) { 
       message.success(isEdit.value ? '保存成功' : '创建成功')
       // 设置保存成功标志
@@ -1085,15 +1082,15 @@ const handleSave = async () => {
 }
 
 const runScript = async () => {
-  if (!authStore.token) { message.error('未登录，无法调试脚本'); return }
   outputText.value = ''
   debugLoading.value = true
   await nextTick(); logsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   try {
     const isJS = formData.value.engine_type === 1
     const endpoint = isJS ? '/api/js/test' : '/api/lua/test'
-    const resp = await fetch(`${window.location.origin}${endpoint}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authStore.token}` }, body: JSON.stringify({ script: scriptContent.value }),
+    const baseUrl = await getApiBaseUrl()
+    const resp = await fetch(`${baseUrl}${endpoint}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ script: scriptContent.value }),
     })
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
     if (!resp.body) throw new Error('浏览器不支持流式响应')
