@@ -666,31 +666,54 @@ const runAdvancedDebug = async () => {
           buffer = lines.pop() || ''
 
           for (const line of lines) {
+            console.log('SSE 原始行:', line) // 输出每一行原始数据
+            
             if (line.startsWith('event: ')) {
               const eventType = line.substring(7)
+              console.log('SSE 事件类型:', eventType) // 输出事件类型
+              
               const dataLine = lines[lines.indexOf(line) + 1]
+              console.log('SSE 数据行:', dataLine) // 输出数据行
+              
               if (dataLine && dataLine.startsWith('data: ')) {
-                const data = JSON.parse(dataLine.substring(6))
-                
-                switch (eventType) {
-                  case 'log':
-                    advancedDebugOutput.value += data.message + '\n'
-                    break
-                  case 'result':
-                    debugResults.value = {
-                      original: JSON.stringify(data.original, null, 2),
-                      converted: JSON.stringify(data.converted, null, 2),
-                      diffHtml: generateDiffHtml(data.original, data.converted)
-                    }
-                    break
-                  case 'error':
-                    message.error(`调试失败: ${data.message}`)
-                    advancedDebugLoading.value = false
-                    return
-                  case 'complete':
-                    message.success('调试执行完成')
-                    advancedDebugLoading.value = false
-                    return
+                try {
+                  const rawData = dataLine.substring(6)
+                  console.log('SSE 原始数据:', rawData) // 输出原始数据
+                  
+                  const data = JSON.parse(rawData)
+                  console.log('SSE 解析后数据:', data) // 输出解析后的数据
+                  
+                  switch (eventType) {
+                    case 'log':
+                      console.log('SSE 处理 log 事件:', data.message)
+                      advancedDebugOutput.value += data.message + '\n'
+                      break
+                    case 'result':
+                      console.log('SSE 处理 result 事件:', data)
+                      debugResults.value = {
+                        original: JSON.stringify(data.original, null, 2),
+                        converted: JSON.stringify(data.converted, null, 2),
+                        diffHtml: generateDiffHtml(data.original, data.converted)
+                      }
+                      break
+                    case 'error':
+                      console.log('SSE 处理 error 事件:', data.message)
+                      message.error(`调试失败: ${data.message}`)
+                      advancedDebugLoading.value = false
+                      return
+                    case 'complete':
+                      console.log('SSE 处理 complete 事件')
+                      message.success('调试执行完成')
+                      advancedDebugLoading.value = false
+                      return
+                    case 'connected':
+                      console.log('SSE 处理 connected 事件:', data.message)
+                      break
+                    default:
+                      console.log('SSE 未知事件类型:', eventType, data)
+                  }
+                } catch (parseError) {
+                  console.error('SSE JSON 解析失败:', parseError, '原始数据:', dataLine.substring(6))
                 }
               }
             }
@@ -708,6 +731,8 @@ const runAdvancedDebug = async () => {
     processChunk()
 
     console.log('高级调试连接已建立')
+    console.log('SSE 请求 URL:', `${window.location.origin}${endpoint}`)
+    console.log('SSE 请求参数:', { script: scriptContent.value, method: selectedMethod.value, params: debugParams.value })
 
   } catch (error: any) {
     message.error(`调试失败: ${error.message}`)
