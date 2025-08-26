@@ -323,23 +323,21 @@ help:
 	@echo "  Windows: amd64, 386, arm64"
 	@echo "  Android: amd64, arm64, 386, arm"
 
-# Build one macOS arch, prefix artifacts, rename .app with suffix, and package DMG
+# Build one macOS arch, rename .app with suffix if needed, and package DMG
 .PHONY: wails-build-macos-one
 wails-build-macos-one:
 	@echo "Building Wails macOS: $(P)"
 	@wails build -platform $(P)
 	@set -e; \
-	shopt -s nullglob; \
-	LATEST_APP=$$(ls -1t build/bin/*.app 2>/dev/null | head -n 1); \
-	if [ -z "$$LATEST_APP" ]; then echo "未找到 .app 产物"; exit 1; fi; \
-	DIR=$$(dirname "$$LATEST_APP"); \
-	BASE=$$(basename "$$LATEST_APP" .app); \
+	APP_DIR=$$(ls -1td build/bin/*.app 2>/dev/null | head -n 1); \
+	if [ -z "$$APP_DIR" ]; then echo "未找到 .app 产物"; exit 1; fi; \
+	DIR=$$(dirname "$$APP_DIR"); \
+	BASE=$$(basename "$$APP_DIR" .app); \
 	case "$$BASE" in \
-		*$(SUFFIX)) TARGET_APP="$$DIR/$$BASE.app" ;; \
-		*) TARGET_APP="$$DIR/$$BASE-$(SUFFIX).app"; mv "$$LATEST_APP" "$$TARGET_APP" ;; \
+		*$(SUFFIX)) TARGET_APP="$$APP_DIR" ;; \
+		*) TARGET_APP="$$DIR/$$BASE-$(SUFFIX).app"; mv "$$APP_DIR" "$$TARGET_APP" ;; \
 	esac; \
 	APP_NAME=$$(basename "$$TARGET_APP" .app); \
 	DMG_PATH="$$DIR/$$APP_NAME.dmg"; \
 	echo "→ Packaging DMG: $$(basename "$$DMG_PATH")"; \
-	hdiutil create -volname "$$APP_NAME" -srcfolder "$$TARGET_APP" -ov -format UDZO "$$DMG_PATH" >/dev/null && echo "   DMG created: $$DMG_PATH"; \
-	shopt -u nullglob
+	hdiutil create -volname "$$APP_NAME" -srcfolder "$$TARGET_APP" -ov -format UDZO "$$DMG_PATH" >/dev/null && echo "   DMG created: $$DMG_PATH"
