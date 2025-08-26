@@ -198,12 +198,28 @@ release: build-all
 build-http-all: build-frontend
 	@echo "Building HTTP service for Linux/macOS/Windows/Android (all archs)..."
 	@mkdir -p $(BUILD_DIR)
-	@for platform in linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/386 windows/arm64 android/amd64 android/arm64 android/386 android/arm; do \
+	@API=21; \
+	for platform in linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/386 windows/arm64 android/amd64 android/arm64 android/386 android/arm; do \
 		IFS='/' read -r GOOS GOARCH <<< "$$platform"; \
 		BINARY_NAME_FULL="$(BINARY_NAME)-$$GOOS-$$GOARCH"; \
 		if [ "$$GOOS" = "windows" ]; then BINARY_NAME_FULL="$$BINARY_NAME_FULL.exe"; fi; \
-		echo "Building for $$GOOS/$$GOARCH (CGO_ENABLED=0)..."; \
-		CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$$BINARY_NAME_FULL $(MAIN_PATH) || exit 1; \
+		CGO=0; EXTRA_ENV=""; CC_BIN=""; \
+		if [ "$$GOOS" = "android" ]; then \
+			CGO=1; \
+			case "$$GOARCH" in \
+				amd64) TRIPLE=x86_64-linux-android ;; \
+				386)   TRIPLE=i686-linux-android ;; \
+				arm64) TRIPLE=aarch64-linux-android ;; \
+				arm)   TRIPLE=armv7a-linux-androideabi ; EXTRA_ENV="export GOARM=7" ;; \
+				*)     TRIPLE="" ;; \
+			esac; \
+			if [ -n "$$TRIPLE" ] && [ -n "$$ANDROID_NDK_HOME" ]; then \
+				PREBUILT_DIR=$$(ls -d "$$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/* 2>/dev/null | head -n 1); \
+				if [ -n "$$PREBUILT_DIR" ]; then CC_BIN="$$PREBUILT_DIR/bin/$$TRIPLE$$API-clang"; fi; \
+			fi; \
+		fi; \
+		echo "Building for $$GOOS/$$GOARCH (CGO_ENABLED=$$CGO)"; \
+		sh -c "$$EXTRA_ENV; CGO_ENABLED=$$CGO GOOS=$$GOOS GOARCH=$$GOARCH CC=$$CC_BIN $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$$BINARY_NAME_FULL $(MAIN_PATH)" || exit 1; \
 	done; \
 	echo "HTTP multi-arch builds completed in $(BUILD_DIR)/"
 
