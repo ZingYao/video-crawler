@@ -116,3 +116,6 @@ android/app/build/intermediates/cxx/
 android/app/src/main/jniLibs/**
 # Frontend lockfile can be regenerated
 frontend/package-lock.json
+
+# Ignore Android release APKs
+android/app/release/
