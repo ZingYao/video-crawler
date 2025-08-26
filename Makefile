@@ -249,9 +249,13 @@ build-wails-linux:
 build-wails-macos:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
 	@$(MAKE) wails-build-macos-one P="darwin" SUFFIX="darwin"
+	mv build/bin/video-crawler.app build/bin/wails-video-crawler-darwin.app
 	@$(MAKE) wails-build-macos-one P="darwin/universal" SUFFIX="darwin-universal"
+	mv build/bin/video-crawler.app build/bin/wails-video-crawler-darwin-universal.app
 	@$(MAKE) wails-build-macos-one P="darwin/arm64" SUFFIX="darwin-arm64"
+	mv build/bin/video-crawler.app build/bin/wails-video-crawler-darwin-arm64.app
 	@$(MAKE) wails-build-macos-one P="darwin/amd64" SUFFIX="darwin-amd64"
+	mv build/bin/video-crawler.app build/bin/wails-video-crawler-darwin-amd64.app
 
 # Prefix all Wails build artifacts in build/bin with 'wails-'
 .PHONY: prefix-wails-artifacts
@@ -272,13 +276,13 @@ prefix-wails-artifacts:
 	done; \
 	shopt -u nullglob
 
-# Package all macOS .app bundles to DMG (universal/arm64/amd64)
+# Package all macOS .app bundles to DMG (universal/arm64/amd64 and any preserved variants)
 .PHONY: package-macos-dmg-all
 package-macos-dmg-all:
-	@echo "Packaging all macOS .app bundles into DMGs..."
+	@echo "Packaging macOS .app bundles into individual DMGs..."
 	@set -e; \
 	shopt -s nullglob; \
-	for APP_PATH in build/bin/*.app; do \
+	for APP_PATH in build/bin/wails-*.app; do \
 		APP_NAME=$$(basename "$$APP_PATH" .app); \
 		DMG_PATH="build/bin/$$APP_NAME.dmg"; \
 		echo "→ Creating DMG for $$APP_NAME"; \
