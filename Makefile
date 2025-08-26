@@ -229,28 +229,28 @@ build-http-all: build-frontend
 build-wails:
 	@echo "Building Wails app for Windows, Linux, macOS..."
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装，请先安装: go install github.com/wailsapp/wails/v2/cmd/wails@latest"; exit 1; }
-	@wails build -platform windows/amd64,windows/arm64,linux/amd64,linux/arm64,darwin/universal,darwin/arm64,darwin/amd64
+	@wails build -platform darwin,darwin/amd64,darwin/arm64,darwin/universal,linux,linux/amd64,linux/arm64,linux/arm,windows,windows/amd64,windows/arm64,windows/386
 	@$(MAKE) prefix-wails-artifacts
 	@$(MAKE) package-macos-dmg-all
 
 .PHONY: build-wails-windows
 build-wails-windows:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
-	@wails build -platform windows/amd64,windows/arm64
+	@wails build -platform windows,windows/amd64,windows/arm64,windows/386
 	@$(MAKE) prefix-wails-artifacts
 
 .PHONY: build-wails-linux
 build-wails-linux:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
-	@wails build -platform linux/amd64,linux/arm64
+	@wails build -platform linux,linux/amd64,linux/arm64,linux/arm
 	@$(MAKE) prefix-wails-artifacts
 
 .PHONY: build-wails-macos
 build-wails-macos:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
-	@$(MAKE) wails-build-macos-one P="darwin/universal" SUFFIX="darwin-universal"
-	@$(MAKE) wails-build-macos-one P="darwin/arm64" SUFFIX="darwin-arm64"
-	@$(MAKE) wails-build-macos-one P="darwin/amd64" SUFFIX="darwin-amd64"
+	@wails build -platform darwin,darwin/universal,darwin/arm64,darwin/amd64
+	@$(MAKE) prefix-wails-artifacts
+	@$(MAKE) package-macos-dmg-all
 
 # Prefix all Wails build artifacts in build/bin with 'wails-'
 .PHONY: prefix-wails-artifacts
