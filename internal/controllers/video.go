@@ -9,7 +9,7 @@ import (
 	"video-crawler/internal/crawler"
 	"video-crawler/internal/entities"
 	"video-crawler/internal/jsengine"
-	"video-crawler/internal/lua"
+	lua "video-crawler/internal/luaengine"
 	"video-crawler/internal/services"
 	"video-crawler/internal/utils"
 

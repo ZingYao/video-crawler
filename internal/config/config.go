@@ -80,3 +80,7 @@ func GetDataDir() string {
 	// 非Wails模式，使用相对路径
 	return "configs"
 }
+
+func SetConfig(config *Config) {
+	conf = config
+}
