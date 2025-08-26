@@ -43,7 +43,6 @@ func StartServer(baseDir *C.char, port C.int) C.int {
 			},
 		}
 
-		// 端口为 0 或不可用时，分配一个空闲端口
 		p := int(port)
 		if p == 0 {
 			fp, err := getFreePort()
@@ -65,19 +64,6 @@ func StartServer(baseDir *C.char, port C.int) C.int {
 		retPort = C.int(cfg.Server.Port)
 	})
 	return retPort
-}
-
-//export Hello
-func Hello() *C.char {
-	s := "hello"
-	return C.CString(s)
-}
-
-//export HelloName
-func HelloName(name *C.char) *C.char {
-	goName := C.GoString(name)
-	s := "hello " + goName
-	return C.CString(s)
 }
 
 func main() {}

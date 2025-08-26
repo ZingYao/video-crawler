@@ -36,6 +36,7 @@
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap; /* 允许标题和按钮在小屏换行 */
 }
 
 .list-header h3 {
@@ -48,6 +49,7 @@
 .list-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap; /* 按钮自动换行，避免溢出 */
 }
 
 /* 青绿色主题按钮 */
@@ -141,7 +143,12 @@
   
   .list-actions {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: flex-start; /* 移动端左对齐 */
+  }
+  /* 按钮在小屏更紧凑 */
+  .list-actions :deep(.ant-btn) {
+    padding: 4px 10px;
+    font-size: 12px;
   }
 }
 
