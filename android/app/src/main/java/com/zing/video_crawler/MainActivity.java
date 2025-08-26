@@ -45,8 +45,7 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient());
 
         int statusBarHeight = getStatusBarHeight();
-        int titleBarHeight = dpToPx(56); // 与前端标题区近似高度
-        int topOverlayHeight = statusBarHeight + titleBarHeight;
+        int topOverlayHeight = statusBarHeight; // 仅占据系统状态栏高度，避免覆盖页面自有标题
         webView.setPadding(0, topOverlayHeight, 0, 0);
         webView.setClipToPadding(false);
 
@@ -84,8 +83,9 @@ public class MainActivity extends AppCompatActivity {
         return result;
     }
 
-    private int dpToPx(int dp) {
-        float density = getResources().getDisplayMetrics().density;
-        return Math.round(dp * density);
-    }
+    // 如需转 dp -> px 可使用该方法
+    // private int dpToPx(int dp) {
+    //     float density = getResources().getDisplayMetrics().density;
+    //     return Math.round(dp * density);
+    // }
 }
