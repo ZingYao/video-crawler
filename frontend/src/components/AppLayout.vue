@@ -103,7 +103,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
-import { isWailsEnvironment } from '@/utils/api'
+import { isAppEnvironment } from '@/utils/api'
 import { DownOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons-vue'
 
 // Props
@@ -191,6 +191,10 @@ const menuItems: MenuItem[] = [
 // 计算属性
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
+    // 接口文档仅在应用环境（Wails/Android WebView）展示
+    if (item.id === 'api-docs' && !isAppEnvironment()) {
+      return false
+    }
     // 如果不需要登录，显示所有菜单（除了用户管理）
     if (!configStore.needsLogin()) {
       // 在无需登录模式下，只隐藏用户管理菜单，其他都显示

@@ -5,6 +5,21 @@ export const isWailsEnvironment = () => {
   return !!(window.go && window.go.main && window.go.main.App && typeof window.go.main.App.GetConfig === 'function')
 }
 
+// 粗略判断是否运行在 Android WebView 中
+export const isAndroidWebView = () => {
+  const ua = navigator.userAgent || ''
+  // Android WebView 一般包含 "wv" 或者 "Version/" 标记
+  const isAndroid = /Android/i.test(ua)
+  const hasWv = /; wv\)/i.test(ua) || /\bwv\b/i.test(ua)
+  const hasVersionToken = /Version\/\d+\.\d+/i.test(ua)
+  return isAndroid && (hasWv || hasVersionToken)
+}
+
+// 是否在应用环境（Wails 或 Android WebView）
+export const isAppEnvironment = () => {
+  return isWailsEnvironment() || isAndroidWebView()
+}
+
 // 获取本地服务端口（Wails/Android WebView/浏览器通用）
 let cachedServerPort: number | null = null
 
