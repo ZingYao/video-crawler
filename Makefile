@@ -203,14 +203,14 @@ build-http-all: build-frontend
 		IFS='/' read -r GOOS GOARCH <<< "$$platform"; \
 		BINARY_NAME_FULL="$(BINARY_NAME)-$$GOOS-$$GOARCH"; \
 		if [ "$$GOOS" = "windows" ]; then BINARY_NAME_FULL="$$BINARY_NAME_FULL.exe"; fi; \
-		CGO=0; EXTRA_ENV=""; CC_BIN=""; \
+		CGO=0; GOARM_VAL=""; CC_BIN=""; \
 		if [ "$$GOOS" = "android" ]; then \
 			CGO=1; \
 			case "$$GOARCH" in \
 				amd64) TRIPLE=x86_64-linux-android ;; \
 				386)   TRIPLE=i686-linux-android ;; \
 				arm64) TRIPLE=aarch64-linux-android ;; \
-				arm)   TRIPLE=armv7a-linux-androideabi ; EXTRA_ENV="export GOARM=7" ;; \
+				arm)   TRIPLE=armv7a-linux-androideabi ; GOARM_VAL=7 ;; \
 				*)     TRIPLE="" ;; \
 			esac; \
 			if [ -n "$$TRIPLE" ] && [ -n "$$ANDROID_NDK_HOME" ]; then \
@@ -218,8 +218,9 @@ build-http-all: build-frontend
 				if [ -n "$$PREBUILT_DIR" ]; then CC_BIN="$$PREBUILT_DIR/bin/$$TRIPLE$$API-clang"; fi; \
 			fi; \
 		fi; \
+		LDVAL="-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X main.GitCommit=$(GIT_COMMIT) -s -w"; \
 		echo "Building for $$GOOS/$$GOARCH (CGO_ENABLED=$$CGO)"; \
-		sh -c "$$EXTRA_ENV; CGO_ENABLED=$$CGO GOOS=$$GOOS GOARCH=$$GOARCH CC=$$CC_BIN $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$$BINARY_NAME_FULL $(MAIN_PATH)" || exit 1; \
+		GOOS=$$GOOS GOARCH=$$GOARCH CGO_ENABLED=$$CGO GOARM=$$GOARM_VAL CC="$$CC_BIN" $(GOBUILD) -ldflags "$$LDVAL" -o $(BUILD_DIR)/$$BINARY_NAME_FULL $(MAIN_PATH) || exit 1; \
 	done; \
 	echo "HTTP multi-arch builds completed in $(BUILD_DIR)/"
 
