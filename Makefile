@@ -229,8 +229,8 @@ build-http-all: build-frontend
 build-wails:
 	@echo "Building Wails app for Windows, Linux, macOS..."
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装，请先安装: go install github.com/wailsapp/wails/v2/cmd/wails@latest"; exit 1; }
-	@wails build -platform windows/amd64,windows/arm64,linux/amd64,linux/arm64,darwin/universal
-	@$(MAKE) package-macos-dmg
+	@wails build -platform windows/amd64,windows/arm64,linux/amd64,linux/arm64,darwin/universal,darwin/arm64,darwin/amd64
+	@$(MAKE) package-macos-dmg-all
 
 .PHONY: build-wails-windows
 build-wails-windows:
@@ -245,17 +245,22 @@ build-wails-linux:
 .PHONY: build-wails-macos
 build-wails-macos:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
-	@wails build -platform darwin/universal
-	@$(MAKE) package-macos-dmg
+	@wails build -platform darwin/universal,darwin/arm64,darwin/amd64
+	@$(MAKE) package-macos-dmg-all
 
-.PHONY: package-macos-dmg
-package-macos-dmg:
-	@echo "Packaging macOS .app into DMG..."
-	@APP_PATH=$$(ls -1d build/bin/*.app 2>/dev/null | head -n 1); \
-	if [ -z "$$APP_PATH" ]; then echo "未找到 .app，请先执行 build-wails-macos 或 build-wails"; exit 0; fi; \
-	APP_NAME=$$(basename "$$APP_PATH" .app); \
-	DMG_PATH="build/bin/$$APP_NAME.dmg"; \
-	hdiutil create -volname "$$APP_NAME" -srcfolder "$$APP_PATH" -ov -format UDZO "$$DMG_PATH" && echo "DMG created: $$DMG_PATH"
+# Package all macOS .app bundles to DMG (universal/arm64/amd64)
+.PHONY: package-macos-dmg-all
+package-macos-dmg-all:
+	@echo "Packaging all macOS .app bundles into DMGs..."
+	@set -e; \
+	shopt -s nullglob; \
+	for APP_PATH in build/bin/*.app; do \
+		APP_NAME=$$(basename "$$APP_PATH" .app); \
+		DMG_PATH="build/bin/$$APP_NAME.dmg"; \
+		echo "→ Creating DMG for $$APP_NAME"; \
+		hdiutil create -volname "$$APP_NAME" -srcfolder "$$APP_PATH" -ov -format UDZO "$$DMG_PATH" >/dev/null && echo "   DMG created: $$DMG_PATH"; \
+	done; \
+	shopt -u nullglob
 
 # Android app via android/build_android.sh
 .PHONY: build-android-app
@@ -279,11 +284,10 @@ help:
 	@echo "  build-windows      - Build for Windows variants"
 	@echo "  build-android      - Build for Android variants (CGO off by default)"
 	@echo "  build-android-app  - Build Android APK via android/build_android.sh"
-	@echo "  build-wails        - Build Wails app for Windows/Linux/macOS and package macOS DMG"
+	@echo "  build-wails        - Build Wails app for Win/Linux/macOS (universal, arm64, amd64) and package DMGs"
 	@echo "  build-wails-windows- Build Wails app for Windows"
 	@echo "  build-wails-linux  - Build Wails app for Linux"
-	@echo "  build-wails-macos  - Build Wails app for macOS and package DMG"
-	@echo "  build-all-products - Build HTTP(all archs) + Android APK + Wails (Win/Linux/macOS + DMG)"
+	@echo "  build-wails-macos  - Build Wails app for macOS (universal, arm64, amd64) and package DMGs"
 	@echo ""
 	@echo "Development targets:"
 	@echo "  run                - Run the application"
@@ -303,6 +307,6 @@ help:
 	@echo ""
 	@echo "Supported platforms:"
 	@echo "  Linux:   amd64, arm64, 386, arm"
-	@echo "  macOS:   amd64, arm64"
+	@echo "  macOS:   universal, amd64, arm64"
 	@echo "  Windows: amd64, 386, arm64"
 	@echo "  Android: amd64, arm64, 386, arm"
