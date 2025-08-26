@@ -263,10 +263,17 @@ prefix-wails-artifacts:
 	shopt -s nullglob; \
 	for f in build/bin/*; do \
 		base=$$(basename "$$f"); \
-		# Skip already prefixed and skip directories that are not .app bundles \
-		if [[ "$$base" == wails-* ]]; then continue; fi; \
-		if [ -d "$$f" ] && [[ "$$f" != *.app ]]; then continue; fi; \
-		# Only rename files or .app bundles \
+		# Skip already prefixed
+		case "$$base" in \
+			wails-*) continue ;; \
+		esac; \
+		# Skip directories except .app bundles
+		if [ -d "$$f" ]; then \
+			case "$$f" in \
+				*.app) : ;; \
+				*) continue ;; \
+			esac; \
+		fi; \
 		dst="$$(dirname "$$f")/wails-$$base"; \
 		echo "→ $$base -> $$(basename "$$dst")"; \
 		mv "$$f" "$$dst"; \
