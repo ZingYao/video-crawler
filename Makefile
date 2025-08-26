@@ -229,7 +229,9 @@ build-http-all: build-frontend
 build-wails:
 	@echo "Building Wails app for Windows, Linux, macOS..."
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装，请先安装: go install github.com/wailsapp/wails/v2/cmd/wails@latest"; exit 1; }
-	@wails build -platform darwin,darwin/amd64,darwin/arm64,darwin/universal,linux,linux/amd64,linux/arm64,linux/arm,windows,windows/amd64,windows/arm64,windows/386
+	@$(MAKE) build-wails-windows
+	@$(MAKE) build-wails-linux
+	@$(MAKE) build-wails-macos
 	@$(MAKE) prefix-wails-artifacts
 	@$(MAKE) package-macos-dmg-all
 
@@ -249,13 +251,9 @@ build-wails-linux:
 build-wails-macos:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
 	@$(MAKE) wails-build-macos-one P="darwin" SUFFIX="darwin"
-	mv build/bin/video-crawler.app build/bin/wails-video-crawler-darwin.app
 	@$(MAKE) wails-build-macos-one P="darwin/universal" SUFFIX="darwin-universal"
-	mv build/bin/video-crawler.app build/bin/wails-video-crawler-darwin-universal.app
 	@$(MAKE) wails-build-macos-one P="darwin/arm64" SUFFIX="darwin-arm64"
-	mv build/bin/video-crawler.app build/bin/wails-video-crawler-darwin-arm64.app
 	@$(MAKE) wails-build-macos-one P="darwin/amd64" SUFFIX="darwin-amd64"
-	mv build/bin/video-crawler.app build/bin/wails-video-crawler-darwin-amd64.app
 
 # Prefix all Wails build artifacts in build/bin with 'wails-'
 .PHONY: prefix-wails-artifacts
@@ -265,14 +263,13 @@ prefix-wails-artifacts:
 	shopt -s nullglob; \
 	for f in build/bin/*; do \
 		base=$$(basename "$$f"); \
-		case "$$base" in \
-			wails-*) ;; \
-			*) \
-				dst="$$(dirname "$$f")/wails-$$base"; \
-				echo "→ $$base -> $$(basename "$$dst")"; \
-				mv "$$f" "$$dst"; \
-				;; \
-		esac; \
+		# Skip already prefixed and skip directories that are not .app bundles \
+		if [[ "$$base" == wails-* ]]; then continue; fi; \
+		if [ -d "$$f" ] && [[ "$$f" != *.app ]]; then continue; fi; \
+		# Only rename files or .app bundles \
+		dst="$$(dirname "$$f")/wails-$$base"; \
+		echo "→ $$base -> $$(basename "$$dst")"; \
+		mv "$$f" "$$dst"; \
 	done; \
 	shopt -u nullglob
 
@@ -344,7 +341,6 @@ help:
 wails-build-macos-one:
 	@echo "Building Wails macOS: $(P)"
 	@wails build -platform $(P)
-	@$(MAKE) prefix-wails-artifacts
 	@set -e; \
 	shopt -s nullglob; \
 	LATEST_APP=$$(ls -1t build/bin/*.app 2>/dev/null | head -n 1); \
