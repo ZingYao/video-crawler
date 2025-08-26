@@ -47,8 +47,9 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient());
 
         int statusBarHeight = getStatusBarHeight();
-        int topOverlayHeight = statusBarHeight; // 仅占据系统状态栏高度，避免覆盖页面自有标题
-        webView.setPadding(0, topOverlayHeight, 0, 0);
+        int extraPadding = dpToPx(12); // 给 Web 内容多预留一点，避免轻微遮挡
+        int topOverlayHeight = statusBarHeight; // 覆盖层仅与状态栏等高
+        webView.setPadding(0, topOverlayHeight + extraPadding, 0, 0);
         webView.setClipToPadding(false);
 
         // 顶部渐变覆盖层（高度=状态栏+标题高度），实现“渐变状态栏”的视觉效果
@@ -80,7 +81,8 @@ public class MainActivity extends AppCompatActivity {
             if (lp.height != top) {
                 lp.height = top;
                 gradientOverlay.setLayoutParams(lp);
-                webView.setPadding(0, top, 0, 0);
+                int extra = dpToPx(12);
+                webView.setPadding(0, top + extra, 0, 0);
             }
             return insets;
         });
@@ -98,9 +100,8 @@ public class MainActivity extends AppCompatActivity {
         return result;
     }
 
-    // 如需转 dp -> px 可使用该方法
-    // private int dpToPx(int dp) {
-    //     float density = getResources().getDisplayMetrics().density;
-    //     return Math.round(dp * density);
-    // }
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
+    }
 }
