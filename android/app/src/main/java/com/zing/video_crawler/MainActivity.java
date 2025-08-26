@@ -11,6 +11,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 public class MainActivity extends AppCompatActivity {
     static {
@@ -69,6 +71,19 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
         root.addView(gradientOverlay);
+
+        // 动态适配刘海/状态栏真实高度（WindowInsets）
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            int top = insets.getInsets(WindowInsetsCompat.Type.statusBars() | WindowInsetsCompat.Type.displayCutout()).top;
+            if (top <= 0) top = statusBarHeight;
+            FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) gradientOverlay.getLayoutParams();
+            if (lp.height != top) {
+                lp.height = top;
+                gradientOverlay.setLayoutParams(lp);
+                webView.setPadding(0, top, 0, 0);
+            }
+            return insets;
+        });
         setContentView(root);
 
         webView.loadUrl("http://127.0.0.1:" + actualPort + "/");
