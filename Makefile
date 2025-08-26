@@ -266,6 +266,7 @@ help:
 	@echo "  build-wails-windows- Build Wails app for Windows"
 	@echo "  build-wails-linux  - Build Wails app for Linux"
 	@echo "  build-wails-macos  - Build Wails app for macOS and package DMG"
+	@echo "  build-all-products - Build HTTP(all archs) + Android APK + Wails (Win/Linux/macOS + DMG)"
 	@echo ""
 	@echo "Development targets:"
 	@echo "  run                - Run the application"
