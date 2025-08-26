@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "HelloGoJNI"
+rootProject.name = "VideoCrawler"
 include(":app")

@@ -58,9 +58,11 @@ func StartServer(baseDir *C.char, port C.int) C.int {
 				p = 0
 			}
 			// 如果端口被占用   则获取一个随机端口
-			fp, err := getFreePort()
-			if err == nil {
-				p = fp
+			if p == 0 {
+				fp, err := getFreePort()
+				if err == nil {
+					p = fp
+				}
 			}
 		}
 		cfg.Server.Port = p

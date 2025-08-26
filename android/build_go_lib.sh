@@ -7,6 +7,21 @@ GO_SRC_DIR="${REPO_ROOT}/android/go/mobile"
 JNI_LIBS_DIR="${ANDROID_DIR}/app/src/main/jniLibs"
 FRONTEND_DIR="${REPO_ROOT}/frontend"
 
+# 用法说明
+usage() {
+  echo "用法: $0 [--skip-frontend]" >&2
+  echo "环境变量: SKIP_FRONTEND=1 跳过前端构建" >&2
+}
+
+SKIP_FRONTEND_FLAG=0
+for arg in "${@:-}"; do
+  case "$arg" in
+    --skip-frontend) SKIP_FRONTEND_FLAG=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) ;;
+  esac
+done
+
 : "${ANDROID_NDK_HOME:?请先设置 ANDROID_NDK_HOME 指向 Android NDK 根目录}"
 
 API=21
@@ -36,14 +51,18 @@ build_one() {
 }
 
 # 前置：构建前端（供 go:embed 与静态资源使用）
-echo "[go_lib] 构建前端..."
-cd "${FRONTEND_DIR}"
-if [ -f package-lock.json ]; then
-  npm ci --no-audit --no-fund
+if [[ "${SKIP_FRONTEND_FLAG}" -eq 0 && "${SKIP_FRONTEND:-0}" -ne 1 ]]; then
+  echo "[go_lib] 构建前端..."
+  cd "${FRONTEND_DIR}"
+  if [ -f package-lock.json ]; then
+    npm ci --no-audit --no-fund
+  else
+    npm install --no-audit --no-fund
+  fi
+  npm run build
 else
-  npm install --no-audit --no-fund
+  echo "[go_lib] 跳过前端构建 (通过 --skip-frontend 或 SKIP_FRONTEND=1)"
 fi
-npm run build
 
 # 进入仓库根确保依赖可解析
 cd "${REPO_ROOT}"

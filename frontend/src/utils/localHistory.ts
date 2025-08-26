@@ -1,6 +1,17 @@
 // 本地历史记录管理工具
 // 用于在无需登录模式下缓存观看记录
 
+declare global {
+  interface Window {
+    AndroidKV?: {
+      setItem: (key: string, value: string) => void
+      getItem: (key: string) => string | null
+      removeItem: (key: string) => void
+      hasKey: (key: string) => boolean
+    }
+  }
+}
+
 export interface LocalVideoHistory {
   id: string
   video_id: string
@@ -19,6 +30,33 @@ export interface LocalSearchHistory {
   keyword: string
   source_id: string
   created_at: string
+}
+
+function kvGet(key: string): string | null {
+  try {
+    if (window.AndroidKV && typeof window.AndroidKV.getItem === 'function') {
+      return window.AndroidKV.getItem(key)
+    }
+    return localStorage.getItem(key)
+  } catch { return null }
+}
+function kvSet(key: string, value: string): void {
+  try {
+    if (window.AndroidKV && typeof window.AndroidKV.setItem === 'function') {
+      window.AndroidKV.setItem(key, value)
+      return
+    }
+    localStorage.setItem(key, value)
+  } catch {}
+}
+function kvRemove(key: string): void {
+  try {
+    if (window.AndroidKV && typeof window.AndroidKV.removeItem === 'function') {
+      window.AndroidKV.removeItem(key)
+      return
+    }
+    localStorage.removeItem(key)
+  } catch {}
 }
 
 class LocalHistoryManager {
@@ -49,16 +87,13 @@ class LocalHistoryManager {
   ): void {
     try {
       const histories = this.getVideoHistories()
-      
       // 检查是否已存在相同视频的记录
       const existingIndex = histories.findIndex(h => h.video_id === videoId)
       if (existingIndex !== -1) {
-        // 更新现有记录
         histories[existingIndex].watch_time = watchTime
         histories[existingIndex].progress = progress
         histories[existingIndex].updated_at = this.getCurrentTime()
       } else {
-        // 添加新记录
         const newHistory: LocalVideoHistory = {
           id: this.generateId(),
           video_id: videoId,
@@ -71,17 +106,10 @@ class LocalHistoryManager {
           created_at: this.getCurrentTime(),
           updated_at: this.getCurrentTime()
         }
-        
         histories.push(newHistory)
-        
-        // 限制记录数量
-        if (histories.length > this.MAX_VIDEO_HISTORY) {
-          histories.shift() // 删除最旧的记录
-        }
+        if (histories.length > this.MAX_VIDEO_HISTORY) histories.shift()
       }
-      
-      // 保存到localStorage
-      localStorage.setItem(this.VIDEO_HISTORY_KEY, JSON.stringify(histories))
+      kvSet(this.VIDEO_HISTORY_KEY, JSON.stringify(histories))
       console.log('本地视频历史记录已保存:', histories.length, '条记录')
     } catch (error) {
       console.error('保存本地视频历史记录失败:', error)
@@ -90,11 +118,9 @@ class LocalHistoryManager {
 
   getVideoHistories(): LocalVideoHistory[] {
     try {
-      const data = localStorage.getItem(this.VIDEO_HISTORY_KEY)
+      const data = kvGet(this.VIDEO_HISTORY_KEY)
       if (!data) return []
-      
       const histories = JSON.parse(data) as LocalVideoHistory[]
-      // 按更新时间倒序排序
       return histories.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     } catch (error) {
       console.error('读取本地视频历史记录失败:', error)
@@ -110,7 +136,7 @@ class LocalHistoryManager {
         histories[index].watch_time = watchTime
         histories[index].progress = progress
         histories[index].updated_at = this.getCurrentTime()
-        localStorage.setItem(this.VIDEO_HISTORY_KEY, JSON.stringify(histories))
+        kvSet(this.VIDEO_HISTORY_KEY, JSON.stringify(histories))
       }
     } catch (error) {
       console.error('更新视频进度失败:', error)
@@ -121,7 +147,7 @@ class LocalHistoryManager {
     try {
       const histories = this.getVideoHistories()
       const filtered = histories.filter(h => h.video_id !== videoId)
-      localStorage.setItem(this.VIDEO_HISTORY_KEY, JSON.stringify(filtered))
+      kvSet(this.VIDEO_HISTORY_KEY, JSON.stringify(filtered))
       console.log('删除视频历史记录:', videoId)
     } catch (error) {
       console.error('删除视频历史记录失败:', error)
@@ -130,7 +156,7 @@ class LocalHistoryManager {
 
   clearVideoHistories(): void {
     try {
-      localStorage.removeItem(this.VIDEO_HISTORY_KEY)
+      kvRemove(this.VIDEO_HISTORY_KEY)
       console.log('清空所有视频历史记录')
     } catch (error) {
       console.error('清空视频历史记录失败:', error)
@@ -141,31 +167,20 @@ class LocalHistoryManager {
   addSearchHistory(keyword: string, sourceId: string): void {
     try {
       const histories = this.getSearchHistories()
-      
-      // 检查是否已存在相同关键词的记录
       const existingIndex = histories.findIndex(h => h.keyword === keyword && h.source_id === sourceId)
       if (existingIndex !== -1) {
-        // 更新现有记录的时间
         histories[existingIndex].created_at = this.getCurrentTime()
       } else {
-        // 添加新记录
         const newHistory: LocalSearchHistory = {
           id: this.generateId(),
           keyword: keyword,
           source_id: sourceId,
           created_at: this.getCurrentTime()
         }
-        
         histories.push(newHistory)
-        
-        // 限制记录数量
-        if (histories.length > this.MAX_SEARCH_HISTORY) {
-          histories.shift() // 删除最旧的记录
-        }
+        if (histories.length > this.MAX_SEARCH_HISTORY) histories.shift()
       }
-      
-      // 保存到localStorage
-      localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(histories))
+      kvSet(this.SEARCH_HISTORY_KEY, JSON.stringify(histories))
       console.log('本地搜索历史记录已保存:', histories.length, '条记录')
     } catch (error) {
       console.error('保存本地搜索历史记录失败:', error)
@@ -174,11 +189,9 @@ class LocalHistoryManager {
 
   getSearchHistories(): LocalSearchHistory[] {
     try {
-      const data = localStorage.getItem(this.SEARCH_HISTORY_KEY)
+      const data = kvGet(this.SEARCH_HISTORY_KEY)
       if (!data) return []
-      
       const histories = JSON.parse(data) as LocalSearchHistory[]
-      // 按创建时间倒序排序
       return histories.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     } catch (error) {
       console.error('读取本地搜索历史记录失败:', error)
@@ -190,7 +203,7 @@ class LocalHistoryManager {
     try {
       const histories = this.getSearchHistories()
       const filtered = histories.filter(h => !(h.keyword === keyword && h.source_id === sourceId))
-      localStorage.setItem(this.SEARCH_HISTORY_KEY, JSON.stringify(filtered))
+      kvSet(this.SEARCH_HISTORY_KEY, JSON.stringify(filtered))
       console.log('删除搜索历史记录:', keyword, sourceId)
     } catch (error) {
       console.error('删除搜索历史记录失败:', error)
@@ -199,7 +212,7 @@ class LocalHistoryManager {
 
   clearSearchHistories(): void {
     try {
-      localStorage.removeItem(this.SEARCH_HISTORY_KEY)
+      kvRemove(this.SEARCH_HISTORY_KEY)
       console.log('清空所有搜索历史记录')
     } catch (error) {
       console.error('清空搜索历史记录失败:', error)

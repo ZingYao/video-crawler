@@ -712,144 +712,36 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.content-card {
-  margin: 20px;
-}
+.content-card { margin: 20px; }
+.card-header h2 { text-align: center; margin: 0 0 8px 0; color: #1e293b; font-size: 24px; font-weight: 600; }
+.card-header p { text-align: center; margin: 0; color: #64748b; }
+.port-info-section { margin-bottom: 30px; }
+.port-alert { margin-bottom: 16px; }
+.port-details { margin-top: 16px; }
+.api-sections { margin-bottom: 30px; }
+.api-section { margin-bottom: 24px; }
+.api-section h3 { color: #1e293b; font-size: 18px; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+.api-detail { padding: 16px; background: #f8fafc; border-radius: 8px; margin-top: 8px; }
+.api-basic { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.api-basic code { background: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 14px; }
+.api-description { margin-bottom: 16px; }
+.api-description p { margin: 0; color: #475569; }
+.api-params h4 { color: #1e293b; font-size: 16px; font-weight: 600; margin: 16px 0 8px 0; }
+.api-params pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.5; }
+.api-params code { background: #1e293b; color: #e2e8f0; padding: 2px 4px; border-radius: 4px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; }
+.api-examples { margin-top: 30px; }
+.api-examples h3 { color: #1e293b; font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+.api-examples pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.5; }
 
-.card-header h2 {
-  text-align: center;
-  margin: 0 0 8px 0;
-  color: #1e293b;
-  font-size: 24px;
-  font-weight: 600;
-}
+/* 关键：限制描述表格与长内容溢出，允许横向滚动 */
+.api-detail { overflow-x: auto; }
+:deep(.ant-descriptions) { max-width: 100%; }
+:deep(.ant-descriptions-view) { overflow-x: auto; }
+:deep(.ant-descriptions-table) { width: max-content; min-width: 100%; }
+:deep(code) { word-break: break-all; overflow-wrap: anywhere; }
+:deep(pre code) { white-space: pre; }
 
-.card-header p {
-  text-align: center;
-  margin: 0;
-  color: #64748b;
-}
-
-.port-info-section {
-  margin-bottom: 30px;
-}
-
-.port-alert {
-  margin-bottom: 16px;
-}
-
-.port-details {
-  margin-top: 16px;
-}
-
-.api-sections {
-  margin-bottom: 30px;
-}
-
-.api-section {
-  margin-bottom: 24px;
-}
-
-.api-section h3 {
-  color: #1e293b;
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.api-detail {
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 8px;
-  margin-top: 8px;
-}
-
-.api-basic {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.api-basic code {
-  background: #e2e8f0;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-}
-
-.api-description {
-  margin-bottom: 16px;
-}
-
-.api-description p {
-  margin: 0;
-  color: #475569;
-}
-
-.api-params h4 {
-  color: #1e293b;
-  font-size: 16px;
-  font-weight: 600;
-  margin: 16px 0 8px 0;
-}
-
-.api-params pre {
-  background: #1e293b;
-  color: #e2e8f0;
-  padding: 16px;
-  border-radius: 8px;
-  overflow-x: auto;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.api-params code {
-  background: #1e293b;
-  color: #e2e8f0;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
-}
-
-.api-examples {
-  margin-top: 30px;
-}
-
-.api-examples h3 {
-  color: #1e293b;
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.api-examples pre {
-  background: #1e293b;
-  color: #e2e8f0;
-  padding: 16px;
-  border-radius: 8px;
-  overflow-x: auto;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-:deep(.ant-collapse-header) {
-  font-weight: 600 !important;
-  color: #1e293b !important;
-}
-
-:deep(.ant-descriptions-item-label) {
-  font-weight: 600;
-  color: #475569;
-}
-
-:deep(.ant-tabs-tab) {
-  font-weight: 500;
-}
+:deep(.ant-collapse-header) { font-weight: 600 !important; color: #1e293b !important; }
+:deep(.ant-descriptions-item-label) { font-weight: 600; color: #475569; }
+:deep(.ant-tabs-tab) { font-weight: 500; }
 </style>

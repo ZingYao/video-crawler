@@ -49,7 +49,6 @@ const testApi = async () => {
     if (!authStore.token) {
       throw new Error('未登录，无法获取API信息')
     }
-    
     const data = await systemAPI.apiInfo(authStore.token)
     apiStatus.value = {
       status: 'healthy',
@@ -67,10 +66,7 @@ const testApi = async () => {
 }
 
 // 生命周期
-onMounted(() => {
-  // 页面加载时自动检查健康状态
-  testHealth()
-})
+onMounted(() => { testHealth() })
 </script>
 
 <template>
@@ -99,8 +95,6 @@ onMounted(() => {
             <p>完善的用户权限和系统配置管理</p>
           </div>
         </div>
-
-
       </div>
 
       <!-- 系统状态 -->
@@ -109,30 +103,23 @@ onMounted(() => {
           <h3>系统状态</h3>
           <p>实时监控系统运行状态</p>
         </div>
-        
         <div class="status-grid">
           <div class="status-card">
             <div class="status-icon">💚</div>
             <h4>后端服务</h4>
             <div class="status-info">
-              <span :class="['status-badge', healthStatus.status]">
-                {{ healthStatus.status === 'healthy' ? '正常' : '异常' }}
-              </span>
+              <span :class="['status-badge', healthStatus.status]">{{ healthStatus.status === 'healthy' ? '正常' : '异常' }}</span>
               <p class="status-time">{{ healthStatus.lastCheck }}</p>
             </div>
           </div>
-          
           <div class="status-card">
             <div class="status-icon">🌐</div>
             <h4>API服务</h4>
             <div class="status-info">
-              <span :class="['status-badge', apiStatus.status]">
-                {{ apiStatus.status === 'healthy' ? '正常' : '异常' }}
-              </span>
+              <span :class="['status-badge', apiStatus.status]">{{ apiStatus.status === 'healthy' ? '正常' : '异常' }}</span>
               <p class="status-time">{{ apiStatus.lastCheck }}</p>
             </div>
           </div>
-          
           <div class="status-card">
             <div class="status-icon">👥</div>
             <h4>用户系统</h4>
@@ -143,30 +130,16 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 快速操作 -->
         <div class="quick-actions">
           <h3>快速操作</h3>
           <div class="action-buttons">
-            <button @click="router.push('/movie')" class="action-btn primary">
-              <span>🎭</span>
-              观影
-            </button>
-            <button @click="router.push('/history/watch')" class="action-btn primary">
-              <span>📺</span>
-              观看历史
-            </button>
-            <button @click="router.push('/user-management')" class="action-btn secondary">
-              <span>👥</span>
-              用户管理
-            </button>
-            <button @click="router.push('/video-source-management')" class="action-btn secondary">
-              <span>🎬</span>
-              视频资源管理
-            </button>
+            <button @click="router.push('/movie')" class="action-btn primary"><span>🎭</span>观影</button>
+            <button @click="router.push('/history/watch')" class="action-btn primary"><span>📺</span>观看历史</button>
+            <button @click="router.push('/user-management')" class="action-btn secondary"><span>👥</span>用户管理</button>
+            <button @click="router.push('/video-source-management')" class="action-btn secondary"><span>🎬</span>视频资源管理</button>
           </div>
         </div>
 
-        <!-- API响应结果 -->
         <div v-if="apiResult" class="api-result">
           <h4>API响应结果</h4>
           <pre class="api-response">{{ JSON.stringify(apiResult, null, 2) }}</pre>
@@ -179,7 +152,6 @@ onMounted(() => {
           <h3>技术栈</h3>
           <p>基于最新技术栈构建的高性能系统</p>
         </div>
-        
         <div class="tech-stack-grid">
           <div class="tech-card">
             <div class="tech-icon">⚡</div>
@@ -193,7 +165,6 @@ onMounted(() => {
               <span class="tech-tag">Monaco Editor</span>
             </div>
           </div>
-          
           <div class="tech-card">
             <div class="tech-icon">🔧</div>
             <h4>后端技术</h4>
@@ -205,7 +176,6 @@ onMounted(() => {
               <span class="tech-tag">goja (JavaScript 引擎)</span>
             </div>
           </div>
-
           <div class="tech-card">
             <div class="tech-icon">🧩</div>
             <h4>脚本引擎与解析</h4>
@@ -219,7 +189,6 @@ onMounted(() => {
               <span class="tech-tag">http_get/http_post</span>
             </div>
           </div>
-          
           <div class="tech-card">
             <div class="tech-icon">🎥</div>
             <h4>播放器</h4>
@@ -230,7 +199,21 @@ onMounted(() => {
               <span class="tech-tag">倍速/长按2x/续播</span>
             </div>
           </div>
-          
+          <div class="tech-card">
+            <div class="tech-icon">🤝</div>
+            <h4>Android + JNI + Wails</h4>
+            <div class="tech-tags">
+              <span class="tech-tag">JNI 桥接 Go (c-shared)</span>
+              <span class="tech-tag">Android WebView 内嵌前端</span>
+              <span class="tech-tag">浮窗工具：刷新/首页/退出</span>
+              <span class="tech-tag">端口自检与自动重启</span>
+              <span class="tech-tag">跨端口持久化历史(AndroidKV)</span>
+              <span class="tech-tag">Wails 桌面集成</span>
+            </div>
+            <p class="tech-note">
+              移动端通过 JNI 动态链接 Go 服务，启动后前端以 WebView 直连本地 HTTP。为避免端口变化导致的数据丢失，采用原生 SharedPreferences 暴露的 AndroidKV 进行前端历史的跨端口持久化。桌面端可通过 Wails 一体化构建桌面应用。
+            </p>
+          </div>
           <div class="tech-card">
             <div class="tech-icon">🎨</div>
             <h4>样式技术</h4>
@@ -249,4 +232,5 @@ onMounted(() => {
 
 <style scoped>
 @import './HomeView.css';
+.tech-note { margin-top: 8px; color: #475569; line-height: 1.6; }
 </style>
