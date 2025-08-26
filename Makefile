@@ -232,7 +232,6 @@ build-wails:
 	@$(MAKE) build-wails-windows
 	@$(MAKE) build-wails-linux
 	@$(MAKE) build-wails-macos
-	@$(MAKE) prefix-wails-artifacts
 	@$(MAKE) package-macos-dmg-all
 
 .PHONY: build-wails-windows
@@ -260,8 +259,9 @@ build-wails-macos:
 prefix-wails-artifacts:
 	@echo "Prefixing Wails artifacts with 'wails-'..."
 	@set -e; \
-	shopt -s nullglob; \
+	set -f; \
 	for f in build/bin/*; do \
+		[ -e "$$f" ] || continue; \
 		base=$$(basename "$$f"); \
 		# Skip already prefixed
 		case "$$base" in \
@@ -277,8 +277,7 @@ prefix-wails-artifacts:
 		dst="$$(dirname "$$f")/wails-$$base"; \
 		echo "→ $$base -> $$(basename "$$dst")"; \
 		mv "$$f" "$$dst"; \
-	done; \
-	shopt -u nullglob
+	done
 
 # Package all macOS .app bundles to DMG (universal/arm64/amd64 and any preserved variants)
 .PHONY: package-macos-dmg-all
