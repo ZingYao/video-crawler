@@ -119,3 +119,6 @@ frontend/package-lock.json
 
 # Ignore Android release APKs
 android/app/release/
+
+# Ignore Android release APKs
+android/app/release/
