@@ -5,6 +5,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ANDROID_DIR="${REPO_ROOT}/android"
 GO_SRC_DIR="${REPO_ROOT}/android/go/mobile"
 JNI_LIBS_DIR="${ANDROID_DIR}/app/src/main/jniLibs"
+FRONTEND_DIR="${REPO_ROOT}/frontend"
 
 : "${ANDROID_NDK_HOME:?请先设置 ANDROID_NDK_HOME 指向 Android NDK 根目录}"
 
@@ -33,6 +34,16 @@ build_one() {
   echo "→ 构建 ${ABI} (${GOARCH}) 使用 ${CC}"
   ( cd "${GO_SRC_DIR}" && go build -buildmode=c-shared -o "${OUT_DIR}/libgo_video_crawler.so" )
 }
+
+# 前置：构建前端（供 go:embed 与静态资源使用）
+echo "[go_lib] 构建前端..."
+cd "${FRONTEND_DIR}"
+if [ -f package-lock.json ]; then
+  npm ci --no-audit --no-fund
+else
+  npm install --no-audit --no-fund
+fi
+npm run build
 
 # 进入仓库根确保依赖可解析
 cd "${REPO_ROOT}"

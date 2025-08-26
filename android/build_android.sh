@@ -10,22 +10,12 @@ FRONTEND_DIR="${REPO_ROOT}/frontend"
 command -v node >/dev/null 2>&1 || { echo "需要 Node.js，请先安装"; exit 1; }
 command -v npm >/dev/null 2>&1 || { echo "需要 npm，请先安装"; exit 1; }
 
-# 1) 构建前端
-echo "[1/3] 构建前端..."
-cd "${FRONTEND_DIR}"
-if [ -f package-lock.json ]; then
-  npm ci --no-audit --no-fund
-else
-  npm install --no-audit --no-fund
-fi
-npm run build
-
-# 2) 构建 Go JNI 动态库
-echo "[2/3] 构建 Go JNI 库..."
+# 1) 构建 Go JNI 动态库（其内部会先构建前端）
+echo "[1/2] 构建 Go JNI 库（含前端构建前置）..."
 bash "${ANDROID_DIR}/build_go_lib.sh"
 
-# 3) 构建 Android APK
-echo "[3/3] 构建 Android APK..."
+# 2) 构建 Android APK
+echo "[2/2] 构建 Android APK..."
 cd "${ANDROID_DIR}"
 if [ ! -x ./gradlew ]; then
   echo "未检测到 gradlew，尝试生成 wrapper..."
