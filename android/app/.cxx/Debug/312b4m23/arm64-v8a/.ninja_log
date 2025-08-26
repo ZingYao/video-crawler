@@ -1,16 +1,4 @@
 # ninja log v5
-0	38	1756195582135370825	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
-0	34	1756195715344559099	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
-34	148	1756195715458117416	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so	21ec882be5e25938
-0	182	1756196113388957274	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
-182	301	1756196113508331032	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so	21ec882be5e25938
-1	148	1756197328423241722	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
-148	258	1756197328532855859	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so	21ec882be5e25938
-0	158	1756197442826145446	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
-158	269	1756197442936954552	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so	21ec882be5e25938
-0	49	1756197542766576440	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
-49	91	1756197542809113243	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so	21ec882be5e25938
-0	163	1756197884089646376	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
-164	278	1756197884204311180	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so	21ec882be5e25938
-0	172	1756198134538998048	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
 172	294	1756198134660753617	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so	21ec882be5e25938
+0	172	1756198134538998048	CMakeFiles/hello_jni.dir/hello_jni.c.o	bbb3aec9467dca17
+2	236	1756198696027380967	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so	222373f000b2e163

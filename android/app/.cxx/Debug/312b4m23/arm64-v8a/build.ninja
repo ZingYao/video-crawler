@@ -64,10 +64,10 @@ build CMakeFiles/hello_jni.dir/hello_jni.c.o: C_COMPILER__hello_jni_Debug /Users
 #############################################
 # Link the shared library /Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so
 
-build /Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so: C_SHARED_LIBRARY_LINKER__hello_jni_Debug CMakeFiles/hello_jni.dir/hello_jni.c.o | /Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/24/liblog.so
+build /Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/arm64-v8a/libhello_jni.so: C_SHARED_LIBRARY_LINKER__hello_jni_Debug CMakeFiles/hello_jni.dir/hello_jni.c.o | /Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/24/liblog.so /Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/24/libdl.so
   LANGUAGE_COMPILE_FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -fno-limit-debug-info
   LINK_FLAGS = -static-libstdc++ -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments
-  LINK_LIBRARIES = /Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/24/liblog.so  -latomic -lm
+  LINK_LIBRARIES = /Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/24/liblog.so  /Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/24/libdl.so  -latomic -lm
   OBJECT_DIR = CMakeFiles/hello_jni.dir
   POST_BUILD = :
   PRE_LINK = :

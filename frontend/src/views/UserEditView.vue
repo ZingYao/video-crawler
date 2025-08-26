@@ -252,6 +252,12 @@ const loadUserData = async () => {
 
     // 登录历史（如后端存在该字段）
     loginHistory.value = Array.isArray(userData.login_history) ? userData.login_history : []
+    // 按登录时间倒序排列
+    loginHistory.value = loginHistory.value.slice().sort((a: any, b: any) => {
+      const ta = new Date(a?.login_at || 0).getTime()
+      const tb = new Date(b?.login_at || 0).getTime()
+      return tb - ta
+    })
   } catch (err: any) {
     error.value = err.message || '加载用户数据失败'
     console.error('加载用户数据失败:', err)

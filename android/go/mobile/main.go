@@ -4,6 +4,7 @@ package main
 import "C"
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -45,6 +46,18 @@ func StartServer(baseDir *C.char, port C.int) C.int {
 
 		p := int(port)
 		if p == 0 {
+			fp, err := getFreePort()
+			if err == nil {
+				p = fp
+			}
+		} else {
+			// 检查端口是否被占用
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", p), 1*time.Second)
+			if err == nil {
+				conn.Close()
+				p = 0
+			}
+			// 如果端口被占用   则获取一个随机端口
 			fp, err := getFreePort()
 			if err == nil {
 				p = fp

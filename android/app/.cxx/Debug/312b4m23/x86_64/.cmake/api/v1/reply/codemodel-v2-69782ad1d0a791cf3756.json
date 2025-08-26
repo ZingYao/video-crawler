@@ -39,7 +39,7 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "hello_jni::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-hello_jni-Debug-4e5b350100b8925c1b87.json",
+					"jsonFile" : "target-hello_jni-Debug-93444eec5fbd126616c9.json",
 					"name" : "hello_jni",
 					"projectIndex" : 0
 				}
@@ -49,7 +49,7 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/.cxx/Debug/312b4m23/arm64-v8a",
+		"build" : "/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/.cxx/Debug/312b4m23/x86_64",
 		"source" : "/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/src/main/cpp"
 	},
 	"version" : 

@@ -4,30 +4,47 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ANDROID_DIR="${REPO_ROOT}/android"
 GO_SRC_DIR="${REPO_ROOT}/android/go/mobile"
-OUT_DIR="${ANDROID_DIR}/app/src/main/jniLibs/arm64-v8a"
+JNI_LIBS_DIR="${ANDROID_DIR}/app/src/main/jniLibs"
 
 : "${ANDROID_NDK_HOME:?请先设置 ANDROID_NDK_HOME 指向 Android NDK 根目录}"
 
 API=21
-TRIPLE=aarch64-linux-android
-CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-*/bin/${TRIPLE}${API}-clang"
+# 自动检测 prebuilt 目录（darwin-x86_64 或 darwin-arm64）
+TOOLCHAIN_PREBUILT_DIR=$(ls -d "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/"* 2>/dev/null | head -n 1 || true)
+if [[ -z "${TOOLCHAIN_PREBUILT_DIR}" || ! -d "${TOOLCHAIN_PREBUILT_DIR}" ]]; then
+  echo "未找到 NDK 预编译工具链目录: ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/*" >&2
+  exit 1
+fi
 
-mkdir -p "${OUT_DIR}"
+build_one() {
+  local ABI="$1" GOARCH="$2" TRIPLE="$3" EXTRA_ENV="$4"
+  local OUT_DIR="${JNI_LIBS_DIR}/${ABI}"
+  mkdir -p "${OUT_DIR}"
 
-export CGO_ENABLED=1
-export GOOS=android
-export GOARCH=arm64
-export CC=$(echo ${CC})
+  export CGO_ENABLED=1
+  export GOOS=android
+  export GOARCH="${GOARCH}"
+  export CC="${TOOLCHAIN_PREBUILT_DIR}/bin/${TRIPLE}${API}-clang"
+  # 兼容 armeabi-v7a
+  if [[ -n "${EXTRA_ENV}" ]]; then
+    eval "${EXTRA_ENV}"
+  fi
 
+  echo "→ 构建 ${ABI} (${GOARCH}) 使用 ${CC}"
+  ( cd "${GO_SRC_DIR}" && go build -buildmode=c-shared -o "${OUT_DIR}/libgo_video_crawler.so" )
+}
+
+# 进入仓库根确保依赖可解析
 cd "${REPO_ROOT}"
-
 go mod tidy
 
-cd "${GO_SRC_DIR}"
+# 清理旧产物
+rm -rf "${JNI_LIBS_DIR}" && mkdir -p "${JNI_LIBS_DIR}"
 
-# 清理旧库以避免混淆
-rm -f "${OUT_DIR}/libhello.so" || true
+# 依次构建 4 个 ABI
+build_one arm64-v8a arm64 aarch64-linux-android ""
+build_one armeabi-v7a arm armv7a-linux-androideabi "export GOARM=7"
+build_one x86 386 i686-linux-android ""
+build_one x86_64 amd64 x86_64-linux-android ""
 
-go build -buildmode=c-shared -o "${OUT_DIR}/libgo_video_crawler.so"
-
-echo "生成完成: ${OUT_DIR}/libgo_video_crawler.so"
+echo "生成完成: ${JNI_LIBS_DIR}/{arm64-v8a,armeabi-v7a,x86,x86_64}/libgo_video_crawler.so"
