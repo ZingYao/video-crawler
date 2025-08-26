@@ -258,26 +258,7 @@ build-wails-macos:
 .PHONY: prefix-wails-artifacts
 prefix-wails-artifacts:
 	@echo "Prefixing Wails artifacts with 'wails-'..."
-	@set -e; \
-	set -f; \
-	for f in build/bin/*; do \
-		[ -e "$$f" ] || continue; \
-		base=$$(basename "$$f"); \
-		# Skip already prefixed
-		case "$$base" in \
-			wails-*) continue ;; \
-		esac; \
-		# Skip directories except .app bundles
-		if [ -d "$$f" ]; then \
-			case "$$f" in \
-				*.app) : ;; \
-				*) continue ;; \
-			esac; \
-		fi; \
-		dst="$$(dirname "$$f")/wails-$$base"; \
-		echo "→ $$base -> $$(basename "$$dst")"; \
-		mv "$$f" "$$dst"; \
-	done
+	@for f in build/bin/*; do if [ ! -e "$$f" ]; then continue; fi; base=$$(basename "$$f"); case "$$base" in wails-*) continue ;; esac; if [ -d "$$f" ]; then case "$$f" in *.app) : ;; *) continue ;; esac; fi; dst="$$(dirname "$$f")/wails-$$base"; echo "-> $$base -> $$(basename "$$dst")"; mv "$$f" "$$dst"; done
 
 # Package all macOS .app bundles to DMG (universal/arm64/amd64 and any preserved variants)
 .PHONY: package-macos-dmg-all
