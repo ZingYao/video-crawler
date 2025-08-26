@@ -182,20 +182,15 @@ const menuItems: MenuItem[] = [
     id: 'api-docs',
     icon: '🧭',
     label: '接口文档',
-    description: 'Wails模式API文档',
+    description: 'API 文档与示例',
     requiresAdmin: false,
-    route: '/api-docs',
-    requiresWails: true
+    route: '/api-docs'
   }
 ]
 
 // 计算属性
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
-    // 仅在 Wails 环境展示的菜单
-    if (item.requiresWails && !isWailsEnvironment()) {
-      return false
-    }
     // 如果不需要登录，显示所有菜单（除了用户管理）
     if (!configStore.needsLogin()) {
       // 在无需登录模式下，只隐藏用户管理菜单，其他都显示

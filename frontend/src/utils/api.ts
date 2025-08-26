@@ -5,27 +5,33 @@ export const isWailsEnvironment = () => {
   return !!(window.go && window.go.main && window.go.main.App && typeof window.go.main.App.GetConfig === 'function')
 }
 
-// 获取Wails HTTP服务端口
-let wailsServerPort: number | null = null
+// 获取本地服务端口（Wails/Android WebView/浏览器通用）
+let cachedServerPort: number | null = null
 
-export const getWailsServerPort = async (): Promise<number> => {
+export const getServerPort = async (): Promise<number> => {
+  // 优先 Wails 环境
   if (isWailsEnvironment()) {
-    // 每次都重新获取端口，避免缓存过期
-    wailsServerPort = await window.go.main.App.GetServerPort()
-    return wailsServerPort
+    cachedServerPort = await window.go.main.App.GetServerPort()
+    return cachedServerPort
   }
-  
-  throw new Error('不在Wails环境中')
+  // 非 Wails：从 location 解析端口（Android WebView/浏览器）
+  const port = Number(window.location.port)
+  if (!Number.isNaN(port) && port > 0) {
+    cachedServerPort = port
+    return port
+  }
+  // 未能解析端口，返回 0 表示未知
+  return 0
 }
 
 // 获取API基础URL
 export const getApiBaseUrl = async (): Promise<string> => {
   if (isWailsEnvironment()) {
-    const port = await getWailsServerPort()
+    const port = await getServerPort()
     return `http://localhost:${port}`
-  } else {
-    return '' // 相对路径，使用当前域名
   }
+  // 非 Wails：使用相对路径/当前域名端口
+  return ''
 }
 
 // 通用请求函数，根据是否有token决定是否添加Authorization头

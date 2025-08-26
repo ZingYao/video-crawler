@@ -690,7 +690,7 @@ response = requests.get(f"{base_url}/api/video-source/list", headers=headers)</c
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getWailsServerPort } from '@/utils/api'
+import { getServerPort } from '@/utils/api'
 import AppLayout from '@/components/AppLayout.vue'
 
 const serverPort = ref<number>(0)
@@ -699,7 +699,7 @@ const activeTab = ref<string>('curl')
 
 const loadServerPort = async () => {
   try {
-    serverPort.value = await getWailsServerPort()
+    serverPort.value = await getServerPort()
   } catch (error) {
     console.error('获取服务器端口失败:', error)
     serverPort.value = 0
