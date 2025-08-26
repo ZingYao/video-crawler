@@ -6,7 +6,7 @@ SHELL := /bin/bash
 # 变量定义
 BINARY_NAME=video-crawler
 BUILD_DIR=bin
-MAIN_PATH=cmd/video-crawler/main.go
+MAIN_PATH=cmd/http-server/main.go
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
