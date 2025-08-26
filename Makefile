@@ -230,23 +230,46 @@ build-wails:
 	@echo "Building Wails app for Windows, Linux, macOS..."
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装，请先安装: go install github.com/wailsapp/wails/v2/cmd/wails@latest"; exit 1; }
 	@wails build -platform windows/amd64,windows/arm64,linux/amd64,linux/arm64,darwin/universal,darwin/arm64,darwin/amd64
+	@$(MAKE) prefix-wails-artifacts
 	@$(MAKE) package-macos-dmg-all
 
 .PHONY: build-wails-windows
 build-wails-windows:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
 	@wails build -platform windows/amd64,windows/arm64
+	@$(MAKE) prefix-wails-artifacts
 
 .PHONY: build-wails-linux
 build-wails-linux:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
 	@wails build -platform linux/amd64,linux/arm64
+	@$(MAKE) prefix-wails-artifacts
 
 .PHONY: build-wails-macos
 build-wails-macos:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
 	@wails build -platform darwin/universal,darwin/arm64,darwin/amd64
+	@$(MAKE) prefix-wails-artifacts
 	@$(MAKE) package-macos-dmg-all
+
+# Prefix all Wails build artifacts in build/bin with 'wails-'
+.PHONY: prefix-wails-artifacts
+prefix-wails-artifacts:
+	@echo "Prefixing Wails artifacts with 'wails-'..."
+	@set -e; \
+	shopt -s nullglob; \
+	for f in build/bin/*; do \
+		base=$$(basename "$$f"); \
+		case "$$base" in \
+			wails-*) ;; \
+			*) \
+				dst="$$(dirname "$$f")/wails-$$base"; \
+				echo "→ $$base -> $$(basename "$$dst")"; \
+				mv "$$f" "$$dst"; \
+				;; \
+		esac; \
+	done; \
+	shopt -u nullglob
 
 # Package all macOS .app bundles to DMG (universal/arm64/amd64)
 .PHONY: package-macos-dmg-all
