@@ -124,6 +124,7 @@ func getAppConfigDir() string {
 		configDir = filepath.Join(homeDir, ".config", "video-crawler")
 	default:
 		log.Fatal("不支持的操作系统")
+		configDir = "./"
 	}
 
 	// 创建配置目录

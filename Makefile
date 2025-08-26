@@ -23,7 +23,7 @@ GOMOD=$(GOCMD) mod
 LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X main.GitCommit=$(GIT_COMMIT) -s -w"
 
 # 支持的平台和架构
-PLATFORMS=linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/386 windows/arm64 android/amd64 android/arm64
+PLATFORMS=linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/386 windows/arm64 android/amd64 android/arm64 android/386 android/arm
 
 # 默认目标
 .PHONY: all
@@ -193,6 +193,59 @@ release: build-all
 	done
 	@echo "Release packages created in release/"
 
+# HTTP all-arch build including Android
+.PHONY: build-http-all
+build-http-all: build-frontend
+	@echo "Building HTTP service for Linux/macOS/Windows/Android (all archs)..."
+	@mkdir -p $(BUILD_DIR)
+	@for platform in linux/amd64 linux/arm64 linux/386 linux/arm darwin/amd64 darwin/arm64 windows/amd64 windows/386 windows/arm64 android/amd64 android/arm64 android/386 android/arm; do \
+		IFS='/' read -r GOOS GOARCH <<< "$$platform"; \
+		BINARY_NAME_FULL="$(BINARY_NAME)-$$GOOS-$$GOARCH"; \
+		if [ "$$GOOS" = "windows" ]; then BINARY_NAME_FULL="$$BINARY_NAME_FULL.exe"; fi; \
+		echo "Building for $$GOOS/$$GOARCH (CGO_ENABLED=0)..."; \
+		CGO_ENABLED=0 GOOS=$$GOOS GOARCH=$$GOARCH $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$$BINARY_NAME_FULL $(MAIN_PATH) || exit 1; \
+	done; \
+	echo "HTTP multi-arch builds completed in $(BUILD_DIR)/"
+
+# Wails builds: Windows, Linux, macOS; macOS packaged to DMG
+.PHONY: build-wails
+build-wails:
+	@echo "Building Wails app for Windows, Linux, macOS..."
+	@which wails >/dev/null 2>&1 || { echo "wails 未安装，请先安装: go install github.com/wailsapp/wails/v2/cmd/wails@latest"; exit 1; }
+	@wails build -platform windows/amd64,windows/arm64,linux/amd64,linux/arm64,darwin/universal
+	@$(MAKE) package-macos-dmg
+
+.PHONY: build-wails-windows
+build-wails-windows:
+	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
+	@wails build -platform windows/amd64,windows/arm64
+
+.PHONY: build-wails-linux
+build-wails-linux:
+	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
+	@wails build -platform linux/amd64,linux/arm64
+
+.PHONY: build-wails-macos
+build-wails-macos:
+	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
+	@wails build -platform darwin/universal
+	@$(MAKE) package-macos-dmg
+
+.PHONY: package-macos-dmg
+package-macos-dmg:
+	@echo "Packaging macOS .app into DMG..."
+	@APP_PATH=$$(ls -1d build/bin/*.app 2>/dev/null | head -n 1); \
+	if [ -z "$$APP_PATH" ]; then echo "未找到 .app，请先执行 build-wails-macos 或 build-wails"; exit 0; fi; \
+	APP_NAME=$$(basename "$$APP_PATH" .app); \
+	DMG_PATH="build/bin/$$APP_NAME.dmg"; \
+	hdiutil create -volname "$$APP_NAME" -srcfolder "$$APP_PATH" -ov -format UDZO "$$DMG_PATH" && echo "DMG created: $$DMG_PATH"
+
+# Android app via android/build_android.sh
+.PHONY: build-android-app
+build-android-app:
+	@echo "Building Android app via android/build_android.sh..."
+	@bash android/build_android.sh
+
 # 帮助信息
 .PHONY: help
 help:
@@ -201,32 +254,37 @@ help:
 	@echo "Available targets:"
 	@echo ""
 	@echo "Build targets:"
-	@echo "  build          - Build for current platform (CGO on)"
-	@echo "  build-all      - Build for all platforms (CGO on for host only; FORCE_CGO=1 to enable for all)"
-	@echo "  build-linux    - Build for Linux variants"
-	@echo "  build-darwin   - Build for macOS variants"
-	@echo "  build-windows  - Build for Windows variants"
-	@echo "  build-android  - Build for Android variants (CGO off by default)"
-	@echo "  build-frontend - Build frontend only"
+	@echo "  build              - Build for current platform (CGO on)"
+	@echo "  build-all          - Build for all platforms (CGO on for host only; FORCE_CGO=1 to enable for all)"
+	@echo "  build-http-all     - Build HTTP service for Linux/macOS/Windows/Android (all archs)"
+	@echo "  build-linux        - Build for Linux variants"
+	@echo "  build-darwin       - Build for macOS variants"
+	@echo "  build-windows      - Build for Windows variants"
+	@echo "  build-android      - Build for Android variants (CGO off by default)"
+	@echo "  build-android-app  - Build Android APK via android/build_android.sh"
+	@echo "  build-wails        - Build Wails app for Windows/Linux/macOS and package macOS DMG"
+	@echo "  build-wails-windows- Build Wails app for Windows"
+	@echo "  build-wails-linux  - Build Wails app for Linux"
+	@echo "  build-wails-macos  - Build Wails app for macOS and package DMG"
 	@echo ""
 	@echo "Development targets:"
-	@echo "  run            - Run the application"
-	@echo "  dev            - Run in development mode (frontend + backend)"
-	@echo "  test           - Run tests"
-	@echo "  test-coverage  - Run tests with coverage report"
+	@echo "  run                - Run the application"
+	@echo "  dev                - Run in development mode (frontend + backend)"
+	@echo "  test               - Run tests"
+	@echo "  test-coverage      - Run tests with coverage report"
 	@echo ""
 	@echo "Utility targets:"
-	@echo "  clean          - Clean build files"
-	@echo "  deps           - Download dependencies (Go + Node.js)"
-	@echo "  fmt            - Format code"
-	@echo "  vet            - Run go vet"
-	@echo "  lint           - Run fmt and vet"
-	@echo "  install        - Install to GOPATH/bin"
-	@echo "  release        - Create release packages"
-	@echo "  help           - Show this help message"
+	@echo "  clean              - Clean build files"
+	@echo "  deps               - Download dependencies (Go + Node.js)"
+	@echo "  fmt                - Format code"
+	@echo "  vet                - Run go vet"
+	@echo "  lint               - Run fmt and vet"
+	@echo "  install            - Install to GOPATH/bin"
+	@echo "  release            - Create release packages"
+	@echo "  help               - Show this help message"
 	@echo ""
 	@echo "Supported platforms:"
 	@echo "  Linux:   amd64, arm64, 386, arm"
 	@echo "  macOS:   amd64, arm64"
 	@echo "  Windows: amd64, 386, arm64"
-	@echo "  Android: amd64, arm64"
+	@echo "  Android: amd64, arm64, 386, arm"
