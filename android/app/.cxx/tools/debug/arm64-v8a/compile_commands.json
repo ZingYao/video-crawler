@@ -1,7 +1,7 @@
 [
 {
   "directory": "/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/.cxx/Debug/312b4m23/arm64-v8a",
-  "command": "/Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=aarch64-none-linux-android24 --sysroot=/Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -Dhello_jni_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIC -o CMakeFiles/hello_jni.dir/hello_jni.c.o -c /Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/src/main/cpp/hello_jni.c",
-  "file": "/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/src/main/cpp/hello_jni.c"
+  "command": "/Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=aarch64-none-linux-android24 --sysroot=/Users/zing/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -Dgo_video_crawler_jni_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIC -o CMakeFiles/go_video_crawler_jni.dir/go_video_crawler_jni.c.o -c /Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/src/main/cpp/go_video_crawler_jni.c",
+  "file": "/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/src/main/cpp/go_video_crawler_jni.c"
 }
 ]

@@ -1,3 +1,3 @@
 # ninja log v5
-0	34	1756198697497066826	CMakeFiles/hello_jni.dir/hello_jni.c.o	3b0508e98562d9ee
-34	77	1756198697539866256	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/x86_64/libhello_jni.so	ebffaa596b969f5c
+0	117	1756204841351636220	CMakeFiles/go_video_crawler_jni.dir/go_video_crawler_jni.c.o	c9456c69837a0ceb
+118	172	1756204841408546624	/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/x86_64/libgo_video_crawler_jni.so	ba557f5f82028c3

@@ -17,10 +17,10 @@
     "{LIST_OF_TARGETS_TO_BUILD}"
   ],
   "libraries": {
-    "hello_jni::@6890427a1f51a3e7e1df": {
-      "artifactName": "hello_jni",
+    "go_video_crawler_jni::@6890427a1f51a3e7e1df": {
+      "artifactName": "go_video_crawler_jni",
       "abi": "x86",
-      "output": "/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/x86/libhello_jni.so",
+      "output": "/Users/zing/Documents/SelfProject/GolangProject/video-crawler/android/app/build/intermediates/cxx/Debug/312b4m23/obj/x86/libgo_video_crawler_jni.so",
       "runtimeFiles": []
     }
   }
