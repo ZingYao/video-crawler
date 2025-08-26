@@ -4,7 +4,8 @@ import android.os.Bundle;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.View;
-import android.widget.LinearLayout;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -30,34 +31,45 @@ public class MainActivity extends AppCompatActivity {
         int p = startServer(getFilesDir().getAbsolutePath() + "/configs", 10086);
         actualPort = p > 0 ? p : 8089;
 
-        // 顶部“伪状态栏”视图（仅 Android 客户端），高度=系统状态栏高度，背景使用与前端一致的绿色渐变
-        View fakeStatusBar = new View(this);
-        int statusBarHeight = getStatusBarHeight();
-        LinearLayout.LayoutParams fakeLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                statusBarHeight
+        // 开启沉浸式：状态栏透明，内容延伸到状态栏区域
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         );
-        fakeStatusBar.setLayoutParams(fakeLp);
-        GradientDrawable gradient = new GradientDrawable(
-                GradientDrawable.Orientation.TL_BR,
-                new int[]{Color.parseColor("#10b981"), Color.parseColor("#059669")}
-        );
-        fakeStatusBar.setBackground(gradient);
 
+        // 创建 WebView 并为其添加顶部内边距，避免被顶部渐变遮挡
         WebView webView = new WebView(this);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         webView.setWebViewClient(new WebViewClient());
-        
-        // 组合为垂直布局：顶部伪状态栏 + WebView
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.addView(fakeStatusBar);
-        root.addView(webView, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT
+
+        int statusBarHeight = getStatusBarHeight();
+        int titleBarHeight = dpToPx(56); // 与前端标题区近似高度
+        int topOverlayHeight = statusBarHeight + titleBarHeight;
+        webView.setPadding(0, topOverlayHeight, 0, 0);
+        webView.setClipToPadding(false);
+
+        // 顶部渐变覆盖层（高度=状态栏+标题高度），实现“渐变状态栏”的视觉效果
+        View gradientOverlay = new View(this);
+        GradientDrawable gradient = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.parseColor("#10b981"), Color.parseColor("#059669")}
+        );
+        gradientOverlay.setBackground(gradient);
+        FrameLayout.LayoutParams overlayLp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                topOverlayHeight
+        );
+        gradientOverlay.setLayoutParams(overlayLp);
+
+        // 使用 FrameLayout 将 WebView 作为底层，渐变层叠在其上方
+        FrameLayout root = new FrameLayout(this);
+        root.addView(webView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
         ));
+        root.addView(gradientOverlay);
         setContentView(root);
 
         webView.loadUrl("http://127.0.0.1:" + actualPort + "/");
@@ -70,5 +82,10 @@ public class MainActivity extends AppCompatActivity {
             result = getResources().getDimensionPixelSize(resourceId);
         }
         return result;
+    }
+
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
     }
 }
