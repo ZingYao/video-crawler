@@ -248,9 +248,9 @@ build-wails-linux:
 .PHONY: build-wails-macos
 build-wails-macos:
 	@which wails >/dev/null 2>&1 || { echo "wails 未安装"; exit 1; }
-	@wails build -platform darwin/universal,darwin/arm64,darwin/amd64
-	@$(MAKE) prefix-wails-artifacts
-	@$(MAKE) package-macos-dmg-all
+	@$(MAKE) wails-build-macos-one P="darwin/universal" SUFFIX="darwin-universal"
+	@$(MAKE) wails-build-macos-one P="darwin/arm64" SUFFIX="darwin-arm64"
+	@$(MAKE) wails-build-macos-one P="darwin/amd64" SUFFIX="darwin-amd64"
 
 # Prefix all Wails build artifacts in build/bin with 'wails-'
 .PHONY: prefix-wails-artifacts
@@ -333,3 +333,26 @@ help:
 	@echo "  macOS:   universal, amd64, arm64"
 	@echo "  Windows: amd64, 386, arm64"
 	@echo "  Android: amd64, arm64, 386, arm"
+
+# Build one macOS arch, prefix artifacts, rename .app with suffix, and package DMG
+.PHONY: wails-build-macos-one
+wails-build-macos-one:
+	@echo "Building Wails macOS: $(P)"
+	@wails build -platform $(P)
+	@$(MAKE) prefix-wails-artifacts
+	@set -e; \
+	shopt -s nullglob; \
+	# pick the most recent .app just produced (before suffixing) \
+	LATEST_APP=$$(ls -1t build/bin/*.app 2>/dev/null | head -n 1); \
+	if [ -z "$$LATEST_APP" ]; then echo "未找到 .app 产物"; exit 1; fi; \
+	DIR=$$(dirname "$$LATEST_APP"); \
+	BASE=$$(basename "$$LATEST_APP" .app); \
+	# if not already suffixed with current $(SUFFIX), rename \
+	case "$$BASE" in \
+		*$(SUFFIX)) TARGET_APP="$$DIR/$$BASE.app" ;; \
+		*) TARGET_APP="$$DIR/$$BASE-$(SUFFIX).app"; mv "$$LATEST_APP" "$$TARGET_APP" ;; \
+	esac; \
+	DMG_PATH="$${TARGET_APP%.app}.dmg"; \
+	echo "→ Packaging DMG: $$(basename "$$DMG_PATH")"; \
+	hdiutil create -volname "$$BASE" -srcfolder "$$TARGET_APP" -ov -format UDZO "$$DMG_PATH" >/dev/null && echo "   DMG created: $$DMG_PATH"; \
+	shopt -u nullglob
