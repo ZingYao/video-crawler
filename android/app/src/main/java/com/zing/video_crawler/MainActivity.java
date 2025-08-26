@@ -1,6 +1,7 @@
 package com.zing.video_crawler;
 
 import android.os.Bundle;
+import android.graphics.Color;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -19,6 +20,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 设置状态栏颜色为与前端标题一致的绿色
+        getWindow().setStatusBarColor(Color.parseColor("#10b981"));
 
         int p = startServer(getFilesDir().getAbsolutePath() + "/configs", 10086);
         actualPort = p > 0 ? p : 8089;
