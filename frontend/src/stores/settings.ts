@@ -130,10 +130,15 @@ export const useSettingsStore = defineStore('settings', () => {
       } catch (e) {
         console.error('Failed to parse settings:', e)
         settings.value = { ...defaultSettings }
+        await saveSettings() // 保存默认设置到缓存
       }
     } else {
-      // 首次加载，尝试获取实际的视频源
+      // 首次加载，使用默认设置
+      settings.value = { ...defaultSettings }
+      // 尝试获取实际的视频源
       await loadActualVideoSources()
+      // 确保默认设置被保存到缓存
+      await saveSettings()
     }
   }
 

@@ -705,15 +705,15 @@ function addPlyrCustomEvents() {
     plyrLongPressTimer = setTimeout(() => {
       if (plyrIsTouchActive && !isDraggingProgress) {
         originalRate.value = plyr.speed
-        plyr.speed = 2
-        syncRateToUI(2)
+        plyr.speed = longPressSpeed.value
+        syncRateToUI(longPressSpeed.value)
         isLongPressActive.value = true
-        console.log('[Plyr LongPress] 启动2倍速播放')
+        console.log(`[Plyr LongPress] 启动${longPressSpeed.value}倍速播放`)
         // 震动反馈
         vibrateFeedback()
         // 显示toast提示
-        console.log('[Plyr LongPress] 显示Toast: 已启动2倍速播放')
-        message.info('已启动2倍速播放', 3)
+        console.log(`[Plyr LongPress] 显示Toast: 已启动${longPressSpeed.value}倍速播放`)
+        message.info(`已启动${longPressSpeed.value}倍速播放`, 3)
       }
     }, 500)
   })
@@ -761,15 +761,15 @@ function addPlyrCustomEvents() {
       plyrLongPressTimer = setTimeout(() => {
         if (plyrIsTouchActive && !isDraggingProgress) {
           originalRate.value = plyr.speed
-          plyr.speed = 2
-          syncRateToUI(2)
+          plyr.speed = longPressSpeed.value
+          syncRateToUI(longPressSpeed.value)
           isLongPressActive.value = true
-          console.log('[Plyr LongPress] 启动2倍速播放')
+          console.log(`[Plyr LongPress] 启动${longPressSpeed.value}倍速播放`)
           // 震动反馈
           vibrateFeedback()
           // 显示toast提示
-          console.log('[Plyr LongPress] 显示Toast: 已启动2倍速播放')
-          message.info('已启动2倍速播放', 3)
+          console.log(`[Plyr LongPress] 显示Toast: 已启动${longPressSpeed.value}倍速播放`)
+          message.info(`已启动${longPressSpeed.value}倍速播放`, 3)
         }
       }, 500)
     }
@@ -2293,6 +2293,9 @@ function handleImageError(event: Event) {
 
 // 初始化页面数据
 async function initializePage() {
+  // 加载设置
+  await loadSettings()
+  
   // 获取当前站点名称
   await updateCurrentSourceName()
   
@@ -2478,12 +2481,12 @@ function attachProgressDrag(container: HTMLElement) {
       e.stopPropagation()
       // 每次 move 都保证控件与进度条可见，避免任何闪烁
       ensureProgressVisible()
-      // 按容器宽度映射到时长
+      // 按容器宽度映射到时长，应用进度条敏感度设置
       const duration = getDuration()
       if (!duration || duration <= 0) return
       const w = containerRect.width || 1
       const timePerPixel = duration / w
-      const nt = startTime + dx * timePerPixel
+      const nt = startTime + dx * timePerPixel * progressSensitivity.value
       setCurrentTime(nt)
     }
   }
@@ -2509,6 +2512,19 @@ function attachProgressDrag(container: HTMLElement) {
   container.addEventListener('touchmove', onTouchMove, { passive: false })
   container.addEventListener('touchend', onTouchEnd, { passive: true })
   container.addEventListener('touchcancel', onTouchEnd, { passive: true })
+}
+
+// 设置相关变量
+const longPressSpeed = ref(2.0)
+const progressSensitivity = ref(0.7)
+const isLongPressing = ref(false)
+const originalPlaybackRate = ref(1.0)
+
+// 加载设置
+const loadSettings = async () => {
+  await settingsStore.loadSettings()
+  longPressSpeed.value = settingsStore.settings.longPressPlaybackSpeed
+  progressSensitivity.value = settingsStore.settings.progressBarSensitivity
 }
 </script>
 
