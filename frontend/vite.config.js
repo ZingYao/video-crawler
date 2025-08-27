@@ -64,9 +64,9 @@ export default defineConfig(function (_a) {
                 }
             }
         },
-        // 允许 console 日志（生产环境也保留）
+        // 生产环境移除 console/debugger
         esbuild: {
-            drop: [],
+            drop: mode === 'production' ? ['console', 'debugger'] : [],
         },
         build: {
             rollupOptions: {
@@ -91,8 +91,8 @@ export default defineConfig(function (_a) {
             minify: 'terser',
             terserOptions: {
                 compress: {
-                    drop_console: false,
-                    drop_debugger: false,
+                    drop_console: mode === 'production',
+                    drop_debugger: true,
                     passes: 2,
                     pure_getters: true,
                 },
