@@ -140,6 +140,7 @@ const menuItems: MenuItem[] = [
   { id: 'home', icon: '🏠', label: '首页', description: '系统概览和快速操作', requiresAdmin: false, route: '/' },
   { id: 'movie', icon: '🎭', label: '观影', description: '搜索和观看视频', requiresAdmin: false, route: '/movie' },
   { id: 'watch-history', icon: '📺', label: '观看历史', description: '查看您的视频观看历史', requiresAdmin: false, route: '/history/watch' },
+  { id: 'settings', icon: '⚙️', label: '设置', description: '播放控制与搜索网站设置', requiresAdmin: false, route: '/settings' },
   { id: 'user-management', icon: '👥', label: '用户管理', description: '管理系统用户账户', requiresAdmin: true, route: '/user-management' },
   { id: 'video-source-management', icon: '🎬', label: '视频资源管理', description: '管理视频资源站点', requiresAdmin: false, requiresSiteAdmin: true, route: '/video-source-management' },
   { id: 'api-docs', icon: '🧭', label: '接口文档', description: 'API 文档与示例', requiresAdmin: false, route: '/api-docs' }

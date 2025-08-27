@@ -14,6 +14,7 @@ const WatchHistoryView = () => import('../views/WatchHistoryView.vue')
 import MovieView from '../views/MovieView.vue'
 const WatchView = () => import('../views/WatchView.vue')
 const NotFoundView = () => import('../views/NotFoundView.vue')
+import SettingsView from '@/views/SettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -89,6 +90,12 @@ const router = createRouter({
       name: 'watch',
       component: WatchView,
       meta: { requiresAuth: true, title: '观看' }
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: SettingsView,
+      meta: { requiresAuth: true, title: '设置' }
     },
     {
       path: '/404',

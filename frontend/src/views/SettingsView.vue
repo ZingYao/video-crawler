@@ -1,0 +1,327 @@
+<template>
+  <div class="settings-container">
+    <h1>设置</h1>
+    
+    <div class="settings-section">
+      <h2>播放控制</h2>
+      
+      <div class="setting-item">
+        <label>长按播放倍速</label>
+        <div class="slider-container">
+          <input 
+            type="range" 
+            min="0.5" 
+            max="5.0" 
+            step="0.1" 
+            v-model="playbackSpeed"
+            @input="updatePlaybackSpeed"
+            class="slider"
+          />
+          <span class="value-display">{{ playbackSpeed }}x</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <label>进度条移动倍率</label>
+        <div class="slider-container">
+          <input 
+            type="range" 
+            min="0.1" 
+            max="3.0" 
+            step="0.1" 
+            v-model="progressSensitivity"
+            @input="updateProgressSensitivity"
+            class="slider"
+          />
+          <span class="value-display">{{ progressSensitivity }}x</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2>搜索网站范围</h2>
+      <p class="section-description">选择要搜索的网站，至少需要选择一个</p>
+      
+      <div class="search-sites-controls">
+        <button @click="selectAll" class="control-btn">全选</button>
+        <button @click="selectNone" class="control-btn" :disabled="!hasEnabledSites">取消全选</button>
+      </div>
+
+      <div class="search-sites-list">
+        <div 
+          v-for="site in searchSites" 
+          :key="site.id" 
+          class="site-item"
+        >
+          <label class="site-checkbox">
+            <input 
+              type="checkbox" 
+              :checked="site.enabled"
+              @change="toggleSite(site.id)"
+              :disabled="site.enabled && enabledSitesCount === 1"
+            />
+            <span class="checkmark"></span>
+            <span class="site-name">{{ site.name }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2>其他</h2>
+      <button @click="resetSettings" class="reset-btn">重置为默认设置</button>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useSettingsStore } from '@/stores/settings'
+import type { SearchSite } from '@/stores/settings'
+
+const settingsStore = useSettingsStore()
+
+// 响应式数据
+const playbackSpeed = ref(2.0)
+const progressSensitivity = ref(1.0)
+const searchSites = ref<SearchSite[]>([])
+
+// 计算属性
+const enabledSitesCount = computed(() => 
+  searchSites.value.filter(site => site.enabled).length
+)
+
+const hasEnabledSites = computed(() => enabledSitesCount.value > 0)
+
+// 初始化
+onMounted(async () => {
+  await settingsStore.loadSettings()
+  playbackSpeed.value = settingsStore.settings.longPressPlaybackSpeed
+  progressSensitivity.value = settingsStore.settings.progressBarSensitivity
+  searchSites.value = [...settingsStore.settings.searchSites]
+})
+
+// 更新播放倍速
+const updatePlaybackSpeed = async () => {
+  await settingsStore.updatePlaybackSpeed(playbackSpeed.value)
+}
+
+// 更新进度条敏感度
+const updateProgressSensitivity = async () => {
+  await settingsStore.updateProgressSensitivity(progressSensitivity.value)
+}
+
+// 切换网站状态
+const toggleSite = async (siteId: string) => {
+  await settingsStore.toggleSearchSite(siteId)
+  // 更新本地状态
+  const site = searchSites.value.find(s => s.id === siteId)
+  if (site) {
+    site.enabled = !site.enabled
+  }
+}
+
+// 全选
+const selectAll = async () => {
+  await settingsStore.toggleAllSearchSites(true)
+  searchSites.value.forEach(site => site.enabled = true)
+}
+
+// 取消全选
+const selectNone = async () => {
+  if (enabledSitesCount.value > 1) {
+    await settingsStore.toggleAllSearchSites(false)
+    searchSites.value.forEach(site => site.enabled = false)
+  }
+}
+
+// 重置设置
+const resetSettings = async () => {
+  await settingsStore.resetToDefaults()
+  playbackSpeed.value = settingsStore.settings.longPressPlaybackSpeed
+  progressSensitivity.value = settingsStore.settings.progressBarSensitivity
+  searchSites.value = [...settingsStore.settings.searchSites]
+}
+</script>
+
+<style scoped>
+.settings-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1 {
+  color: #333;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.settings-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+  color: #555;
+  margin-bottom: 15px;
+  font-size: 1.2em;
+}
+
+.section-description {
+  color: #666;
+  font-size: 0.9em;
+  margin-bottom: 15px;
+}
+
+.setting-item {
+  margin-bottom: 20px;
+}
+
+.setting-item label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #10b981;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #10b981;
+  cursor: pointer;
+  border: none;
+}
+
+.value-display {
+  min-width: 50px;
+  text-align: center;
+  font-weight: 500;
+  color: #10b981;
+}
+
+.search-sites-controls {
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.control-btn {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.control-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-sites-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.site-item {
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.site-checkbox {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.site-checkbox input[type="checkbox"] {
+  margin-right: 8px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.site-checkbox input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.site-name {
+  font-size: 0.9em;
+  color: #333;
+}
+
+.reset-btn {
+  padding: 12px 24px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background 0.2s;
+}
+
+.reset-btn:hover {
+  background: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .settings-container {
+    padding: 15px;
+  }
+  
+  .search-sites-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .slider-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .value-display {
+    text-align: center;
+  }
+}
+</style>
