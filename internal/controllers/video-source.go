@@ -261,7 +261,12 @@ func (c *VideoSourceController) Import(ctx *gin.Context) {
 		return
 	}
 
-	// 调用服务层进行导入
+	// 调用服务层进行导入前，兜底设置状态：未设置或为0的，默认启用(1)
+	for i := range importData {
+		if importData[i].Status == 0 {
+			importData[i].Status = 1
+		}
+	}
 	importedCount, err := c.videoSourceService.Import(importData)
 	if err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeSaveVideoSourceFailed, err.Error(), nil)

@@ -273,6 +273,11 @@ func (s *videoSourceService) Import(importData []entities.VideoSourceEntity) (in
 			videoSource.Id = uuid.New().String()
 		}
 
+		// 兜底：若未设置状态或状态为0，则默认启用（1）
+		if videoSource.Status == 0 {
+			videoSource.Status = 1
+		}
+
 		// 保存到内存中
 		s.videoSourceMap.Store(videoSource.Id, videoSource)
 		importedCount++
