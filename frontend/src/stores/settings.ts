@@ -18,6 +18,8 @@ export interface Settings {
   progressBarSensitivity: number
   searchSites: SearchSite[]
   allSitesSelected: boolean // 全选标记 - true表示全选模式，false表示手动选择模式
+  virtualCursorEnabled: boolean // 虚拟光标开关
+  virtualCursorTipsShown: boolean // 是否已展示过一次使用说明
 }
 
 const defaultSettings: Settings = {
@@ -25,6 +27,8 @@ const defaultSettings: Settings = {
   progressBarSensitivity: 0.7,
   searchSites: [],
   allSitesSelected: true, // 默认全选模式
+  virtualCursorEnabled: true,
+  virtualCursorTipsShown: false,
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -143,7 +147,9 @@ export const useSettingsStore = defineStore('settings', () => {
           ...defaultSettings,
           ...loaded,
           searchSites: loaded.searchSites || [],
-          allSitesSelected: loaded.allSitesSelected !== undefined ? loaded.allSitesSelected : true
+          allSitesSelected: loaded.allSitesSelected !== undefined ? loaded.allSitesSelected : true,
+          virtualCursorEnabled: loaded.virtualCursorEnabled !== undefined ? loaded.virtualCursorEnabled : true,
+          virtualCursorTipsShown: loaded.virtualCursorTipsShown !== undefined ? loaded.virtualCursorTipsShown : false,
         }
       } catch (e) {
         console.error('Failed to parse settings:', e)
@@ -175,6 +181,18 @@ export const useSettingsStore = defineStore('settings', () => {
   // 更新进度条敏感度
   const updateProgressSensitivity = async (sensitivity: number) => {
     settings.value.progressBarSensitivity = Math.max(0.1, Math.min(1.5, sensitivity))
+    await saveSettings()
+  }
+
+  // 更新虚拟光标开关
+  const setVirtualCursorEnabled = async (enabled: boolean) => {
+    settings.value.virtualCursorEnabled = enabled
+    await saveSettings()
+  }
+
+  // 标记已展示过虚拟光标使用说明
+  const markVirtualCursorTipsShown = async () => {
+    settings.value.virtualCursorTipsShown = true
     await saveSettings()
   }
 
@@ -249,6 +267,8 @@ export const useSettingsStore = defineStore('settings', () => {
     updateSettings,
     updatePlaybackSpeed,
     updateProgressSensitivity,
+    setVirtualCursorEnabled,
+    markVirtualCursorTipsShown,
     updateSearchSites,
     toggleSearchSite,
     toggleAllSearchSites,

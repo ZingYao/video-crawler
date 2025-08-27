@@ -3,7 +3,7 @@
     <a-card class="login-card">
       <div class="login-header">
         <span class="logo">🎬</span>
-        <h1>视频爬虫系统</h1>
+        <h1>视频聚合系统</h1>
         <p>欢迎使用现代化的视频数据采集平台</p>
       </div>
 

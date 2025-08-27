@@ -1,11 +1,11 @@
 <template>
   <div class="app-layout">
     <!-- 左侧菜单 -->
-    <aside class="sidebar" :class="sidebarVisible ? '' : 'collapsed'" :data-visible="sidebarVisible" ref="sidebarRef">
+    <aside class="sidebar" :class="sidebarVisible ? '' : 'collapsed'" :data-visible="sidebarVisible" ref="sidebarRef" data-focus-scope>
       <div class="sidebar-header">
         <div class="logo">
           <span class="logo-icon">🎬</span>
-          <span class="logo-text" v-show="sidebarVisible">视频爬虫</span>
+          <span class="logo-text" v-show="sidebarVisible">视频聚合</span>
         </div>
         <!-- 移动端收起菜单按钮 -->
         <button 
@@ -20,11 +20,13 @@
 
       <nav class="sidebar-nav">
         <ul class="nav-list">
-          <li v-for="item in filteredMenuItems" :key="item.id" class="nav-item">
+          <li v-for="(item, idx) in filteredMenuItems" :key="item.id" class="nav-item">
             <button
               @click="handleMenuClick(item)"
               class="nav-link"
               :class="{ active: activeMenu === item.id }"
+              :data-focus-order="idx + 1"
+              tabindex="0"
             >
               <span class="nav-icon">{{ item.icon }}</span>
               <span class="nav-text" v-show="sidebarVisible">{{ item.label }}</span>
@@ -249,8 +251,56 @@ const updateActiveMenu = () => {
 // 生命周期
 onMounted(() => { updateActiveMenu() })
 
+// —— 全局键盘导航（上下左右与回车）——
+const isTypingElement = (el: Element | null) => {
+  if (!el) return false
+  const tag = (el as HTMLElement).tagName
+  const editable = (el as HTMLElement).getAttribute('contenteditable')
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || editable === 'true'
+}
+
+const getFocusable = (): HTMLElement[] => {
+  const selector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  const list = Array.from(document.querySelectorAll(selector)) as HTMLElement[]
+  return list.filter(el => !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.offsetParent !== null)
+}
+
+const focusByOffset = (offset: number) => {
+  const focusables = getFocusable()
+  if (focusables.length === 0) return
+  const active = document.activeElement as HTMLElement | null
+  let idx = focusables.findIndex(el => el === active)
+  if (idx === -1) idx = 0
+  let next = (idx + offset) % focusables.length
+  if (next < 0) next = focusables.length - 1
+  focusables[next].focus()
+}
+
+const keyHandler = (e: KeyboardEvent) => {
+  if (isTypingElement(e.target as Element)) return
+  switch (e.key) {
+    case 'ArrowDown':
+    case 'ArrowRight':
+      e.preventDefault()
+      focusByOffset(1)
+      break
+    case 'ArrowUp':
+    case 'ArrowLeft':
+      e.preventDefault()
+      focusByOffset(-1)
+      break
+    case 'Enter':
+      const el = document.activeElement as HTMLElement | null
+      if (el) el.click?.()
+      break
+  }
+}
+
+onMounted(() => { window.addEventListener('keydown', keyHandler) })
+
 onBeforeUnmount(() => {
   removeOutsideListener()
+  window.removeEventListener('keydown', keyHandler)
 })
 </script>
 

@@ -10,6 +10,7 @@ import { ConfigProvider } from 'ant-design-vue'
 import App from './App.vue'
 import router from './router'
 import { isWails } from './utils/wails'
+import { useSettingsStore } from '@/stores/settings'
 
 const app = createApp(App)
 
@@ -87,3 +88,43 @@ setTimeout(() => {
 }, 3000)
 
 app.mount('#app')
+
+// 按设置开关加载虚拟鼠标，并在首次使用时弹出说明
+import('./utils/virtualMouse').then(async ({ initVirtualMouse }) => {
+  try {
+    const settingsStore = useSettingsStore()
+    await settingsStore.loadSettings()
+    if (settingsStore.settings.virtualCursorEnabled) {
+      initVirtualMouse({ baseSpeed: 120, maxSpeed: 600, accelerateIntervalMs: 240, accelerateFactor: 1.35, cursorSize: 22 })
+      // 首次使用提示
+      const onFirstUse = async () => {
+        if (!settingsStore.settings.virtualCursorTipsShown) {
+          const { Modal } = await import('ant-design-vue')
+          const { h } = await import('vue')
+          Modal.info({
+            title: '虚拟光标使用说明',
+            width: 520,
+            content: h('div', { style: 'line-height:1.75;color:#374151' }, [
+              h('p', { style: 'margin:4px 0 10px;color:#6b7280' }, '用遥控器/键盘即可操控页面元素：'),
+              h('ul', { style: 'padding-left:18px;margin:0' }, [
+                h('li', '上下左右：移动光标（指数加速，越界限制）'),
+                h('li', '回车 / Enter / OK：在光标位置点击'),
+                h('li', '双击 上/下：页面上下翻动'),
+                h('li', '双击 左/右：页面左右翻动（优先滚动横向容器）'),
+                h('li', 'Esc / 返回：退出输入框焦点并恢复光标'),
+                h('li', '输入框聚焦：光标隐藏，方向键仅移动文本光标'),
+                h('li', '无操作10秒自动隐藏（1秒淡出），操作后0.25秒淡入'),
+              ]),
+            ]),
+            okText: '已了解',
+            maskClosable: true,
+            centered: true,
+          })
+          await settingsStore.markVirtualCursorTipsShown()
+        }
+        window.removeEventListener('virtual-mouse-first-use', onFirstUse as any)
+      }
+      window.addEventListener('virtual-mouse-first-use', onFirstUse as any, { once: true })
+    }
+  } catch {}
+}).catch(() => {})

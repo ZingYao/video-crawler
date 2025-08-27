@@ -4,7 +4,7 @@
       <div class="register-header">
         <span class="logo">🎬</span>
         <h1>用户注册</h1>
-        <p>创建您的视频爬虫系统账户</p>
+        <p>创建您的视频聚合系统账户</p>
       </div>
 
       <a-form

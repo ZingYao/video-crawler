@@ -221,7 +221,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* 与标题一致的渐变绿色 */
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 }
 
 .startup-content {
@@ -256,7 +257,7 @@ onUnmounted(() => {
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #667eea;
+  border-top: 4px solid #10b981;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
@@ -291,7 +292,8 @@ onUnmounted(() => {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  /* 与主题一致的绿色渐变 */
+  background: linear-gradient(90deg, #10b981, #059669);
   border-radius: 4px;
   transition: width 0.3s ease;
 }

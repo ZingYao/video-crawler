@@ -818,6 +818,9 @@ let playerBound = false
 let lastVideoW = 0
 let lastVideoH = 0
 let orientationLocked = false
+// 全屏期间键盘快进/快退
+let fullscreenKeyHandler: ((e: KeyboardEvent) => void) | null = null
+const fullscreenSeekStep = 10 // 秒
 // 获取当前应播放的剧集 URL：优先 currentPlayUrl，其次当前来源的第一集，再次所有剧集第一集，最后回退 original_url
 function getSelectedEpisodeUrl(): string {
   let url = String(currentPlayUrl.value || '')
@@ -1202,6 +1205,30 @@ async function handleEnterFullscreen() {
     removeAndroidOrientationListener()
     addAndroidOrientationListener()
   } catch {}
+
+  // 绑定全屏键盘左右快进/快退（TV 遥控器/键盘）
+  try {
+    if (!fullscreenKeyHandler) {
+      fullscreenKeyHandler = (e: KeyboardEvent) => {
+        // 仅在处于全屏时生效
+        const d: any = document as any
+        const isFullscreen = !!(d.fullscreenElement || d.webkitFullscreenElement || d.mozFullScreenElement || d.msFullscreenElement)
+        if (!isFullscreen) return
+        // 仅处理左右方向键与等价按键
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'MediaRewind' || e.key === 'MediaFastForward') {
+          e.preventDefault(); e.stopPropagation()
+          const v = videoRef.value
+          if (!v || isNaN(v.duration)) return
+          const step = fullscreenSeekStep
+          const delta = (e.key === 'ArrowRight' || e.key === 'MediaFastForward') ? step : -step
+          const next = Math.max(0, Math.min((v.currentTime || 0) + delta, v.duration || 0))
+          try { v.currentTime = next } catch {}
+          try { message.open({ type: 'info', content: `${delta > 0 ? '快进' : '快退'} ${Math.abs(delta)} 秒`, duration: 1 }) } catch {}
+        }
+      }
+    }
+    window.addEventListener('keydown', fullscreenKeyHandler as any, { capture: true })
+  } catch {}
 }
 
 async function handleExitFullscreen() {
@@ -1209,6 +1236,8 @@ async function handleExitFullscreen() {
   await unlockOrientation()
   // 退出全屏后移除方向监听
   try { removeAndroidOrientationListener() } catch {}
+  // 解绑全屏键盘监听
+  try { if (fullscreenKeyHandler) window.removeEventListener('keydown', fullscreenKeyHandler as any, { capture: true } as any) } catch {}
 }
 
 function estimateOrientation(): 'landscape' | 'portrait' {

@@ -72,7 +72,7 @@ onMounted(() => { testHealth() })
     <template #default>
       <div class="content-card">
         <div class="card-header">
-          <h2>欢迎使用视频爬虫系统</h2>
+          <h2>欢迎使用视频聚合系统</h2>
           <p>这是一个功能强大的视频数据采集和管理平台</p>
         </div>
 
@@ -87,10 +87,10 @@ onMounted(() => { testHealth() })
             <h3>观看历史</h3>
             <p>快速进入观看记录列表</p>
           </div>
-          <div class="feature-card">
+          <div class="feature-card" @click="$router.push('/settings')" style="cursor:pointer;">
             <div class="feature-icon">⚙️</div>
-            <h3>系统管理</h3>
-            <p>完善的用户权限和系统配置管理</p>
+            <h3>设置</h3>
+            <p>播放控制与搜索网站范围设置</p>
           </div>
         </div>
       </div>

@@ -1,8 +1,8 @@
-# 视频爬虫 (Video Crawler)
+# 视频聚合 (Video Crawler)
 
 [English README](README_EN.md) | 中文说明 | [发布说明](release.md)
 
-一个基于 Go + Vue3 的可视化视频爬虫/脚本运行平台，支持 Lua 与 JavaScript 两种脚本引擎、实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力，并内置基于 Plyr + hls.js 的 HLS 播放器与观影页。
+一个基于 Go + Vue3 的可视化视频聚合/脚本运行平台，支持 Lua 与 JavaScript 两种脚本引擎、实时调试、链式 HTML 解析、前端本地 Monaco 编辑器、SSE/Chunked 流式输出等能力，并内置基于 Plyr + hls.js 的 HLS 播放器与观影页。
 
 ## 技术栈（已更新）
 
