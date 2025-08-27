@@ -28,7 +28,10 @@ export class VirtualMouse {
   private rafId: number | null = null
   private enabled = false
   private lastPressTs: Record<string, number> = {}
-  private dblPressThreshold = 500 // 放宽阈值，提升双击识别率
+  private pressCount: Record<string, number> = {}
+  private lastKeyUpTs: Record<string, number> = {}
+  private keyUpCount: Record<string, number> = {}
+  private dblPressThreshold = 500 // 更严格的双击间隔，提高判定准确性
   private hiddenByInputFocus = false
   private hiddenByInactivity = false
   private inactivityTimer: number | null = null
@@ -195,10 +198,32 @@ export class VirtualMouse {
   private onKeyDown = (e: KeyboardEvent) => {
     if (!this.enabled) return
     const active = document.activeElement as HTMLElement | null
+    // 规范化方向键（兼容部分 AndroidTV/老设备）
+    const normKey = (() => {
+      const k = e.key
+      if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown') return k
+      // 兼容 DPAD
+      if ((k as any) === 'Left') return 'ArrowLeft'
+      if ((k as any) === 'Right') return 'ArrowRight'
+      if ((k as any) === 'Up') return 'ArrowUp'
+      if ((k as any) === 'Down') return 'ArrowDown'
+      // 兼容 keyCode
+      const code: any = (e as any).keyCode
+      if (code === 37) return 'ArrowLeft'
+      if (code === 38) return 'ArrowUp'
+      if (code === 39) return 'ArrowRight'
+      if (code === 40) return 'ArrowDown'
+      return k
+    })()
     const isEditable = !!active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.getAttribute('contenteditable') === 'true')
 
+    // 调试日志：按键与状态
+    try {
+      console.log('[VM][keydown]', { key: e.key, normKey, repeat: e.repeat, ts: Date.now() })
+    } catch {}
+
     // Enter：在非输入模式下触发鼠标点击
-    if (e.key === 'Enter' && !isEditable) {
+    if (normKey === 'Enter' && !isEditable) {
       e.preventDefault(); e.stopPropagation()
       const el = document.elementFromPoint(this.pos.x, this.pos.y) as HTMLElement | null
       if (el) {
@@ -213,50 +238,24 @@ export class VirtualMouse {
 
     // 输入聚焦时：方向键不接管，仅处理 Esc/Back 退出并显示光标
     if (isEditable) {
-      if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'BrowserBack') {
+      if (normKey === 'Escape' || normKey === 'Backspace' || normKey === 'BrowserBack') {
         e.preventDefault(); e.stopPropagation()
         try { active?.blur() } catch {}
         this.showCursor(250)
       }
       return
     }
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    if (normKey === 'ArrowLeft' || normKey === 'ArrowRight' || normKey === 'ArrowUp' || normKey === 'ArrowDown') {
       // 阻止默认与冒泡，避免焦点移动/页面滚动
       e.preventDefault(); e.stopPropagation()
-      // 双击上/下触发页面滚动
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-        const now = Date.now()
-        const last = this.lastPressTs[e.key] || 0
-        this.lastPressTs[e.key] = now
-        // 忽略长按自动重复触发的 keydown
-        if (!e.repeat && now - last <= this.dblPressThreshold) {
-          const delta = Math.round(window.innerHeight * 0.6) * (e.key === 'ArrowDown' ? 1 : -1)
-          this.scrollByDelta(delta)
-          return
-        }
-      }
-      // 双击左/右触发横向滚动
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        const now = Date.now()
-        const last = this.lastPressTs[e.key] || 0
-        this.lastPressTs[e.key] = now
-        // 忽略长按自动重复触发的 keydown
-        if (!e.repeat && now - last <= this.dblPressThreshold) {
-          const deltaX = Math.round(window.innerWidth * 0.6) * (e.key === 'ArrowRight' ? 1 : -1)
-          this.scrollByDeltaX(deltaX)
-          // 防止触发横向滚动时光标移动：清空按键状态与速度
-          this.held = {}
-          this.updateVelocity()
-          this.speed = this.opts.baseSpeed
-          return
-        }
-      }
-      this.held[e.key] = true
+      // keydown 仅用于移动，双击滚动改由 keyup 识别，更稳定
+      this.held[normKey] = true
       this.updateVelocity()
+      try { console.log('[VM] move update', { held: { ...this.held }, vel: { ...this.vel }, speed: this.speed }) } catch {}
       this.registerActivity()
     }
     // AndroidTV 返回键兼容（无输入态时，模拟 Esc 行为）
-    if (e.key === 'Backspace' || e.key === 'BrowserBack') {
+    if (normKey === 'Backspace' || normKey === 'BrowserBack') {
       e.preventDefault(); e.stopPropagation()
       const activeEl = document.activeElement as HTMLElement | null
       if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.getAttribute('contenteditable') === 'true')) {
@@ -273,13 +272,52 @@ export class VirtualMouse {
 
   private onKeyUp = (e: KeyboardEvent) => {
     if (!this.enabled) return
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    // 规范化
+    const normKey = (() => {
+      const k = e.key
+      if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown') return k
+      if ((k as any) === 'Left') return 'ArrowLeft'
+      if ((k as any) === 'Right') return 'ArrowRight'
+      if ((k as any) === 'Up') return 'ArrowUp'
+      if ((k as any) === 'Down') return 'ArrowDown'
+      const code: any = (e as any).keyCode
+      if (code === 37) return 'ArrowLeft'
+      if (code === 38) return 'ArrowUp'
+      if (code === 39) return 'ArrowRight'
+      if (code === 40) return 'ArrowDown'
+      return k
+    })()
+    if (normKey === 'ArrowLeft' || normKey === 'ArrowRight' || normKey === 'ArrowUp' || normKey === 'ArrowDown') {
       e.preventDefault(); e.stopPropagation()
-      delete this.held[e.key]
+      delete this.held[normKey]
       this.updateVelocity()
-      // 若全部松开，速度回到基础值
       if (!(this.held['ArrowLeft'] || this.held['ArrowRight'] || this.held['ArrowUp'] || this.held['ArrowDown'])) {
         this.speed = this.opts.baseSpeed
+      }
+      // 在 keyup 上做双击滚动识别（repeat 不干扰）
+      const now = Date.now()
+      const lastUp = this.lastKeyUpTs[normKey] || 0
+      const interval = now - lastUp
+      this.lastKeyUpTs[normKey] = now
+      if (interval <= this.dblPressThreshold) {
+        this.keyUpCount[normKey] = (this.keyUpCount[normKey] || 1) + 1
+      } else {
+        this.keyUpCount[normKey] = 1
+      }
+      try { console.log('[VM][keyup]', { normKey, interval, count: this.keyUpCount[normKey] }) } catch {}
+      if (this.keyUpCount[normKey] <= 2 && interval <= this.dblPressThreshold) {
+        if (normKey === 'ArrowUp' || normKey === 'ArrowDown') {
+          const delta = Math.round(window.innerHeight * 0.6) * (normKey === 'ArrowDown' ? 1 : -1)
+          try { console.log('[VM] vertical double via keyup', { normKey, delta, interval }) } catch {}
+          this.scrollByDelta(delta)
+        } else if (normKey === 'ArrowLeft' || normKey === 'ArrowRight') {
+          const deltaX = Math.round(window.innerWidth * 0.6) * (normKey === 'ArrowRight' ? 1 : -1)
+          try { console.log('[VM] horizontal double via keyup', { normKey, deltaX, interval }) } catch {}
+          this.scrollByDeltaX(deltaX)
+        }
+        // 重置，避免第三击误抑制
+        this.lastKeyUpTs[normKey] = 0
+        this.keyUpCount[normKey] = 0
       }
       this.registerActivity()
     }
@@ -294,7 +332,8 @@ export class VirtualMouse {
     // capture: true 进一步拦截，优先于页面其它监听器
     window.addEventListener('keydown', this.onKeyDown, { passive: false, capture: true })
     window.addEventListener('keyup', this.onKeyUp, { passive: false, capture: true })
-    window.addEventListener('blur', () => { this.held = {}; this.updateVelocity(); this.speed = this.opts.baseSpeed })
+    // 避免 AndroidTV 焦点波动导致 held 被清空，仅重置速度
+    window.addEventListener('blur', () => { this.speed = this.opts.baseSpeed; this.updateVelocity() })
     window.addEventListener('focusin', this.onFocusIn as any)
     window.addEventListener('focusout', this.onFocusOut as any)
     this.startAcceleration()
