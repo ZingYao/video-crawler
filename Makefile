@@ -253,6 +253,8 @@ build-wails-macos:
 	@$(MAKE) wails-build-macos-one P="darwin/universal" SUFFIX="darwin-universal"
 	@$(MAKE) wails-build-macos-one P="darwin/arm64" SUFFIX="darwin-arm64"
 	@$(MAKE) wails-build-macos-one P="darwin/amd64" SUFFIX="darwin-amd64"
+	@echo "清理构建目录中的 .app 文件..."
+	@find build/bin -name "*.app" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Prefix all Wails build artifacts in build/bin with 'wails-'
 .PHONY: prefix-wails-artifacts
