@@ -228,7 +228,7 @@ const hasSearched = ref(false)
 const searchHistory = ref<string[]>([])
 const searchHistoryOptions = computed(() => {
   const currentInput = searchKeyword.value?.trim() || ''
-  const options = []
+  const options: { value: string; label: string }[] = []
   
   // 如果当前输入不为空，检查是否在历史记录中
   if (currentInput) {

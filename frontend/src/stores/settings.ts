@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useConfigStore } from '@/stores/config'
 import { videoSourceAPI } from '@/api'
 
 export interface SearchSite {
@@ -64,13 +65,15 @@ export const useSettingsStore = defineStore('settings', () => {
   const loadActualVideoSources = async () => {
     try {
       const authStore = useAuthStore()
+      const configStore = useConfigStore()
       
-      if (!authStore.token) {
+      // 在无需登录模式下，不需要token也可以调用API
+      if (configStore.needsLogin() && !authStore.token) {
         console.warn('[Settings] No auth token available for loading video sources')
         return
       }
       
-      const response = await videoSourceAPI.getVideoSourceList(authStore.token)
+      const response = await videoSourceAPI.getVideoSourceList(authStore.token || '')
       
       if (response?.code === 0 && Array.isArray(response.data)) {
         // 从API获取站点列表，只包含正常状态的站点
