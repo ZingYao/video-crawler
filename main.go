@@ -47,7 +47,6 @@ func (a *App) startup(ctx context.Context) {
 	a.config = cfg
 
 	// 设置Wails模式，禁用登录
-	a.config.Auth.RequireLogin = false
 	log.Printf("Wails模式: 已禁用登录验证, RequireLogin = %v", a.config.Auth.RequireLogin)
 
 	// 初始化日志
@@ -80,6 +79,11 @@ func (a *App) startHTTPServer() int {
 		log.Printf("启动Wails HTTP服务在端口: %d", port)
 		if err := a.app.Run(); err != nil {
 			log.Printf("HTTP服务启动失败: %v", err)
+			// 如果在 wails 模式下，需要弹窗提示 五毛后退出程序
+			if os.Getenv("VIDEO_CRAWLER_CONFIG_DIR") != "" {
+				dialog.ShowError("HTTP服务启动失败", err.Error())
+				os.Exit(1)
+			}
 		}
 	}()
 

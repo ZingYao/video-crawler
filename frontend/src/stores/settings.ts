@@ -47,6 +47,42 @@ export const useSettingsStore = defineStore('settings', () => {
     settings.value.searchSites.every(site => site.enabled)
   )
 
+  // 从后端加载实际的视频源站点
+  const loadActualVideoSources = async () => {
+    try {
+      // 动态导入API，避免循环依赖
+      const { videoSourceAPI } = await import('@/api')
+      const { useAuthStore } = await import('@/stores/auth')
+      const authStore = useAuthStore()
+      
+      if (!authStore.token) {
+        console.warn('No auth token available for loading video sources')
+        return
+      }
+      
+      const response = await videoSourceAPI.getVideoSourceList(authStore.token)
+      
+      if (response?.code === 0 && Array.isArray(response.data)) {
+        const actualSites: SearchSite[] = response.data
+          .filter((source: any) => source.status === 1) // 只包含正常状态的站点
+          .map((source: any) => ({
+            id: source.id,
+            name: source.name,
+            enabled: true // 默认启用
+          }))
+        
+        if (actualSites.length > 0) {
+          settings.value.searchSites = actualSites
+          settings.value.allSitesSelected = true
+          await saveSettings()
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load actual video sources:', error)
+      // 如果加载失败，保持默认设置
+    }
+  }
+
   // 保存设置到缓存
   const saveSettings = async () => {
     const settingsJson = JSON.stringify(settings.value)
@@ -95,6 +131,9 @@ export const useSettingsStore = defineStore('settings', () => {
         console.error('Failed to parse settings:', e)
         settings.value = { ...defaultSettings }
       }
+    } else {
+      // 首次加载，尝试获取实际的视频源
+      await loadActualVideoSources()
     }
   }
 
@@ -175,6 +214,11 @@ export const useSettingsStore = defineStore('settings', () => {
     await saveSettings()
   }
 
+  // 刷新视频源列表
+  const refreshVideoSources = async () => {
+    await loadActualVideoSources()
+  }
+
   return {
     settings: readonly(settings),
     enabledSearchSites,
@@ -189,5 +233,6 @@ export const useSettingsStore = defineStore('settings', () => {
     toggleSearchSite,
     toggleAllSearchSites,
     resetToDefaults,
+    refreshVideoSources,
   }
 })

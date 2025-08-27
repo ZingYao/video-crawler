@@ -53,6 +53,24 @@ func Load(force bool) (*Config, error) {
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
+		// 文件不存在时，创建默认配置文件端口 10086 不需要登录验证
+		if os.IsNotExist(err) {
+			conf := Config{
+				Server: ServerConfig{
+					Port: 10086,
+				},
+			}
+			conf.Auth.RequireLogin = false
+			confData, err := yaml.Marshal(conf)
+			if err != nil {
+				return nil, fmt.Errorf("创建默认配置文件失败: %w", err)
+			}
+			err = os.WriteFile(configPath, confData, 0644)
+			if err != nil {
+				return nil, fmt.Errorf("创建默认配置文件失败: %w", err)
+			}
+			return &conf, nil
+		}
 		return nil, fmt.Errorf("读取配置文件失败: %w", err)
 	}
 

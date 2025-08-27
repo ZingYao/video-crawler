@@ -276,6 +276,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
+import { useSettingsStore } from '@/stores/settings'
 import { videoAPI, videoSourceAPI } from '@/api'
 import { localHistoryManager } from '@/utils/localHistory'
 import Plyr from 'plyr'
@@ -288,6 +289,7 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const configStore = useConfigStore()
+const settingsStore = useSettingsStore()
 
 const loading = ref(false)
 const error = ref('')
@@ -1313,7 +1315,7 @@ const currentSource = computed(() => {
 const currentSourceEpisodes = computed(() => currentSource.value ? currentSource.value.episodes : [])
 const currentIndex = computed(() => currentSourceEpisodes.value.findIndex((e: any) => e.url === currentPlayUrl.value))
 const canPrev = computed(() => currentIndex.value > 0)
-// 仅判断“当前来源”是否还有下一集
+// 仅判断"当前来源"是否还有下一集
 const canNext = computed(() => currentIndex.value >= 0 && currentIndex.value < currentSourceEpisodes.value.length - 1)
 
 function isCurrentEpisode(ep: { url: string }) {
@@ -2160,6 +2162,15 @@ async function handleSearchOtherSites() {
     return
   }
 
+  // 加载设置
+  await settingsStore.loadSettings()
+  
+  // 检查是否有启用的搜索网站
+  if (!settingsStore.hasEnabledSites) {
+    message.warning('请先在设置中选择要搜索的网站')
+    return
+  }
+
   searchingOtherSites.value = true
   hasSearchedOtherSites.value = true
   otherSitesResults.value = []
@@ -2168,7 +2179,7 @@ async function handleSearchOtherSites() {
     // 1) 拉取站点列表并按 sort 降序（越大越靠前）
     const token = auth.token!
     const listResp: any = await videoSourceAPI.getVideoSourceList(token)
-    const sources: Array<{ id: string; name: string; sort: number; status: number }> = (listResp?.data || [])
+    const allSources: Array<{ id: string; name: string; sort: number; status: number }> = (listResp?.data || [])
       // 仅搜索正常状态的站点（status=1）
       .filter((s: any) => Number(s.status) === 1)
       // 排除当前站点（通过URL中的资源ID过滤）
@@ -2176,7 +2187,26 @@ async function handleSearchOtherSites() {
       // 按 sort 降序
       .sort((a: any, b: any) => b.sort - a.sort)
 
-    // 2) 并发度=2 线程池，按顺序调度
+    // 2) 根据设置过滤启用的网站
+    const enabledSiteIds = settingsStore.enabledSearchSites.map(site => site.id)
+    const sources = allSources.filter(source => {
+      // 如果设置中的网站ID是数字格式，需要转换比较
+      const sourceIdStr = String(source.id)
+      return enabledSiteIds.some(enabledId => {
+        // 支持多种ID匹配方式
+        return enabledId === sourceIdStr || 
+               enabledId === String(source.id) ||
+               enabledId === source.id
+      })
+    })
+
+    if (sources.length === 0) {
+      message.warning('没有找到启用的搜索网站，请检查设置')
+      otherSitesResults.value = []
+      return
+    }
+
+    // 3) 并发度=2 线程池，按顺序调度
     const concurrency = 2
     const queue = [...sources]
     const results: any[] = []
@@ -2209,7 +2239,10 @@ async function handleSearchOtherSites() {
     await Promise.all(runners)
 
     otherSitesResults.value = results
-    message.success(`搜索完成，找到 ${results.length} 个结果`)
+    
+    const enabledSitesCount = settingsStore.enabledSearchSites.length
+    const totalSitesCount = allSources.length
+    message.success(`搜索完成，在 ${enabledSitesCount}/${totalSitesCount} 个启用站点中找到 ${results.length} 个结果`)
   } catch (error: any) {
     message.error(error?.message || '搜索失败')
   } finally {

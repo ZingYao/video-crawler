@@ -200,6 +200,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { videoSourceAPI, videoAPI } from '@/api'
 import { localHistoryManager } from '@/utils/localHistory'
+import { useSettingsStore } from '@/stores/settings'
 
 interface MovieResult {
   id: string
@@ -237,6 +238,7 @@ const searchResults = ref<MovieResult[]>([])
 const router = useRouter()
 const auth = useAuthStore()
 const configStore = useConfigStore()
+const settingsStore = useSettingsStore()
 
 // Tooltip 弹层样式：限制最大宽度、允许换行/长词换行
 const tooltipOverlayStyle = { maxWidth: '70vw', whiteSpace: 'normal', wordBreak: 'break-word' }
@@ -339,6 +341,15 @@ const handleSearch = async () => {
     return
   }
 
+  // 加载设置
+  await settingsStore.loadSettings()
+  
+  // 检查是否有启用的搜索网站
+  if (!settingsStore.hasEnabledSites) {
+    message.warning('请先在设置中选择要搜索的网站')
+    return
+  }
+
   searching.value = true
   hasSearched.value = true
   
@@ -346,15 +357,34 @@ const handleSearch = async () => {
     // 1) 拉取站点列表并按 sort 降序（越大越靠前）
     const token = auth.token!
     const listResp: any = await videoSourceAPI.getVideoSourceList(token)
-    const sources: Array<{ id: string; name: string; sort: number; source_type: number; status: number }>= (listResp?.data || [])
+    const allSources: Array<{ id: string; name: string; sort: number; source_type: number; status: number }> = (listResp?.data || [])
       // 仅搜索正常状态的站点（status=1）
       .filter((s: any) => Number(s.status) === 1)
-      // 站点类型过滤（允许“所有”）
+      // 站点类型过滤（允许"所有"）
       .filter((s: any) => selectedSourceType.value === '' || String(s.source_type) === String(selectedSourceType.value))
       // 按 sort 降序
       .sort((a: any, b: any) => b.sort - a.sort)
 
-    // 2) 并发度=2 线程池，按顺序调度
+    // 2) 根据设置过滤启用的网站
+    const enabledSiteIds = settingsStore.enabledSearchSites.map(site => site.id)
+    const sources = allSources.filter(source => {
+      // 如果设置中的网站ID是数字格式，需要转换比较
+      const sourceIdStr = String(source.id)
+      return enabledSiteIds.some(enabledId => {
+        // 支持多种ID匹配方式
+        return enabledId === sourceIdStr || 
+               enabledId === String(source.id) ||
+               enabledId === source.id
+      })
+    })
+
+    if (sources.length === 0) {
+      message.warning('没有找到启用的搜索网站，请检查设置')
+      searchResults.value = []
+      return
+    }
+
+    // 3) 并发度=2 线程池，按顺序调度
     const concurrency = 2
     const queue = [...sources]
     const results: MovieResult[] = []
@@ -399,7 +429,10 @@ const handleSearch = async () => {
     searchResults.value = results
     saveSearchCache()
     saveSearchHistory(searchKeyword.value)
-    message.success(`搜索完成，找到 ${results.length} 个结果`)
+    
+    const enabledSitesCount = settingsStore.enabledSearchSites.length
+    const totalSitesCount = allSources.length
+    message.success(`搜索完成，在 ${enabledSitesCount}/${totalSitesCount} 个启用站点中找到 ${results.length} 个结果`)
   } catch (error) {
     message.error('搜索失败，请重试')
   } finally {

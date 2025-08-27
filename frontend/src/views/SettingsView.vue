@@ -57,6 +57,13 @@
         >
           取消全选
         </button>
+        <button 
+          @click="refreshVideoSources" 
+          class="control-btn refresh-btn"
+          :loading="refreshing"
+        >
+          刷新站点列表
+        </button>
         <span v-if="isAllSitesSelected" class="all-selected-indicator">
           ✓ 全选模式（新增网站将自动选中）
         </span>
@@ -117,6 +124,7 @@ const playbackSpeed = ref(2.0)
 const progressSensitivity = ref(1.0)
 const searchSites = ref<SearchSite[]>([])
 const newSiteName = ref('')
+const refreshing = ref(false)
 
 // 计算属性
 const enabledSitesCount = computed(() => 
@@ -183,6 +191,19 @@ const addNewSite = async () => {
     await settingsStore.addSearchSite(newSite)
     searchSites.value = [...settingsStore.settings.searchSites]
     newSiteName.value = ''
+  }
+}
+
+// 刷新视频源
+const refreshVideoSources = async () => {
+  refreshing.value = true
+  try {
+    await settingsStore.refreshVideoSources()
+    searchSites.value = [...settingsStore.settings.searchSites]
+  } catch (error) {
+    console.error('Failed to refresh video sources:', error)
+  } finally {
+    refreshing.value = false
   }
 }
 
@@ -311,6 +332,17 @@ h2 {
   background: #10b981;
   color: white;
   border-color: #10b981;
+}
+
+.refresh-btn {
+  background: #f59e0b; /* A more distinct color for refresh */
+  color: white;
+  border-color: #f59e0b;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #d97706;
+  border-color: #d97706;
 }
 
 .all-selected-indicator {
