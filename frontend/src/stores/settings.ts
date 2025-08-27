@@ -11,6 +11,7 @@ export interface Settings {
   longPressPlaybackSpeed: number
   progressBarSensitivity: number
   searchSites: SearchSite[]
+  allSitesSelected: boolean // 新增：全选标记
 }
 
 const defaultSearchSites: SearchSite[] = [
@@ -25,6 +26,7 @@ const defaultSettings: Settings = {
   longPressPlaybackSpeed: 2.0,
   progressBarSensitivity: 1.0,
   searchSites: defaultSearchSites,
+  allSitesSelected: true, // 默认全选
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -37,6 +39,12 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const hasEnabledSites = computed(() => 
     settings.value.searchSites.some(site => site.enabled)
+  )
+
+  // 检查是否所有网站都被选中
+  const isAllSitesSelected = computed(() => 
+    settings.value.searchSites.length > 0 && 
+    settings.value.searchSites.every(site => site.enabled)
   )
 
   // 保存设置到缓存
@@ -73,7 +81,15 @@ export const useSettingsStore = defineStore('settings', () => {
         settings.value = {
           ...defaultSettings,
           ...loaded,
-          searchSites: loaded.searchSites || defaultSearchSites
+          searchSites: loaded.searchSites || defaultSearchSites,
+          allSitesSelected: loaded.allSitesSelected !== undefined ? loaded.allSitesSelected : true
+        }
+        
+        // 如果之前是全选状态，确保所有网站都被选中
+        if (settings.value.allSitesSelected) {
+          settings.value.searchSites.forEach(site => {
+            site.enabled = true
+          })
         }
       } catch (e) {
         console.error('Failed to parse settings:', e)
@@ -106,8 +122,25 @@ export const useSettingsStore = defineStore('settings', () => {
     if (!sites.some(site => site.enabled)) {
       sites[0].enabled = true
     }
+    
+    // 更新全选标记
+    const allSelected = sites.length > 0 && sites.every(site => site.enabled)
+    
     settings.value.searchSites = sites
+    settings.value.allSitesSelected = allSelected
     await saveSettings()
+  }
+
+  // 添加新网站
+  const addSearchSite = async (site: SearchSite) => {
+    const newSites = [...settings.value.searchSites, site]
+    
+    // 如果当前是全选状态，新网站也应该被选中
+    if (settings.value.allSitesSelected) {
+      site.enabled = true
+    }
+    
+    await updateSearchSites(newSites)
   }
 
   // 切换单个网站状态
@@ -119,6 +152,10 @@ export const useSettingsStore = defineStore('settings', () => {
         return
       }
       site.enabled = !site.enabled
+      
+      // 更新全选标记
+      settings.value.allSitesSelected = isAllSitesSelected.value
+      
       await saveSettings()
     }
   }
@@ -128,6 +165,7 @@ export const useSettingsStore = defineStore('settings', () => {
     settings.value.searchSites.forEach(site => {
       site.enabled = enabled
     })
+    settings.value.allSitesSelected = enabled
     await saveSettings()
   }
 
@@ -141,11 +179,13 @@ export const useSettingsStore = defineStore('settings', () => {
     settings: readonly(settings),
     enabledSearchSites,
     hasEnabledSites,
+    isAllSitesSelected,
     loadSettings,
     updateSettings,
     updatePlaybackSpeed,
     updateProgressSensitivity,
     updateSearchSites,
+    addSearchSite,
     toggleSearchSite,
     toggleAllSearchSites,
     resetToDefaults,

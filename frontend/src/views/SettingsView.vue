@@ -43,8 +43,23 @@
       <p class="section-description">选择要搜索的网站，至少需要选择一个</p>
       
       <div class="search-sites-controls">
-        <button @click="selectAll" class="control-btn">全选</button>
-        <button @click="selectNone" class="control-btn" :disabled="!hasEnabledSites">取消全选</button>
+        <button 
+          @click="selectAll" 
+          class="control-btn"
+          :class="{ active: isAllSitesSelected }"
+        >
+          全选
+        </button>
+        <button 
+          @click="selectNone" 
+          class="control-btn" 
+          :disabled="!hasEnabledSites"
+        >
+          取消全选
+        </button>
+        <span v-if="isAllSitesSelected" class="all-selected-indicator">
+          ✓ 全选模式（新增网站将自动选中）
+        </span>
       </div>
 
       <div class="search-sites-list">
@@ -64,6 +79,22 @@
             <span class="site-name">{{ site.name }}</span>
           </label>
         </div>
+      </div>
+
+      <!-- 测试区域：添加新网站 -->
+      <div class="test-section">
+        <h3>测试：添加新网站</h3>
+        <div class="add-site-form">
+          <input 
+            v-model="newSiteName" 
+            placeholder="新网站名称" 
+            class="site-input"
+          />
+          <button @click="addNewSite" class="add-btn">添加网站</button>
+        </div>
+        <p class="test-note">
+          在全选模式下，新添加的网站将自动被选中
+        </p>
       </div>
     </div>
 
@@ -85,6 +116,7 @@ const settingsStore = useSettingsStore()
 const playbackSpeed = ref(2.0)
 const progressSensitivity = ref(1.0)
 const searchSites = ref<SearchSite[]>([])
+const newSiteName = ref('')
 
 // 计算属性
 const enabledSitesCount = computed(() => 
@@ -92,6 +124,10 @@ const enabledSitesCount = computed(() =>
 )
 
 const hasEnabledSites = computed(() => enabledSitesCount.value > 0)
+
+const isAllSitesSelected = computed(() => 
+  settingsStore.isAllSitesSelected
+)
 
 // 初始化
 onMounted(async () => {
@@ -132,6 +168,21 @@ const selectNone = async () => {
   if (enabledSitesCount.value > 1) {
     await settingsStore.toggleAllSearchSites(false)
     searchSites.value.forEach(site => site.enabled = false)
+  }
+}
+
+// 添加新网站（测试功能）
+const addNewSite = async () => {
+  if (newSiteName.value.trim()) {
+    const newSite: SearchSite = {
+      id: `site${Date.now()}`,
+      name: newSiteName.value.trim(),
+      enabled: settingsStore.settings.allSitesSelected // 根据全选状态决定是否启用
+    }
+    
+    await settingsStore.addSearchSite(newSite)
+    searchSites.value = [...settingsStore.settings.searchSites]
+    newSiteName.value = ''
   }
 }
 
@@ -232,7 +283,9 @@ h2 {
 .search-sites-controls {
   margin-bottom: 15px;
   display: flex;
+  align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .control-btn {
@@ -254,10 +307,24 @@ h2 {
   cursor: not-allowed;
 }
 
+.control-btn.active {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.all-selected-indicator {
+  color: #10b981;
+  font-size: 0.9em;
+  font-weight: 500;
+  margin-left: 10px;
+}
+
 .search-sites-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
+  margin-bottom: 20px;
 }
 
 .site-item {
@@ -291,6 +358,53 @@ h2 {
   color: #333;
 }
 
+.test-section {
+  border-top: 1px solid #eee;
+  padding-top: 20px;
+  margin-top: 20px;
+}
+
+.test-section h3 {
+  color: #555;
+  margin-bottom: 15px;
+  font-size: 1.1em;
+}
+
+.add-site-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.site-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.add-btn {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background 0.2s;
+}
+
+.add-btn:hover {
+  background: #2563eb;
+}
+
+.test-note {
+  color: #666;
+  font-size: 0.8em;
+  font-style: italic;
+}
+
 .reset-btn {
   padding: 12px 24px;
   background: #ef4444;
@@ -322,6 +436,20 @@ h2 {
   
   .value-display {
     text-align: center;
+  }
+  
+  .search-sites-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .all-selected-indicator {
+    margin-left: 0;
+    margin-top: 5px;
+  }
+  
+  .add-site-form {
+    flex-direction: column;
   }
 }
 </style>
