@@ -1,120 +1,121 @@
 <template>
-  <div class="settings-container">
-    <h1>设置</h1>
-    
-    <div class="settings-section">
-      <h2>播放控制</h2>
-      
-      <div class="setting-item">
-        <label>长按播放倍速</label>
-        <div class="slider-container">
-          <input 
-            type="range" 
-            min="0.5" 
-            max="5.0" 
-            step="0.1" 
-            v-model="playbackSpeed"
-            @input="updatePlaybackSpeed"
-            class="slider"
-          />
-          <span class="value-display">{{ playbackSpeed }}x</span>
-        </div>
-      </div>
-
-      <div class="setting-item">
-        <label>进度条移动倍率</label>
-        <div class="slider-container">
-          <input 
-            type="range" 
-            min="0.1" 
-            max="1.5" 
-            step="0.1" 
-            v-model="progressSensitivity"
-            @input="updateProgressSensitivity"
-            class="slider"
-          />
-          <span class="value-display">{{ progressSensitivity }}x</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <h2>搜索网站范围</h2>
-      <p class="section-description">选择要搜索的网站，至少需要选择一个</p>
-      
-      <div class="search-sites-controls">
-        <button 
-          @click="selectAll" 
-          class="control-btn"
-          :class="{ active: isAllSitesSelected }"
-        >
-          全选
-        </button>
-        <button 
-          @click="selectNone" 
-          class="control-btn" 
-          :disabled="!hasEnabledSites"
-        >
-          取消全选
-        </button>
-        <button 
-          @click="refreshVideoSources" 
-          class="control-btn refresh-btn"
-          :loading="refreshing"
-        >
-          刷新站点列表
-        </button>
-        <span v-if="isAllSitesSelected" class="all-selected-indicator">
-          ✓ 全选模式（新增网站将自动选中）
-        </span>
-      </div>
-
-      <div class="search-sites-list">
-        <div 
-          v-for="site in searchSites" 
-          :key="site.id" 
-          class="site-item"
-        >
-          <label class="site-checkbox">
+  <AppLayout page-title="设置">
+    <div class="settings-container">
+      <div class="settings-section">
+        <h2>播放控制</h2>
+        
+        <div class="setting-item">
+          <label>长按播放倍速</label>
+          <div class="slider-container">
             <input 
-              type="checkbox" 
-              :checked="site.enabled"
-              @change="toggleSite(site.id)"
-              :disabled="site.enabled && enabledSitesCount === 1"
+              type="range" 
+              min="0.5" 
+              max="5.0" 
+              step="0.1" 
+              v-model="playbackSpeed"
+              @input="updatePlaybackSpeed"
+              class="slider"
             />
-            <span class="checkmark"></span>
-            <span class="site-name">{{ site.name }}</span>
-          </label>
+            <span class="value-display">{{ playbackSpeed }}x</span>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <label>进度条移动倍率</label>
+          <div class="slider-container">
+            <input 
+              type="range" 
+              min="0.1" 
+              max="1.5" 
+              step="0.1" 
+              v-model="progressSensitivity"
+              @input="updateProgressSensitivity"
+              class="slider"
+            />
+            <span class="value-display">{{ progressSensitivity }}x</span>
+          </div>
         </div>
       </div>
 
-      <!-- 测试区域：添加新网站 -->
-      <div class="test-section">
-        <h3>测试：添加新网站</h3>
-        <div class="add-site-form">
-          <input 
-            v-model="newSiteName" 
-            placeholder="新网站名称" 
-            class="site-input"
-          />
-          <button @click="addNewSite" class="add-btn">添加网站</button>
+      <div class="settings-section">
+        <h2>搜索网站范围</h2>
+        <p class="section-description">选择要搜索的网站，至少需要选择一个</p>
+        
+        <div class="search-sites-controls">
+          <button 
+            @click="selectAll" 
+            class="control-btn"
+            :class="{ active: isAllSitesSelected }"
+          >
+            全选
+          </button>
+          <button 
+            @click="selectNone" 
+            class="control-btn" 
+            :disabled="!hasEnabledSites"
+          >
+            取消全选
+          </button>
+          <button 
+            @click="refreshVideoSources" 
+            class="control-btn refresh-btn"
+            :loading="refreshing"
+          >
+            刷新站点列表
+          </button>
+          <span v-if="isAllSitesSelected" class="all-selected-indicator">
+            ✓ 全选模式（新增网站将自动选中）
+          </span>
         </div>
-        <p class="test-note">
-          在全选模式下，新添加的网站将自动被选中
-        </p>
+
+        <div class="search-sites-list">
+          <div 
+            v-for="site in searchSites" 
+            :key="site.id" 
+            class="site-item"
+          >
+            <label class="site-checkbox">
+              <input 
+                type="checkbox" 
+                :checked="site.enabled"
+                @change="toggleSite(site.id)"
+                :disabled="site.enabled && enabledSitesCount === 1"
+              />
+              <span class="checkmark"></span>
+              <span class="site-name">{{ site.name }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 测试区域：添加新网站 -->
+        <div class="test-section">
+          <h3>测试：添加新网站</h3>
+          <div class="add-site-form">
+            <input 
+              v-model="newSiteName" 
+              placeholder="新网站名称" 
+              class="site-input"
+            />
+            <button @click="addNewSite" class="add-btn">添加网站</button>
+          </div>
+          <p class="test-note">
+            在全选模式下，新添加的网站将自动被选中
+          </p>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h2>其他</h2>
+        <button @click="resetSettings" class="reset-btn">重置为默认设置</button>
       </div>
     </div>
-
-    <div class="settings-section">
-      <h2>其他</h2>
-      <button @click="resetSettings" class="reset-btn">重置为默认设置</button>
-    </div>
-  </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import AppLayout from '@/components/AppLayout.vue'
 import type { SearchSite } from '@/stores/settings'
 
 const settingsStore = useSettingsStore()
@@ -221,12 +222,6 @@ const resetSettings = async () => {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-}
-
-h1 {
-  color: #333;
-  margin-bottom: 30px;
-  text-align: center;
 }
 
 .settings-section {

@@ -1,23 +1,26 @@
 <template>
-  <div class="not-found">
-    <div class="content">
-      <h1>404</h1>
-      <p>页面不存在或已被移动</p>
-      <a-button type="primary" @click="goHome">返回首页</a-button>
+  <AppLayout page-title="页面未找到">
+    <div class="not-found">
+      <div class="content">
+        <h1>404</h1>
+        <p>页面不存在或已被移动</p>
+        <a-button type="primary" @click="goHome">返回首页</a-button>
+      </div>
     </div>
-  </div>
-  
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import AppLayout from '@/components/AppLayout.vue'
+
 const router = useRouter()
 const goHome = () => router.push('/')
 </script>
 
 <style scoped>
 .not-found {
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - 200px);
   display: flex;
   align-items: center;
   justify-content: center;
