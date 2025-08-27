@@ -64,12 +64,14 @@ else
   echo "[go_lib] 跳过前端构建 (通过 --skip-frontend 或 SKIP_FRONTEND=1)"
 fi
 
+# 清理旧产物
+echo "清理旧的 JNI 库文件..."
+rm -rf "${JNI_LIBS_DIR}"
+mkdir -p "${JNI_LIBS_DIR}"
+
 # 进入仓库根确保依赖可解析
 cd "${REPO_ROOT}"
 go mod tidy
-
-# 清理旧产物
-rm -rf "${JNI_LIBS_DIR}" && mkdir -p "${JNI_LIBS_DIR}"
 
 # 依次构建 4 个 ABI
 build_one arm64-v8a arm64 aarch64-linux-android ""
