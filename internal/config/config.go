@@ -79,11 +79,6 @@ func Load(force bool) (*Config, error) {
 		return nil, fmt.Errorf("解析 YAML 配置失败: %w", err)
 	}
 
-	// 设置默认值
-	if conf.Auth.RequireLogin == false {
-		conf.Auth.RequireLogin = false // 默认为false
-	}
-
 	return &conf, nil
 }
 

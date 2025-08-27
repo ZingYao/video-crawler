@@ -24,7 +24,7 @@ const defaultSearchSites: SearchSite[] = [
 
 const defaultSettings: Settings = {
   longPressPlaybackSpeed: 2.0,
-  progressBarSensitivity: 1.0,
+  progressBarSensitivity: 0.7,
   searchSites: defaultSearchSites,
   allSitesSelected: true, // 默认全选
 }
@@ -151,7 +151,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // 更新进度条敏感度
   const updateProgressSensitivity = async (sensitivity: number) => {
-    settings.value.progressBarSensitivity = Math.max(0.1, Math.min(3.0, sensitivity))
+    settings.value.progressBarSensitivity = Math.max(0.1, Math.min(1.5, sensitivity))
     await saveSettings()
   }
 

@@ -27,7 +27,7 @@
           <input 
             type="range" 
             min="0.1" 
-            max="3.0" 
+            max="1.5" 
             step="0.1" 
             v-model="progressSensitivity"
             @input="updateProgressSensitivity"
@@ -121,7 +121,7 @@ const settingsStore = useSettingsStore()
 
 // 响应式数据
 const playbackSpeed = ref(2.0)
-const progressSensitivity = ref(1.0)
+const progressSensitivity = ref(0.7)
 const searchSites = ref<SearchSite[]>([])
 const newSiteName = ref('')
 const refreshing = ref(false)

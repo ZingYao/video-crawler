@@ -3,11 +3,15 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
+	oRuntime "runtime"
+	"time"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -56,12 +60,12 @@ func (a *App) startup(ctx context.Context) {
 	a.app = app.New(cfg)
 
 	// 启动HTTP服务在随机端口
-	a.serverPort = a.startHTTPServer()
+	a.serverPort = a.startHTTPServer(ctx)
 	log.Printf("Wails HTTP服务启动在端口: %d", a.serverPort)
 }
 
 // startHTTPServer 启动HTTP服务并返回端口号
-func (a *App) startHTTPServer() int {
+func (a *App) startHTTPServer(ctx context.Context) int {
 	// 查找可用端口
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -74,6 +78,7 @@ func (a *App) startHTTPServer() int {
 	// 设置端口并启动服务
 	a.config.Server.Port = port
 
+	waitErr := make(chan error, 1)
 	// 在后台启动HTTP服务
 	go func() {
 		log.Printf("启动Wails HTTP服务在端口: %d", port)
@@ -81,11 +86,34 @@ func (a *App) startHTTPServer() int {
 			log.Printf("HTTP服务启动失败: %v", err)
 			// 如果在 wails 模式下，需要弹窗提示 五毛后退出程序
 			if os.Getenv("VIDEO_CRAWLER_CONFIG_DIR") != "" {
-				dialog.ShowError("HTTP服务启动失败", err.Error())
-				os.Exit(1)
+				ret, _ := runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+					Type:    runtime.ErrorDialog,
+					Title:   "HTTP服务启动失败",
+					Message: fmt.Sprintf("HTTP服务启动失败: %v\n 点击Ok 重试启动 HTTP 服务", err),
+					Buttons: []string{"Ok", "Cancel"},
+				})
+				switch ret {
+				case "Ok":
+					port = a.startHTTPServer(ctx)
+					waitErr <- err
+				case "Cancel":
+
+					os.Exit(1)
+				}
+			} else {
+				waitErr <- err
 			}
 		}
 	}()
+
+	select {
+	case err := <-waitErr:
+		log.Printf("HTTP服务启动失败: %v", err)
+		return port
+	case <-time.After(10 * time.Second):
+		log.Printf("HTTP服务等待错误超时")
+		return port
+	}
 
 	return port
 }
@@ -104,7 +132,7 @@ func (a *App) shutdown(ctx context.Context) {
 func getAppConfigDir() string {
 	var configDir string
 
-	switch runtime.GOOS {
+	switch oRuntime.GOOS {
 	case "darwin":
 		// macOS: ~/Library/Application Support/video-crawler
 		homeDir, err := os.UserHomeDir()
@@ -159,23 +187,6 @@ func main() {
 	// 设置配置目录
 	configDir := getAppConfigDir()
 	os.Setenv("VIDEO_CRAWLER_CONFIG_DIR", configDir)
-
-	// 复制默认配置文件到应用目录（如果不存在）
-	defaultConfigPath := "configs/config.yaml"
-	appConfigPath := filepath.Join(configDir, "config.yaml")
-
-	if _, err := os.Stat(appConfigPath); os.IsNotExist(err) {
-		if _, err := os.Stat(defaultConfigPath); err == nil {
-			// 读取默认配置
-			defaultConfig, err := os.ReadFile(defaultConfigPath)
-			if err == nil {
-				// 写入到应用配置目录
-				if err := os.WriteFile(appConfigPath, defaultConfig, 0644); err != nil {
-					log.Printf("复制配置文件失败: %v", err)
-				}
-			}
-		}
-	}
 
 	// Create an instance of the app structure
 	app := NewApp()
