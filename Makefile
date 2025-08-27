@@ -97,7 +97,7 @@ build-windows: build-frontend
 .PHONY: build-android
 build-android: build-frontend
 	@echo "Building for Android..."
-	@BUILD_DIR=$(BUILD_DIR) BINARY_NAME=$(BINARY_NAME) MAIN_PATH=$(MAIN_PATH) VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) GIT_COMMIT=$(GIT_COMMIT) scripts/build_android.sh
+	@BUILD_DIR=$(BUILD_DIR) BINARY_NAME=$(BINARY_NAME) MAIN_PATH=$(MAIN_PATH) VERSION=$(VERSION) BUILD_TIME=$(BUILD_TIME) GIT_COMMIT=$(GIT_COMMIT) android/build_android.sh
 
 # 运行项目
 .PHONY: run
