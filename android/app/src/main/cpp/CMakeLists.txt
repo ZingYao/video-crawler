@@ -14,4 +14,4 @@ find_library(log-lib log)
 find_library(dl-lib dl)
 
 # 链接Go构建的库
-target_link_libraries(go_video_crawler_jni ${log-lib} ${dl-lib} ${JNI_LIBS_DIR}/libvideo_crawler.so)
+target_link_libraries(go_video_crawler_jni ${log-lib} ${dl-lib} ${JNI_LIBS_DIR}/libgo_video_crawler.so)

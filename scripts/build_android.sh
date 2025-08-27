@@ -33,34 +33,10 @@ mkdir -p "$CPP_DIR"
 
 # 生成头文件
 echo "Generating header files..."
-cat > "$CPP_DIR/video_crawler_jni.h" << 'EOF'
-#ifndef VIDEO_CRAWLER_JNI_H
-#define VIDEO_CRAWLER_JNI_H
-
-#include <jni.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// JNI函数声明
-JNIEXPORT jint JNICALL Java_com_zing_video_1crawler_MainActivity_startHttpService(JNIEnv *env, jobject obj, jint port);
-JNIEXPORT void JNICALL Java_com_zing_video_1crawler_MainActivity_stopHttpService(JNIEnv *env, jobject obj);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // VIDEO_CRAWLER_JNI_H
-EOF
 
 # 将头文件复制到所有ABI目录
 for abi_dir in arm64-v8a x86_64 armeabi-v7a x86; do
   mkdir -p "$JNI_LIBS_DIR/$abi_dir"
-  cp "$CPP_DIR/video_crawler_jni.h" "$JNI_LIBS_DIR/$abi_dir/"
-  echo "Copied header file to $JNI_LIBS_DIR/$abi_dir/video_crawler_jni.h"
 done
-
-echo "Generated header file: $CPP_DIR/video_crawler_jni.h"
 
 echo "Android builds and JNI setup completed"
