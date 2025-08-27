@@ -1195,11 +1195,20 @@ async function handleEnterFullscreen() {
   const orientation = estimateOrientation()
   try { console.log(`[Fullscreen] 根据视频尺寸 ${lastVideoW}x${lastVideoH} 设置屏幕方向: ${orientation}`) } catch {}
   await lockOrientation(orientation)
+
+  // Android: 仅在全屏时监听横竖屏变化，非全屏不监听
+  try {
+    // 避免重复绑定
+    removeAndroidOrientationListener()
+    addAndroidOrientationListener()
+  } catch {}
 }
 
 async function handleExitFullscreen() {
   try { console.log('[Fullscreen] 退出全屏，尝试解锁屏幕方向') } catch {}
   await unlockOrientation()
+  // 退出全屏后移除方向监听
+  try { removeAndroidOrientationListener() } catch {}
 }
 
 function estimateOrientation(): 'landscape' | 'portrait' {
@@ -1237,6 +1246,29 @@ async function unlockOrientation() {
     }
   } catch {}
   orientationLocked = false
+}
+
+// —— Android 全屏期间的横竖屏监听 ——
+let androidOrientationHandler: ((e: Event) => void) | null = null
+
+function addAndroidOrientationListener() {
+  // 仅在 Android 下有意义（简易判断）
+  const isAndroid = !!(window as any).AndroidKV || /Android/.test(navigator.userAgent)
+  if (!isAndroid) return
+  androidOrientationHandler = () => {
+    // 全屏期间，根据当前视频/容器的宽高估算并锁定
+    const ori = estimateOrientation()
+    try { console.log('[Fullscreen] orientationchange ->', ori) } catch {}
+    void lockOrientation(ori)
+  }
+  window.addEventListener('orientationchange', androidOrientationHandler, { passive: true })
+}
+
+function removeAndroidOrientationListener() {
+  if (androidOrientationHandler) {
+    window.removeEventListener('orientationchange', androidOrientationHandler)
+    androidOrientationHandler = null
+  }
 }
 
 // Screen Wake Lock API（声明到顶部作用域）

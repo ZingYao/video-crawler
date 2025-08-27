@@ -32,7 +32,7 @@
             </a-button>
             <a-button @click="exportVideoSources">
               <template #icon>
-                <DownloadOutlined />
+                <UploadOutlined />
               </template>
               导出配置
             </a-button>
@@ -43,7 +43,7 @@
             >
               <a-button>
                 <template #icon>
-                  <UploadOutlined />
+                  <DownloadOutlined />
                 </template>
                 导入配置
               </a-button>
@@ -62,7 +62,8 @@
         <div class="table-responsive" v-else>
           <a-table :data-source="videoSourceList" :columns="columns" :pagination="false"
             :row-key="(record: VideoSource) => record.id" size="small" :default-sort-order="'descend'"
-            :sort-directions="['descend', 'ascend']" :scroll="{ x: 1200 }">
+            :sort-directions="['descend', 'ascend']" :scroll="{ x: 1200 }"
+            :locale="{ emptyText: '暂无视频源数据' }">
             <template #bodyCell="{ column, record }: { column: any, record: VideoSource }">
               <template v-if="column.key === 'id'">
                 <a-typography-text copyable :copy-text="record.id" @copy="() => message.success('站点ID已复制到剪贴板')">
@@ -132,8 +133,6 @@
             </template>
           </a-table>
         </div>
-
-        <a-empty v-if="!loading && !error && videoSourceList.length === 0" description="暂无视频源数据" />
       </div>
     </a-card>
   </AppLayout>
@@ -390,9 +389,17 @@ const importVideoSources = async (file: File) => {
       message.error('文件格式错误，请选择正确的JSON文件')
       return false
     }
-    
-    message.success(`成功导入 ${data.length} 个视频源`)
-    await refreshVideoSourceList()
+    // 调用后端导入接口
+    const auth = useAuthStore()
+    const token = auth.token || ''
+    const resp = await videoSourceAPI.importVideoSources(token, data)
+    if (resp && resp.code === 0) {
+      const count = resp.data?.imported_count ?? data.length
+      message.success(`成功导入 ${count} 个视频源`)
+      await refreshVideoSourceList()
+    } else {
+      message.error(resp?.message || '导入失败')
+    }
     return false
   } catch (err: any) {
     message.error(err.message || '导入失败')

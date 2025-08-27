@@ -1,7 +1,7 @@
 <template>
   <div class="app-layout">
     <!-- 左侧菜单 -->
-    <aside class="sidebar" :class="sidebarVisible ? '' : 'collapsed'" :data-visible="sidebarVisible">
+    <aside class="sidebar" :class="sidebarVisible ? '' : 'collapsed'" :data-visible="sidebarVisible" ref="sidebarRef">
       <div class="sidebar-header">
         <div class="logo">
           <span class="logo-icon">🎬</span>
@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
@@ -127,6 +127,9 @@ const route = useRoute()
 const authStore = useAuthStore()
 const configStore = useConfigStore()
 const sidebarVisible = ref(false) // 默认收起，让用户手动控制
+const sidebarRef = ref<HTMLElement | null>(null)
+let outsideClickHandler: ((e: MouseEvent) => void) | null = null
+let outsideClickTimer: number | null = null
 const activeMenu = ref('')
 
 // 菜单项类型定义
@@ -193,7 +196,44 @@ const isActiveMenu = (menuId: string) => {
 const showCloseButton = computed(() => sidebarVisible.value && window.innerWidth <= 1024)
 
 // 方法
-const toggleSidebar = () => { sidebarVisible.value = !sidebarVisible.value }
+const removeOutsideListener = () => {
+  if (outsideClickHandler) {
+    document.removeEventListener('click', outsideClickHandler, true)
+    outsideClickHandler = null
+  }
+  if (outsideClickTimer) {
+    window.clearTimeout(outsideClickTimer)
+    outsideClickTimer = null
+  }
+}
+
+const scheduleOutsideListener = () => {
+  removeOutsideListener()
+  // 延迟100ms后开始监听一次性外部点击
+  outsideClickTimer = window.setTimeout(() => {
+    outsideClickHandler = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      const inSidebar = !!(sidebarRef.value && target && sidebarRef.value.contains(target))
+      if (!inSidebar) {
+        sidebarVisible.value = false
+        removeOutsideListener()
+      }
+    }
+    // 使用捕获阶段，优先于子元素处理，且只处理一次
+    document.addEventListener('click', outsideClickHandler, true)
+  }, 100)
+}
+
+const toggleSidebar = () => {
+  const next = !sidebarVisible.value
+  sidebarVisible.value = next
+  if (next) {
+    scheduleOutsideListener()
+  } else {
+    removeOutsideListener()
+  }
+}
+
 const handleMainClick = () => {}
 const handleMenuClick = (item: MenuItem) => { activeMenu.value = item.id; router.push(item.route) }
 const goToProfile = () => router.push('/profile')
@@ -208,6 +248,10 @@ const updateActiveMenu = () => {
 
 // 生命周期
 onMounted(() => { updateActiveMenu() })
+
+onBeforeUnmount(() => {
+  removeOutsideListener()
+})
 </script>
 
 <style scoped>

@@ -245,6 +245,13 @@ export const videoSourceAPI = {
       method: 'POST',
       body: JSON.stringify({ id, status }),
     }),
+
+  // 导入视频源配置
+  importVideoSources: (token: string, data: any[]) =>
+    authenticatedRequest('/api/video-source/import', token, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 }
 
 // 历史相关API
