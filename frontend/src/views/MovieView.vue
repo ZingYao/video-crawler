@@ -220,17 +220,62 @@ interface MovieResult {
 
 // 搜索相关状态
 const searchKeyword = ref('')
-const selectedSourceType = ref('0')
+const selectedSourceType = ref('')
 const searching = ref(false)
 const hasSearched = ref(false)
 
 // 搜索历史
 const searchHistory = ref<string[]>([])
 const searchHistoryOptions = computed(() => {
-  return searchHistory.value.map(item => ({
-    value: item,
-    label: item
-  }))
+  const currentInput = searchKeyword.value?.trim() || ''
+  const options = []
+  
+  // 如果当前输入不为空，检查是否在历史记录中
+  if (currentInput) {
+    const matchedHistory = searchHistory.value.find(item => item === currentInput)
+    
+    if (matchedHistory) {
+      // 如果匹配到历史记录，将匹配的记录放在第一位
+      options.push({
+        value: matchedHistory,
+        label: matchedHistory
+      })
+      
+      // 添加其他历史记录（排除已匹配的）
+      searchHistory.value.forEach(item => {
+        if (item !== matchedHistory) {
+          options.push({
+            value: item,
+            label: item
+          })
+        }
+      })
+    } else {
+      // 如果匹配不到历史记录，将当前输入作为第一条
+      options.push({
+        value: currentInput,
+        label: currentInput
+      })
+      
+      // 添加所有历史记录
+      searchHistory.value.forEach(item => {
+        options.push({
+          value: item,
+          label: item
+        })
+      })
+    }
+  } else {
+    // 如果当前输入为空，显示所有历史记录
+    searchHistory.value.forEach(item => {
+      options.push({
+        value: item,
+        label: item
+      })
+    })
+  }
+  
+  return options
 })
 
 // 搜索结果数据
@@ -283,6 +328,7 @@ function loadSearchCache(): boolean {
 
 onMounted(() => {
   loadSearchCache()
+  loadSearchHistory()
 })
 
 onBeforeUnmount(() => {

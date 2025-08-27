@@ -62,7 +62,7 @@
         <div class="table-responsive" v-else>
           <a-table :data-source="videoSourceList" :columns="columns" :pagination="false"
             :row-key="(record: VideoSource) => record.id" size="small" :default-sort-order="'descend'"
-            :sort-directions="['descend', 'ascend']" :scroll="{ x: 1000 }">
+            :sort-directions="['descend', 'ascend']" :scroll="{ x: 1200 }">
             <template #bodyCell="{ column, record }: { column: any, record: VideoSource }">
               <template v-if="column.key === 'id'">
                 <a-typography-text copyable :copy-text="record.id" @copy="() => message.success('站点ID已复制到剪贴板')">
@@ -105,7 +105,7 @@
               </template>
 
               <template v-else-if="column.key === 'actions'">
-                <a-space>
+                <a-space size="small">
                   <a-button type="primary" size="small" @click="editVideoSource(record.id)">
                     <template #icon>
                       <EditOutlined />
@@ -118,7 +118,7 @@
                       <template #icon>
                         <DeleteOutlined />
                       </template>
-                      删除
+                    删除
                     </a-button>
                   </a-popconfirm>
                   <a-button size="small" @click="checkStatus(record)">
@@ -186,40 +186,40 @@ const columns = [
   {
     title: '站点ID',
     key: 'id',
-    width: 120
+    width: 100
   },
   {
     title: '站点名称',
     dataIndex: 'name',
     key: 'name',
-    width: 150
+    width: 120
   },
   {
     title: '站点域名',
     key: 'domain',
-    width: 200
+    width: 180
   },
   {
     title: '资源类型',
     key: 'source_type',
-    width: 100
+    width: 80
   },
   {
     title: '排序',
     key: 'sort',
-    width: 80,
+    width: 60,
     sorter: (a: VideoSource, b: VideoSource) => b.sort - a.sort,
     defaultSortOrder: 'descend' as const
   },
   {
     title: '状态',
     key: 'status',
-    width: 100
+    width: 80
   },
   {
     title: '操作',
     key: 'actions',
-    width: 150,
+    width: 180,
     fixed: 'right'
   }
 ]
