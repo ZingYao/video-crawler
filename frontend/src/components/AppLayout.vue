@@ -154,10 +154,14 @@ const menuItems: MenuItem[] = [
 // 计算属性
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
-    // 如果系统配置为不需要登录，只隐藏用户管理相关菜单
+    // 如果系统配置为不需要登录，只隐藏用户管理相关菜单，允许访问站点管理
     if (!configStore.needsLogin()) {
       if (item.id === 'user-management') {
         return false
+      }
+      // 在无需登录模式下，允许访问站点管理页面
+      if (item.id === 'video-source-management') {
+        return true
       }
     }
     
