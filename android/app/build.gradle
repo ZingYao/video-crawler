@@ -50,6 +50,13 @@ android {
         viewBinding true
     }
 
+    // 启用 .so 压缩，降低 APK 体积（Android 7+ 影响较小）
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+
     // 输出多架构 APK，可选
     splits {
         abi {
