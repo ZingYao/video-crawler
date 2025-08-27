@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { videoSourceAPI } from '@/api'
 
 export interface SearchSite {
   id: string
@@ -50,35 +52,53 @@ export const useSettingsStore = defineStore('settings', () => {
   // 从后端加载实际的视频源站点
   const loadActualVideoSources = async () => {
     try {
-      // 动态导入API，避免循环依赖
-      const { videoSourceAPI } = await import('@/api')
-      const { useAuthStore } = await import('@/stores/auth')
+      console.log('[Settings] 开始加载实际视频源...')
+      
       const authStore = useAuthStore()
       
+      console.log('[Settings] Auth token:', authStore.token ? '存在' : '不存在')
+      
       if (!authStore.token) {
-        console.warn('No auth token available for loading video sources')
+        console.warn('[Settings] No auth token available for loading video sources')
         return
       }
       
+      console.log('[Settings] 调用 videoSourceAPI.getVideoSourceList...')
       const response = await videoSourceAPI.getVideoSourceList(authStore.token)
+      console.log('[Settings] API响应:', response)
       
       if (response?.code === 0 && Array.isArray(response.data)) {
+        // 获取当前缓存的勾选状态
+        const currentSites = settings.value.searchSites
+        const currentEnabledMap = new Map(currentSites.map(site => [site.id, site.enabled]))
+        
+        // 从API获取站点列表，并合并勾选状态
         const actualSites: SearchSite[] = response.data
           .filter((source: any) => source.status === 1) // 只包含正常状态的站点
           .map((source: any) => ({
             id: source.id,
             name: source.name,
-            enabled: true // 默认启用
+            enabled: currentEnabledMap.has(source.id) 
+              ? currentEnabledMap.get(source.id)! // 使用缓存的勾选状态
+              : settings.value.allSitesSelected // 新站点根据全选状态决定是否启用
           }))
+        
+        console.log('[Settings] 合并后的站点:', actualSites)
         
         if (actualSites.length > 0) {
           settings.value.searchSites = actualSites
-          settings.value.allSitesSelected = true
+          // 更新全选状态
+          settings.value.allSitesSelected = actualSites.every(site => site.enabled)
           await saveSettings()
+          console.log('[Settings] 成功更新站点列表')
+        } else {
+          console.warn('[Settings] 没有找到可用的视频源站点')
         }
+      } else {
+        console.warn('[Settings] API返回数据格式不正确:', response)
       }
     } catch (error) {
-      console.warn('Failed to load actual video sources:', error)
+      console.error('[Settings] Failed to load actual video sources:', error)
       // 如果加载失败，保持默认设置
     }
   }
@@ -127,10 +147,15 @@ export const useSettingsStore = defineStore('settings', () => {
             site.enabled = true
           })
         }
+        
+        // 无论是否有缓存数据，都尝试获取最新的视频源列表
+        await loadActualVideoSources()
       } catch (e) {
         console.error('Failed to parse settings:', e)
         settings.value = { ...defaultSettings }
         await saveSettings() // 保存默认设置到缓存
+        // 尝试获取实际的视频源
+        await loadActualVideoSources()
       }
     } else {
       // 首次加载，使用默认设置

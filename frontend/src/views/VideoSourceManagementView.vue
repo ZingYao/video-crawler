@@ -319,20 +319,79 @@ const deleteVideoSource = async (id: string) => {
 // 导出视频源配置
 const exportVideoSources = async () => {
   try {
+    console.log('[Export Debug] 开始导出视频源配置...')
+    console.log('[Export Debug] window.go:', window.go)
+    console.log('[Export Debug] window.AndroidDownload:', window.AndroidDownload)
+    console.log('[Export Debug] User Agent:', navigator.userAgent)
+    
     const response = await videoSourceAPI.exportVideoSources()
     const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'video-sources.json'
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
-    message.success('配置导出成功')
+    
+    // 检测环境并选择合适的文件保存方式
+    if (window.go && window.go.main && window.go.main.App) {
+      // Wails环境：使用Wails的文件保存功能
+      try {
+        const text = await blob.text()
+        const filename = 'video-sources.json'
+        
+        // 调用Wails的文件保存功能
+        await (window.go.main.App as any).SaveFile(filename, text)
+        message.success('配置导出成功')
+      } catch (wailsError) {
+        console.error('Wails文件保存失败:', wailsError)
+        // 如果Wails保存失败，回退到浏览器下载
+        fallbackDownload(blob, 'video-sources.json')
+      }
+    } else if (window.AndroidDownload) {
+      // Android环境：使用Android的文件保存功能
+      try {
+        const text = await blob.text()
+        const filename = 'video-sources.json'
+        
+        console.log('[Android Export] 开始Android文件保存...')
+        console.log('[Android Export] 文本长度:', text.length)
+        console.log('[Android Export] AndroidDownload接口:', window.AndroidDownload)
+        
+        // 尝试使用更简单的saveBlobData方法
+        try {
+          window.AndroidDownload.saveBlobData(text, filename)
+          message.success('配置文件已保存')
+          console.log('[Android Export] 使用saveBlobData保存成功')
+        } catch (saveError) {
+          console.log('[Android Export] saveBlobData失败，尝试downloadBlobFileWithPicker')
+          // 如果saveBlobData失败，尝试使用文件选择器
+          window.AndroidDownload.downloadBlobFileWithPicker(
+            btoa(unescape(encodeURIComponent(text))), // 转换为base64
+            filename
+          )
+          message.success('请选择保存位置')
+        }
+        console.log('[Android Export] Android文件保存调用完成')
+      } catch (androidError) {
+        console.error('Android文件保存失败:', androidError)
+        // 如果Android保存失败，回退到浏览器下载
+        fallbackDownload(blob, 'video-sources.json')
+      }
+    } else {
+      // 浏览器环境：使用标准下载方式
+      fallbackDownload(blob, 'video-sources.json')
+    }
   } catch (err: any) {
     message.error(err.message || '导出失败')
   }
+}
+
+// 浏览器下载的回退函数
+const fallbackDownload = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+  message.success('配置导出成功')
 }
 
 // 导入视频源配置

@@ -9,3 +9,7 @@ export function GetConfig() {
 export function GetServerPort() {
   return window['go']['main']['App']['GetServerPort']();
 }
+
+export function SaveFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveFile'](arg1, arg2);
+}

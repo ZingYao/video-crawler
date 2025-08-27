@@ -4,3 +4,5 @@
 export function GetConfig():Promise<Record<string, any>>;
 
 export function GetServerPort():Promise<number>;
+
+export function SaveFile(arg1:string,arg2:string):Promise<void>;

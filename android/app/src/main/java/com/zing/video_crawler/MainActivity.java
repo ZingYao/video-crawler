@@ -175,6 +175,12 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setDatabaseEnabled(true);
+        
+        // 启用WebView开发者工具
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            android.util.Log.d("MainActivity", "启用WebView开发者工具...");
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
 
         // Cookie 持久化策略
         CookieManager cm = CookieManager.getInstance();
@@ -194,10 +200,12 @@ public class MainActivity extends AppCompatActivity {
         rootLayout.addView(loadingBar, lp);
 
         // JS 接口注册
+        android.util.Log.d("MainActivity", "注册JavaScript接口...");
         webView.addJavascriptInterface(new AndroidSession(), "AndroidSession");
         webView.addJavascriptInterface(new AndroidKV(), "AndroidKV");
 
         // 添加 JS 接口：AndroidDownload（已存在）
+        android.util.Log.d("MainActivity", "注册AndroidDownload接口...");
         webView.addJavascriptInterface(new Object() {
             @android.webkit.JavascriptInterface
             public void downloadBlobFile(String base64Data, String filename) {
@@ -223,12 +231,14 @@ public class MainActivity extends AppCompatActivity {
 
             @android.webkit.JavascriptInterface
             public void downloadBlobFileWithPicker(String base64Data, String filename) {
+                android.util.Log.d("AndroidDownload", "downloadBlobFileWithPicker called - filename: " + filename + ", data length: " + (base64Data != null ? base64Data.length() : 0));
                 pendingBase64Data = base64Data;
                 pendingFilename = filename != null && !filename.isEmpty() ? filename : "video_crawler_config.json";
                 Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
                 intent.setType("application/json");
                 intent.putExtra(Intent.EXTRA_TITLE, pendingFilename);
+                android.util.Log.d("AndroidDownload", "Starting file picker activity...");
                 startActivityForResult(intent, REQUEST_CREATE_DOCUMENT_BLOB);
             }
 
@@ -261,13 +271,13 @@ public class MainActivity extends AppCompatActivity {
 
             @android.webkit.JavascriptInterface
             public void saveBlobData(String jsonData, String filename) {
+                android.util.Log.d("AndroidDownload", "saveBlobData called - filename: " + filename + ", data length: " + (jsonData != null ? jsonData.length() : 0));
+                // 将数据转换为base64并调用文件选择器
                 try {
-                    java.io.File file = new java.io.File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), filename);
-                    java.io.FileWriter writer = new java.io.FileWriter(file);
-                    writer.write(jsonData);
-                    writer.close();
-                    Toast.makeText(MainActivity.this, "配置文件已保存到: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+                    String base64Data = android.util.Base64.encodeToString(jsonData.getBytes("UTF-8"), android.util.Base64.DEFAULT);
+                    downloadBlobFileWithPicker(base64Data, filename);
                 } catch (Exception e) {
+                    android.util.Log.e("AndroidDownload", "saveBlobData failed to convert to base64: " + e.getMessage(), e);
                     Toast.makeText(MainActivity.this, "保存失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             }
@@ -320,6 +330,32 @@ public class MainActivity extends AppCompatActivity {
         decor.addView(fullScreenContainer, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(android.webkit.ConsoleMessage consoleMessage) {
+                // 将WebView的console信息打印到Android日志
+                String message = String.format("WebView Console [%s:%d] %s: %s", 
+                    consoleMessage.sourceId(), 
+                    consoleMessage.lineNumber(), 
+                    consoleMessage.messageLevel().name(), 
+                    consoleMessage.message());
+                
+                switch (consoleMessage.messageLevel()) {
+                    case ERROR:
+                        android.util.Log.e("WebView", message);
+                        break;
+                    case WARNING:
+                        android.util.Log.w("WebView", message);
+                        break;
+                    case DEBUG:
+                        android.util.Log.d("WebView", message);
+                        break;
+                    default:
+                        android.util.Log.i("WebView", message);
+                        break;
+                }
+                return true; // 返回true表示我们已经处理了这个消息
+            }
+            
             @Override
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
                 MainActivity.this.filePathCallback = filePathCallback;
@@ -560,13 +596,18 @@ public class MainActivity extends AppCompatActivity {
             if (uri == null) return;
             try {
                 if (requestCode == REQUEST_CREATE_DOCUMENT_BLOB && pendingBase64Data != null) {
+                    android.util.Log.d("AndroidDownload", "Processing REQUEST_CREATE_DOCUMENT_BLOB result");
                     byte[] bytes = android.util.Base64.decode(pendingBase64Data, android.util.Base64.DEFAULT);
+                    android.util.Log.d("AndroidDownload", "Decoded base64 data, bytes length: " + bytes.length);
                     OutputStream os = getContentResolver().openOutputStream(uri, "w");
                     if (os != null) {
                         os.write(bytes);
                         os.flush();
                         os.close();
+                        android.util.Log.d("AndroidDownload", "File saved successfully via picker");
                         Toast.makeText(this, "配置文件已保存", Toast.LENGTH_SHORT).show();
+                    } else {
+                        android.util.Log.e("AndroidDownload", "Failed to open output stream");
                     }
                     pendingBase64Data = null;
                     pendingFilename = null;

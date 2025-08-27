@@ -140,24 +140,54 @@ const menuItems: MenuItem[] = [
   { id: 'home', icon: '🏠', label: '首页', description: '系统概览和快速操作', requiresAdmin: false, route: '/' },
   { id: 'movie', icon: '🎭', label: '观影', description: '搜索和观看视频', requiresAdmin: false, route: '/movie' },
   { id: 'watch-history', icon: '📺', label: '观看历史', description: '查看您的视频观看历史', requiresAdmin: false, route: '/history/watch' },
-  { id: 'settings', icon: '⚙️', label: '设置', description: '播放控制与搜索网站设置', requiresAdmin: false, route: '/settings' },
   { id: 'user-management', icon: '👥', label: '用户管理', description: '管理系统用户账户', requiresAdmin: true, route: '/user-management' },
   { id: 'video-source-management', icon: '🎬', label: '视频资源管理', description: '管理视频资源站点', requiresAdmin: false, requiresSiteAdmin: true, route: '/video-source-management' },
-  { id: 'api-docs', icon: '🧭', label: '接口文档', description: 'API 文档与示例', requiresAdmin: false, route: '/api-docs' }
+  { id: 'api-docs', icon: '🧭', label: '接口文档', description: 'API 文档与示例', requiresAdmin: false, route: '/api-docs' },
+  { id: 'settings', icon: '⚙️', label: '设置', description: '播放控制与搜索网站设置', requiresAdmin: false, route: '/settings' }
 ]
 
 // 计算属性
 const filteredMenuItems = computed(() => {
-  return menuItems.filter(item => {
-    if (item.id === 'api-docs' && !isAppEnvironment()) return false
+  console.log('[Menu Debug] 开始过滤菜单项...')
+  console.log('[Menu Debug] isAppEnvironment():', isAppEnvironment())
+  console.log('[Menu Debug] configStore.needsLogin():', configStore.needsLogin())
+  console.log('[Menu Debug] authStore.user:', authStore.user)
+  
+  const filtered = menuItems.filter(item => {
+    console.log(`[Menu Debug] 检查菜单项 ${item.id}:`, item)
+    
+    if (item.id === 'api-docs' && !isAppEnvironment()) {
+      console.log(`[Menu Debug] ${item.id} 被过滤：不在应用环境中`)
+      return false
+    }
+    
     if (!configStore.needsLogin()) {
-      if (item.id === 'user-management') return false
+      if (item.id === 'user-management') {
+        console.log(`[Menu Debug] ${item.id} 被过滤：不需要登录但需要管理员权限`)
+        return false
+      }
+      console.log(`[Menu Debug] ${item.id} 显示：不需要登录`)
       return true
     }
-    if (item.requiresAdmin) return authStore.user?.isAdmin === true
-    if (item.requiresSiteAdmin) return authStore.user?.isAdmin === true || authStore.user?.isSiteAdmin === true
+    
+    if (item.requiresAdmin) {
+      const hasAdmin = authStore.user?.isAdmin === true
+      console.log(`[Menu Debug] ${item.id} 需要管理员权限，用户是否管理员:`, hasAdmin)
+      return hasAdmin
+    }
+    
+    if (item.requiresSiteAdmin) {
+      const hasSiteAdmin = authStore.user?.isAdmin === true || authStore.user?.isSiteAdmin === true
+      console.log(`[Menu Debug] ${item.id} 需要站点管理员权限，用户是否有权限:`, hasSiteAdmin)
+      return hasSiteAdmin
+    }
+    
+    console.log(`[Menu Debug] ${item.id} 显示：无特殊权限要求`)
     return true
   })
+  
+  console.log('[Menu Debug] 过滤后的菜单项:', filtered.map(item => item.id))
+  return filtered
 })
 
 const showCloseButton = computed(() => sidebarVisible.value && window.innerWidth <= 1024)

@@ -14,42 +14,53 @@ GO_LDFLAGS=(
   "-X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME} -X main.GitCommit=${GIT_COMMIT} -s -w"
 )
 
-mkdir -p "$BUILD_DIR"
+echo "Building for Android..."
 
-for arch in amd64 arm64; do
-  echo "android/${arch} (CGO_ENABLED=1)"
-  NDK_ROOT="${ANDROID_NDK_HOME:-}"
-  if [[ -z "$NDK_ROOT" ]]; then NDK_ROOT="${ANDROID_NDK_ROOT:-}"; fi
-  if [[ -z "$NDK_ROOT" ]]; then
-    echo "[INFO] ANDROID_NDK_HOME/ROOT not set. Preparing local NDK cache..."
-    NDK_CACHE_DIR=".ndk"; mkdir -p "$NDK_CACHE_DIR"
-    NDK_ZIP="$NDK_CACHE_DIR/android-ndk-r29-beta3-darwin.zip"
-    if [[ ! -f "$NDK_ZIP" ]]; then
-      echo "[INFO] Downloading NDK r29-beta3..."
-      curl -L --retry 3 -o "$NDK_ZIP" "https://dl.google.com/android/repository/android-ndk-r29-beta3-darwin.zip"
-    fi
-    if [[ ! -d "$NDK_CACHE_DIR/android-ndk-r29-beta3" ]]; then
-      echo "[INFO] Extracting NDK..."
-      unzip -q -o "$NDK_ZIP" -d "$NDK_CACHE_DIR"
-    fi
-    NDK_ROOT="$NDK_CACHE_DIR/android-ndk-r29-beta3"
-  fi
+# 调用build_go_lib.sh构建.so文件
+echo "Calling build_go_lib.sh to build .so files..."
+cd android
+./build_go_lib.sh
+cd ..
 
-  host_arch=$(uname -m)
-  if [[ -d "$NDK_ROOT/toolchains/llvm/prebuilt/darwin-${host_arch}/bin" ]]; then
-    NDK_BIN="$NDK_ROOT/toolchains/llvm/prebuilt/darwin-${host_arch}/bin"
-  elif [[ -d "$NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin" ]]; then
-    NDK_BIN="$NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin"
-  else
-    echo "[ERROR] Cannot locate NDK prebuilt bin under $NDK_ROOT/toolchains/llvm/prebuilt"; exit 3
-  fi
+# Android项目路径
+ANDROID_PROJECT_DIR="android/app/src/main"
+JNI_LIBS_DIR="$ANDROID_PROJECT_DIR/jniLibs"
+CPP_DIR="$ANDROID_PROJECT_DIR/cpp"
 
-  if [[ "$arch" == "arm64" ]]; then CC_PATH="$NDK_BIN/aarch64-linux-android21-clang"; else CC_PATH="$NDK_BIN/x86_64-linux-android21-clang"; fi
-  if [[ ! -x "$CC_PATH" ]]; then echo "[ERROR] NDK clang not found at $CC_PATH"; exit 2; fi
-  echo "Using CC=$CC_PATH"
+# 确保目录存在
+mkdir -p "$JNI_LIBS_DIR"
+mkdir -p "$CPP_DIR"
 
-  CGO_ENABLED=1 CC="$CC_PATH" GOOS=android GOARCH="$arch" go build "${GO_LDFLAGS[@]}" -o "$BUILD_DIR/$BINARY_NAME-android-$arch" "$MAIN_PATH"
+# 生成头文件
+echo "Generating header files..."
+cat > "$CPP_DIR/video_crawler_jni.h" << 'EOF'
+#ifndef VIDEO_CRAWLER_JNI_H
+#define VIDEO_CRAWLER_JNI_H
 
+#include <jni.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// JNI函数声明
+JNIEXPORT jint JNICALL Java_com_zing_video_1crawler_MainActivity_startHttpService(JNIEnv *env, jobject obj, jint port);
+JNIEXPORT void JNICALL Java_com_zing_video_1crawler_MainActivity_stopHttpService(JNIEnv *env, jobject obj);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // VIDEO_CRAWLER_JNI_H
+EOF
+
+# 将头文件复制到所有ABI目录
+for abi_dir in arm64-v8a x86_64 armeabi-v7a x86; do
+  mkdir -p "$JNI_LIBS_DIR/$abi_dir"
+  cp "$CPP_DIR/video_crawler_jni.h" "$JNI_LIBS_DIR/$abi_dir/"
+  echo "Copied header file to $JNI_LIBS_DIR/$abi_dir/video_crawler_jni.h"
 done
 
-echo "Android builds completed"
+echo "Generated header file: $CPP_DIR/video_crawler_jni.h"
+
+echo "Android builds and JNI setup completed"

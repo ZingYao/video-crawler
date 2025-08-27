@@ -222,8 +222,8 @@ const isAdmin = computed(() => {
 // 方法
 const loadUserData = async () => {
   if (!authStore.token) {
-    error.value = '未登录或登录已过期'
-    return
+    console.info('未登录或登录已过期')
+    authStore.token = ''
   }
 
   loading.value = true

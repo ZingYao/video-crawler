@@ -27,9 +27,9 @@ export default defineConfig(({ mode }) => ({
       }
     }
   },
-  // 仅生产环境移除 console/debugger；开发环境保留日志便于调试
+  // 临时保留console日志用于调试
   esbuild: {
-    drop: mode === 'production' ? ['console', 'debugger'] : [],
+    drop: [], // 临时保留所有console日志
   },
   build: {
     rollupOptions: {
@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => ({
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
+        drop_console: false, // 临时保留console日志
         drop_debugger: true,
         passes: 2,
         pure_getters: true,

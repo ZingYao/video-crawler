@@ -183,6 +183,42 @@ func (a *App) GetConfig() map[string]interface{} {
 	}
 }
 
+// SaveFile 保存文件到用户选择的位置
+func (a *App) SaveFile(filename string, content string) error {
+	// 使用Wails的文件保存对话框
+	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:            "保存文件",
+		DefaultFilename:  filename,
+		DefaultDirectory: "",
+		Filters: []runtime.FileFilter{
+			{
+				DisplayName: "JSON文件 (*.json)",
+				Pattern:     "*.json",
+			},
+			{
+				DisplayName: "所有文件 (*.*)",
+				Pattern:     "*.*",
+			},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("文件保存对话框失败: %v", err)
+	}
+
+	if filePath == "" {
+		return fmt.Errorf("用户取消了文件保存")
+	}
+
+	// 写入文件
+	err = os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+
+	return nil
+}
+
 func main() {
 	// 设置配置目录
 	configDir := getAppConfigDir()

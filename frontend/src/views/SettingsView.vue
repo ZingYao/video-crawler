@@ -86,22 +86,6 @@
             </label>
           </div>
         </div>
-
-        <!-- 测试区域：添加新网站 -->
-        <div class="test-section">
-          <h3>测试：添加新网站</h3>
-          <div class="add-site-form">
-            <input 
-              v-model="newSiteName" 
-              placeholder="新网站名称" 
-              class="site-input"
-            />
-            <button @click="addNewSite" class="add-btn">添加网站</button>
-          </div>
-          <p class="test-note">
-            在全选模式下，新添加的网站将自动被选中
-          </p>
-        </div>
       </div>
 
       <div class="settings-section">
@@ -124,7 +108,6 @@ const settingsStore = useSettingsStore()
 const playbackSpeed = ref(2.0)
 const progressSensitivity = ref(0.7)
 const searchSites = ref<SearchSite[]>([])
-const newSiteName = ref('')
 const refreshing = ref(false)
 
 // 计算属性
@@ -140,10 +123,17 @@ const isAllSitesSelected = computed(() =>
 
 // 初始化
 onMounted(async () => {
+  console.log('[SettingsView] 开始初始化...')
+  
+  // 加载设置（包括缓存数据和API数据合并）
   await settingsStore.loadSettings()
+  
+  // 更新本地状态
   playbackSpeed.value = settingsStore.settings.longPressPlaybackSpeed
   progressSensitivity.value = settingsStore.settings.progressBarSensitivity
   searchSites.value = [...settingsStore.settings.searchSites]
+  
+  console.log('[SettingsView] 初始化完成，站点列表:', searchSites.value)
 })
 
 // 更新播放倍速
@@ -177,21 +167,6 @@ const selectNone = async () => {
   if (enabledSitesCount.value > 1) {
     await settingsStore.toggleAllSearchSites(false)
     searchSites.value.forEach(site => site.enabled = false)
-  }
-}
-
-// 添加新网站（测试功能）
-const addNewSite = async () => {
-  if (newSiteName.value.trim()) {
-    const newSite: SearchSite = {
-      id: `site${Date.now()}`,
-      name: newSiteName.value.trim(),
-      enabled: settingsStore.settings.allSitesSelected // 根据全选状态决定是否启用
-    }
-    
-    await settingsStore.addSearchSite(newSite)
-    searchSites.value = [...settingsStore.settings.searchSites]
-    newSiteName.value = ''
   }
 }
 

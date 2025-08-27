@@ -228,9 +228,9 @@ const currentUserId = computed(() => authStore.user?.id)
 
 // 方法
 const loadUserList = async () => {
-  if (!authStore.token) {
-    error.value = '未登录或登录已过期'
-    return
+    if (!authStore.token) {
+      error.value = '未登录或登录已过期'
+      return
   }
 
   loading.value = true
