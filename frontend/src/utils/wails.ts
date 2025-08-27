@@ -50,3 +50,30 @@ export const getWailsInfo = () => {
     goObject: (window as any).go
   }
 }
+
+/**
+ * 检测是否为客户端环境（Wails 或 Android）
+ * @returns {boolean} 是否为客户端环境
+ */
+export const isClientEnvironment = (): boolean => {
+  // 检测 Wails 环境
+  const isWailsEnv = isWails()
+  
+  // 检测 Android 环境
+  const isAndroidEnv = !!(window as any).AndroidKV || 
+                      window.location.hostname.includes('android') ||
+                      /Android/.test(navigator.userAgent)
+  
+  const result = isWailsEnv || isAndroidEnv
+  
+  // 调试信息
+  console.error('=== isClientEnvironment 环境检测 ===')
+  console.error('isWailsEnv:', isWailsEnv)
+  console.error('isAndroidEnv:', isAndroidEnv)
+  console.error('hasAndroidKV:', !!(window as any).AndroidKV)
+  console.error('hostname:', window.location.hostname)
+  console.error('userAgent:', navigator.userAgent)
+  console.error('最终结果:', result)
+  
+  return result
+}

@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { GetServerPort } from '../../wailsjs/go/main/App'
-import { isWails } from '../utils/wails'
+import { isWails, isClientEnvironment } from '../utils/wails'
 import HomeView from '../views/HomeView.vue'
 const ApiDocView = () => import('../views/ApiDocView.vue')
 import LoginView from '../views/LoginView.vue'
@@ -92,7 +92,7 @@ const router = createRouter({
       path: '/api-docs',
       name: 'api-docs',
       component: ApiDocView,
-      meta: { requiresAuth: false, title: 'API接口文档' }
+      meta: { requiresAuth: false, requiresClient: true, title: 'API接口文档' }
     },
     {
       path: '/watch/:sourceId',
@@ -203,6 +203,13 @@ router.beforeEach(async (to, from, next) => {
   
   // 初始化认证状态
   authStore.initAuth()
+  
+  // 检查客户端环境要求
+  if (to.meta.requiresClient && !isClientEnvironment()) {
+    // 接口文档页面只在客户端环境下可访问
+    next('/404')
+    return
+  }
   
   // 如果系统配置为不需要登录
   if (!configStore.needsLogin()) {

@@ -104,6 +104,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
 import { DownOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons-vue'
+import { isClientEnvironment } from '@/utils/wails'
 
 // 检测是否在应用环境中
 const isAppEnvironment = () => {
@@ -147,7 +148,7 @@ const menuItems: MenuItem[] = [
   { id: 'watch-history', icon: '📺', label: '观看历史', description: '查看您的视频观看历史', requiresAdmin: false, route: '/history/watch' },
   { id: 'user-management', icon: '👥', label: '用户管理', description: '管理系统用户账户', requiresAdmin: true, route: '/user-management' },
   { id: 'video-source-management', icon: '🎬', label: '视频资源管理', description: '管理视频资源站点', requiresAdmin: false, requiresSiteAdmin: true, route: '/video-source-management' },
-  { id: 'api-docs', icon: '🧭', label: '接口文档', description: 'API 文档与示例', requiresAdmin: false, route: '/api-docs' },
+  { id: 'api-docs', icon: '🧭', label: '接口文档', description: 'API 文档与示例', requiresAdmin: false, requiresWails: true, route: '/api-docs' },
   { id: 'settings', icon: '⚙️', label: '设置', description: '播放控制与搜索网站设置', requiresAdmin: false, route: '/settings' }
 ]
 
@@ -175,8 +176,8 @@ const filteredMenuItems = computed(() => {
       return false
     }
     
-    // 检查Wails环境要求
-    if (item.requiresWails && !isAppEnvironment()) {
+    // 检查客户端环境要求（Wails 或 Android）
+    if (item.requiresWails && !isClientEnvironment()) {
       return false
     }
     
