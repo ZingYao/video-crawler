@@ -141,10 +141,18 @@ func (s *videoSourceService) reloadVideoSource() {
 		return
 	}
 	var videoSourceList []entities.VideoSourceEntity
-	err = json.Unmarshal(content, &videoSourceList)
-	if err != nil {
-		logrus.WithError(err).Error("failed to unmarshal video source config file")
-		return
+	// 兼容历史写入的 "null"，当作空数组处理
+	if len(content) == 0 || string(content) == "null" {
+		videoSourceList = make([]entities.VideoSourceEntity, 0)
+	} else {
+		err = json.Unmarshal(content, &videoSourceList)
+		if err != nil {
+			logrus.WithError(err).WithField("raw", string(content)).Error("failed to unmarshal video source config file")
+			return
+		}
+		if videoSourceList == nil {
+			videoSourceList = make([]entities.VideoSourceEntity, 0)
+		}
 	}
 	s.videoSourceList = videoSourceList
 	for _, videoSource := range videoSourceList {
@@ -234,8 +242,8 @@ func (s *videoSourceService) saveToFile() error {
 		s.isWriting = false
 	}()
 
-	// 从内存中获取所有站点数据
-	var videoSourceList []entities.VideoSourceEntity
+	// 从内存中获取所有站点数据，使用空切片而不是nil，避免序列化为"null"
+	videoSourceList := make([]entities.VideoSourceEntity, 0)
 	s.videoSourceMap.Range(func(key, value interface{}) bool {
 		videoSource := value.(entities.VideoSourceEntity)
 		videoSourceList = append(videoSourceList, videoSource)
