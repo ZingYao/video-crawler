@@ -690,19 +690,24 @@ response = requests.get(f"{base_url}/api/video-source/list", headers=headers)</c
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getServerPort } from '@/utils/api'
+import { useAuthStore } from '@/stores/auth'
+import { systemAPI } from '@/api'
+import { message } from 'ant-design-vue'
 import AppLayout from '@/components/AppLayout.vue'
 
+const authStore = useAuthStore()
 const serverPort = ref<number>(0)
 const activeKeys = ref<string[]>([])
 const activeTab = ref<string>('curl')
 
 const loadServerPort = async () => {
   try {
-    serverPort.value = await getServerPort()
+    // 简单地从当前URL获取端口
+    const port = Number(window.location.port)
+    serverPort.value = port || 8080
   } catch (error) {
     console.error('获取服务器端口失败:', error)
-    serverPort.value = 0
+    serverPort.value = 8080
   }
 }
 

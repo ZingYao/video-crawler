@@ -110,7 +110,6 @@ class LocalHistoryManager {
         if (histories.length > this.MAX_VIDEO_HISTORY) histories.shift()
       }
       kvSet(this.VIDEO_HISTORY_KEY, JSON.stringify(histories))
-      console.log('本地视频历史记录已保存:', histories.length, '条记录')
     } catch (error) {
       console.error('保存本地视频历史记录失败:', error)
     }
@@ -148,7 +147,6 @@ class LocalHistoryManager {
       const histories = this.getVideoHistories()
       const filtered = histories.filter(h => h.video_id !== videoId)
       kvSet(this.VIDEO_HISTORY_KEY, JSON.stringify(filtered))
-      console.log('删除视频历史记录:', videoId)
     } catch (error) {
       console.error('删除视频历史记录失败:', error)
     }
@@ -157,7 +155,6 @@ class LocalHistoryManager {
   clearVideoHistories(): void {
     try {
       kvRemove(this.VIDEO_HISTORY_KEY)
-      console.log('清空所有视频历史记录')
     } catch (error) {
       console.error('清空视频历史记录失败:', error)
     }
@@ -181,7 +178,6 @@ class LocalHistoryManager {
         if (histories.length > this.MAX_SEARCH_HISTORY) histories.shift()
       }
       kvSet(this.SEARCH_HISTORY_KEY, JSON.stringify(histories))
-      console.log('本地搜索历史记录已保存:', histories.length, '条记录')
     } catch (error) {
       console.error('保存本地搜索历史记录失败:', error)
     }
@@ -204,7 +200,6 @@ class LocalHistoryManager {
       const histories = this.getSearchHistories()
       const filtered = histories.filter(h => !(h.keyword === keyword && h.source_id === sourceId))
       kvSet(this.SEARCH_HISTORY_KEY, JSON.stringify(filtered))
-      console.log('删除搜索历史记录:', keyword, sourceId)
     } catch (error) {
       console.error('删除搜索历史记录失败:', error)
     }
@@ -213,7 +208,6 @@ class LocalHistoryManager {
   clearSearchHistories(): void {
     try {
       kvRemove(this.SEARCH_HISTORY_KEY)
-      console.log('清空所有搜索历史记录')
     } catch (error) {
       console.error('清空搜索历史记录失败:', error)
     }

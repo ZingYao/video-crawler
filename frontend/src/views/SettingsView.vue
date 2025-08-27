@@ -59,16 +59,29 @@
           <button 
             @click="refreshVideoSources" 
             class="control-btn refresh-btn"
-            :loading="refreshing"
+            :disabled="settingsStore.isLoading"
           >
-            刷新站点列表
+            <span v-if="settingsStore.isLoading">刷新中...</span>
+            <span v-else>刷新站点列表</span>
           </button>
           <span v-if="isAllSitesSelected" class="all-selected-indicator">
-            ✓ 全选模式（新增网站将自动选中）
+            ✓ 全选模式（搜索时将包含所有正常状态的站点）
           </span>
         </div>
 
-        <div class="search-sites-list">
+        <div v-if="settingsStore.isLoading" class="loading-indicator">
+          <div class="loading-spinner"></div>
+          <span>正在加载站点列表...</span>
+        </div>
+
+        <div v-else-if="searchSites.length === 0" class="empty-state">
+          <p>暂无可用的视频源站点</p>
+          <button @click="refreshVideoSources" class="control-btn refresh-btn">
+            重新加载
+          </button>
+        </div>
+
+        <div v-else class="search-sites-list">
           <div 
             v-for="site in searchSites" 
             :key="site.id" 
@@ -82,9 +95,19 @@
                 :disabled="site.enabled && enabledSitesCount === 1"
               />
               <span class="checkmark"></span>
-              <span class="site-name">{{ site.name }}</span>
+              <div class="site-info">
+                <span class="site-name">{{ site.name }}</span>
+                <span class="site-meta">
+                  <span class="site-type">{{ getSourceTypeText(site.source_type) }}</span>
+                  <span class="site-sort">排序: {{ site.sort || 0 }}</span>
+                </span>
+              </div>
             </label>
           </div>
+        </div>
+
+        <div v-if="lastUpdateTime" class="update-info">
+          <small>最后更新: {{ formatUpdateTime(lastUpdateTime) }}</small>
         </div>
       </div>
 
@@ -107,33 +130,24 @@ const settingsStore = useSettingsStore()
 // 响应式数据
 const playbackSpeed = ref(2.0)
 const progressSensitivity = ref(0.7)
-const searchSites = ref<SearchSite[]>([])
-const refreshing = ref(false)
 
 // 计算属性
+const searchSites = computed(() => settingsStore.settings.searchSites)
 const enabledSitesCount = computed(() => 
   searchSites.value.filter(site => site.enabled).length
 )
-
 const hasEnabledSites = computed(() => enabledSitesCount.value > 0)
-
-const isAllSitesSelected = computed(() => 
-  settingsStore.isAllSitesSelected
-)
+const isAllSitesSelected = computed(() => settingsStore.isAllSitesSelected)
+const lastUpdateTime = computed(() => settingsStore.lastUpdateTime)
 
 // 初始化
 onMounted(async () => {
-  console.log('[SettingsView] 开始初始化...')
-  
   // 加载设置（包括缓存数据和API数据合并）
   await settingsStore.loadSettings()
   
   // 更新本地状态
   playbackSpeed.value = settingsStore.settings.longPressPlaybackSpeed
   progressSensitivity.value = settingsStore.settings.progressBarSensitivity
-  searchSites.value = [...settingsStore.settings.searchSites]
-  
-  console.log('[SettingsView] 初始化完成，站点列表:', searchSites.value)
 })
 
 // 更新播放倍速
@@ -149,38 +163,23 @@ const updateProgressSensitivity = async () => {
 // 切换网站状态
 const toggleSite = async (siteId: string) => {
   await settingsStore.toggleSearchSite(siteId)
-  // 更新本地状态
-  const site = searchSites.value.find(s => s.id === siteId)
-  if (site) {
-    site.enabled = !site.enabled
-  }
 }
 
 // 全选
 const selectAll = async () => {
   await settingsStore.toggleAllSearchSites(true)
-  searchSites.value.forEach(site => site.enabled = true)
 }
 
 // 取消全选
 const selectNone = async () => {
   if (enabledSitesCount.value > 1) {
     await settingsStore.toggleAllSearchSites(false)
-    searchSites.value.forEach(site => site.enabled = false)
   }
 }
 
 // 刷新视频源
 const refreshVideoSources = async () => {
-  refreshing.value = true
-  try {
-    await settingsStore.refreshVideoSources()
-    searchSites.value = [...settingsStore.settings.searchSites]
-  } catch (error) {
-    console.error('Failed to refresh video sources:', error)
-  } finally {
-    refreshing.value = false
-  }
+  await settingsStore.refreshVideoSources()
 }
 
 // 重置设置
@@ -188,7 +187,25 @@ const resetSettings = async () => {
   await settingsStore.resetToDefaults()
   playbackSpeed.value = settingsStore.settings.longPressPlaybackSpeed
   progressSensitivity.value = settingsStore.settings.progressBarSensitivity
-  searchSites.value = [...settingsStore.settings.searchSites]
+}
+
+// 获取资源类型文本
+const getSourceTypeText = (sourceType?: number) => {
+  switch (sourceType) {
+    case 0: return '综合'
+    case 1: return '电影'
+    case 2: return '电视剧'
+    case 3: return '动漫'
+    case 4: return '综艺'
+    case 5: return '纪录片'
+    default: return '未知'
+  }
+}
+
+// 格式化更新时间
+const formatUpdateTime = (timestamp: number) => {
+  const date = new Date(timestamp)
+  return date.toLocaleString('zh-CN')
 }
 </script>
 
@@ -305,7 +322,7 @@ h2 {
 }
 
 .refresh-btn {
-  background: #f59e0b; /* A more distinct color for refresh */
+  background: #f59e0b;
   color: white;
   border-color: #f59e0b;
 }
@@ -322,32 +339,73 @@ h2 {
   margin-left: 10px;
 }
 
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  color: #666;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #10b981;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.empty-state p {
+  margin-bottom: 15px;
+}
+
 .search-sites-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 10px;
   margin-bottom: 20px;
 }
 
 .site-item {
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #eee;
-  border-radius: 4px;
+  border-radius: 6px;
   background: #fafafa;
+  transition: all 0.2s;
+}
+
+.site-item:hover {
+  background: #f0f0f0;
+  border-color: #ddd;
 }
 
 .site-checkbox {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   cursor: pointer;
   position: relative;
+  width: 100%;
 }
 
 .site-checkbox input[type="checkbox"] {
-  margin-right: 8px;
+  margin-right: 10px;
   width: 18px;
   height: 18px;
   cursor: pointer;
+  margin-top: 2px;
 }
 
 .site-checkbox input[type="checkbox"]:disabled {
@@ -355,56 +413,41 @@ h2 {
   opacity: 0.5;
 }
 
+.site-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .site-name {
-  font-size: 0.9em;
+  font-size: 0.95em;
   color: #333;
+  font-weight: 500;
 }
 
-.test-section {
-  border-top: 1px solid #eee;
-  padding-top: 20px;
-  margin-top: 20px;
-}
-
-.test-section h3 {
-  color: #555;
-  margin-bottom: 15px;
-  font-size: 1.1em;
-}
-
-.add-site-form {
+.site-meta {
   display: flex;
   gap: 10px;
-  margin-bottom: 10px;
-}
-
-.site-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
-
-.add-btn {
-  padding: 8px 16px;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9em;
-  transition: background 0.2s;
-}
-
-.add-btn:hover {
-  background: #2563eb;
-}
-
-.test-note {
-  color: #666;
   font-size: 0.8em;
-  font-style: italic;
+  color: #666;
+}
+
+.site-type {
+  background: #e5e7eb;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.site-sort {
+  color: #9ca3af;
+}
+
+.update-info {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.85em;
+  margin-top: 10px;
 }
 
 .reset-btn {
@@ -450,8 +493,9 @@ h2 {
     margin-top: 5px;
   }
   
-  .add-site-form {
+  .site-meta {
     flex-direction: column;
+    gap: 2px;
   }
 }
 </style>

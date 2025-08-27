@@ -15,5 +15,8 @@
     "productVersion": "1.0.0",
     "copyright": "Copyright........",
     "comments": "Built using Wails (https://wails.io)"
+  },
+  "dev": {
+    "openInspectorOnStartup": true
   }
 }

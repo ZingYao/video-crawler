@@ -1,58 +1,50 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { configAPI } from '@/utils/api'
+import { ref, computed } from 'vue'
+import { configAPI } from '@/api'
 
-// 导入Wails类型
-declare global {
-  interface Window {
-    go: {
-      main: {
-        App: {
-          GetConfig(): Promise<Record<string, any>>
-          GetServerPort(): Promise<number>
-        }
-      }
-    }
-  }
+export interface Config {
+  requireLogin: boolean
+  env: string
+  serverPort?: number
 }
 
 export const useConfigStore = defineStore('config', () => {
-  const requireLogin = ref(true)
-  const env = ref('dev')
+  const config = ref<Config>({
+    requireLogin: true,
+    env: 'production'
+  })
+
+  const isLoading = ref(false)
   const isLoaded = ref(false)
 
-  // 加载系统配置
+  const needsLogin = () => config.value.requireLogin
+
   const loadConfig = async () => {
+    isLoading.value = true
     try {
-      console.log('开始加载系统配置...')
       const result = await configAPI.getConfig()
-      requireLogin.value = result.require_login
-      env.value = result.env
-      isLoaded.value = true
-      console.log('配置加载成功:', result)
-      
-      // 如果是Wails模式，记录服务器端口
-      if (result.server_port) {
-        console.log('Wails HTTP服务端口:', result.server_port)
+      console.error('loadConfig result:', result)
+      if (result?.code === 0 && result.data) {
+        config.value = {
+          requireLogin: result.data.require_login || false ,
+          env: result.data.env || 'production',
+          serverPort: result.data.server_port
+        }
       }
-    } catch (error) {
-      console.error('加载系统配置失败:', error)
-      // 默认需要登录
-      requireLogin.value = true
       isLoaded.value = true
+    } catch (error) {
+      console.error('Failed to load config:', error)
+      isLoaded.value = true
+    } finally {
+      isLoading.value = false
     }
   }
 
-  // 检查是否需要登录
-  const needsLogin = () => {
-    return requireLogin.value
-  }
-
   return {
-    requireLogin,
-    env,
-    isLoaded,
-    loadConfig,
-    needsLogin
+    config: computed(() => config.value),
+    isLoading: computed(() => isLoading.value),
+    isLoaded: computed(() => isLoaded.value),
+    needsLogin,
+    loadConfig
   }
 })

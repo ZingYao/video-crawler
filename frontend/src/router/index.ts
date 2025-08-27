@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
+import { GetServerPort } from '../../wailsjs/go/main/App'
+import { isWails } from '../utils/wails'
 import HomeView from '../views/HomeView.vue'
 const ApiDocView = () => import('../views/ApiDocView.vue')
 import LoginView from '../views/LoginView.vue'
@@ -15,10 +17,17 @@ import MovieView from '../views/MovieView.vue'
 const WatchView = () => import('../views/WatchView.vue')
 const NotFoundView = () => import('../views/NotFoundView.vue')
 import SettingsView from '@/views/SettingsView.vue'
+import StartupView from '@/views/StartupView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/startup',
+      name: 'startup',
+      component: StartupView,
+      meta: { requiresAuth: false, title: '启动中' }
+    },
     {
       path: '/',
       name: 'home',
@@ -112,12 +121,82 @@ const router = createRouter({
   ]
 })
 
+// 检查服务是否启动
+const checkServiceReady = async (): Promise<boolean> => {
+  try {
+    // 检查是否在Wails环境中
+    const isWailsEnv = isWails()
+    
+    if (isWailsEnv) {
+      // 在Wails环境中，尝试调用Wails API获取服务端口
+      try {
+        const port = await GetServerPort()
+        if (port && port > 0) {
+          // 使用获取到的端口检查服务状态
+          const response = await fetch(`http://localhost:${port}/health`, { 
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          })
+          return response.ok
+        }
+      } catch (wailsError) {
+        // Wails API调用失败，服务未启动
+        return false
+      }
+    } else {
+      // 在浏览器环境中，直接检查本地服务
+      const response = await fetch('/health', { 
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      return response.ok
+    }
+  } catch (error) {
+    return false
+  }
+  return false
+}
+
+// 标记是否已经检查过服务状态，避免重复检查
+let hasCheckedServiceStatus = false
+
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const configStore = useConfigStore()
   
-  // 如果配置未加载，先加载配置
+  // 检查是否在Wails环境中
+  const isWailsEnv = isWails()
+  
+  if (import.meta.env.DEV) {
+    console.error('=== router beforeEach 环境检测 ===')
+    console.error('isWails:', isWailsEnv)
+    console.error('to.path:', to.path)
+  }
+  
+  // 只在Wails环境中检查服务状态和启动页面
+  if (isWailsEnv) {
+    // 如果不是启动页面且还没有检查过服务状态，检查服务状态
+    if (to.path !== '/startup' && !hasCheckedServiceStatus) {
+      const isServiceReady = await checkServiceReady()
+      if (!isServiceReady) {
+        // 服务未启动，重定向到启动页面
+        next('/startup')
+        return
+      } else {
+        // 服务已就绪，标记为已检查
+        hasCheckedServiceStatus = true
+      }
+    }
+  } else {
+    // 在浏览器环境中，如果访问启动页面，重定向到首页
+    if (to.path === '/startup') {
+      next('/')
+      return
+    }
+  }
+  
+  // 服务启动后，再加载配置
   if (!configStore.isLoaded) {
     await configStore.loadConfig()
   }

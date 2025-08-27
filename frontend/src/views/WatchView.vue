@@ -2166,7 +2166,7 @@ async function handleSearchOtherSites() {
   await settingsStore.loadSettings()
   
   // 检查是否有启用的搜索网站
-  if (!settingsStore.hasEnabledSites) {
+  if (!settingsStore.hasEnabledSites && !settingsStore.settings.allSitesSelected) {
     message.warning('请先在设置中选择要搜索的网站')
     return
   }
@@ -2188,17 +2188,25 @@ async function handleSearchOtherSites() {
       .sort((a: any, b: any) => b.sort - a.sort)
 
     // 2) 根据设置过滤启用的网站
-    const enabledSiteIds = settingsStore.enabledSearchSites.map(site => site.id)
-    const sources = allSources.filter(source => {
-      // 如果设置中的网站ID是数字格式，需要转换比较
-      const sourceIdStr = String(source.id)
-      return enabledSiteIds.some(enabledId => {
-        // 支持多种ID匹配方式
-        return enabledId === sourceIdStr || 
-               enabledId === String(source.id) ||
-               enabledId === source.id
+    let sources: any[] = []
+    
+    if (settingsStore.settings.allSitesSelected) {
+      // 全选模式：搜索所有正常状态的站点
+      sources = allSources
+    } else {
+      // 手动选择模式：只搜索用户勾选的站点
+      const enabledSiteIds = settingsStore.enabledSearchSites.map(site => site.id)
+      sources = allSources.filter(source => {
+        // 如果设置中的网站ID是数字格式，需要转换比较
+        const sourceIdStr = String(source.id)
+        return enabledSiteIds.some(enabledId => {
+          // 支持多种ID匹配方式
+          return enabledId === sourceIdStr || 
+                 enabledId === String(source.id) ||
+                 enabledId === source.id
+        })
       })
-    })
+    }
 
     if (sources.length === 0) {
       message.warning('没有找到启用的搜索网站，请检查设置')
@@ -2240,9 +2248,10 @@ async function handleSearchOtherSites() {
 
     otherSitesResults.value = results
     
-    const enabledSitesCount = settingsStore.enabledSearchSites.length
+    const searchedSitesCount = sources.length
     const totalSitesCount = allSources.length
-    message.success(`搜索完成，在 ${enabledSitesCount}/${totalSitesCount} 个启用站点中找到 ${results.length} 个结果`)
+    const modeText = settingsStore.settings.allSitesSelected ? '全选模式' : '手动选择模式'
+    message.success(`搜索完成，在 ${searchedSitesCount}/${totalSitesCount} 个站点中找到 ${results.length} 个结果 (${modeText})`)
   } catch (error: any) {
     message.error(error?.message || '搜索失败')
   } finally {

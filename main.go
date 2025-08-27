@@ -41,6 +41,7 @@ func NewApp() *App {
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
+	log.Printf("=== Startup === Wails应用启动")
 	a.ctx = ctx
 
 	// 初始化配置
@@ -62,6 +63,12 @@ func (a *App) startup(ctx context.Context) {
 	// 启动HTTP服务在随机端口
 	a.serverPort = a.startHTTPServer(ctx)
 	log.Printf("Wails HTTP服务启动在端口: %d", a.serverPort)
+
+	// 验证绑定方法
+	log.Printf("=== 绑定验证 ===")
+	log.Printf("App实例地址: %p", a)
+	log.Printf("GetServerPort方法: %v", a.GetServerPort())
+	log.Printf("GetConfig方法: %+v", a.GetConfig())
 }
 
 // startHTTPServer 启动HTTP服务并返回端口号
@@ -106,13 +113,18 @@ func (a *App) startHTTPServer(ctx context.Context) int {
 		}
 	}()
 
-	select {
-	case err := <-waitErr:
-		log.Printf("HTTP服务启动失败: %v", err)
-		return port
-	case <-time.After(10 * time.Second):
-		log.Printf("HTTP服务等待错误超时")
-		return port
+	for {
+		select {
+		case err := <-waitErr:
+			log.Printf("HTTP服务启动失败: %v", err)
+			return port
+		case <-time.After(time.Second):
+			// 每秒检测端口是否成功被监听 如果已监听则直接返回端口（http 服务启动成功）
+			if _, err := net.Dial("tcp", fmt.Sprintf(":%d", port)); err == nil {
+				log.Printf("HTTP服务启动成功，端口: %d", port)
+				return port
+			}
+		}
 	}
 
 	return port
@@ -120,7 +132,14 @@ func (a *App) startHTTPServer(ctx context.Context) int {
 
 // domReady is called after the front-end dom has been loaded
 func (a *App) domReady(ctx context.Context) {
-	// Add your action here
+	log.Printf("=== DOM Ready === 前端DOM已加载完成")
+	log.Printf("当前HTTP服务端口: %d", a.serverPort)
+	log.Printf("配置信息: %+v", a.config)
+
+	// 测试绑定是否正常工作
+	log.Printf("App实例: %+v", a)
+	log.Printf("GetServerPort方法: %v", a.GetServerPort())
+	log.Printf("GetConfig方法: %+v", a.GetConfig())
 }
 
 // shutdown is called at application termination

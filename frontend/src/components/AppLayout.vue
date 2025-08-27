@@ -103,8 +103,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
-import { isAppEnvironment } from '@/utils/api'
 import { DownOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons-vue'
+
+// 检测是否在应用环境中
+const isAppEnvironment = () => {
+  // 简单的检测逻辑，可以根据需要扩展
+  return !!((window as any).go || /Android|iPhone|iPad/.test(navigator.userAgent))
+}
 
 // Props
 interface Props {
@@ -148,47 +153,37 @@ const menuItems: MenuItem[] = [
 
 // 计算属性
 const filteredMenuItems = computed(() => {
-  console.log('[Menu Debug] 开始过滤菜单项...')
-  console.log('[Menu Debug] isAppEnvironment():', isAppEnvironment())
-  console.log('[Menu Debug] configStore.needsLogin():', configStore.needsLogin())
-  console.log('[Menu Debug] authStore.user:', authStore.user)
-  
-  const filtered = menuItems.filter(item => {
-    console.log(`[Menu Debug] 检查菜单项 ${item.id}:`, item)
+  return menuItems.filter(item => {
+    // 如果系统配置为不需要登录，隐藏用户管理相关菜单
+    if (!configStore.needsLogin()) {
+      if (item.id === 'user-management' || item.id === 'watch-history') {
+        return false
+      }
+    }
     
-    if (item.id === 'api-docs' && !isAppEnvironment()) {
-      console.log(`[Menu Debug] ${item.id} 被过滤：不在应用环境中`)
+    // 检查管理员权限
+    if (item.requiresAdmin && !authStore.user?.isAdmin) {
       return false
     }
     
-    if (!configStore.needsLogin()) {
-      if (item.id === 'user-management') {
-        console.log(`[Menu Debug] ${item.id} 被过滤：不需要登录但需要管理员权限`)
-        return false
-      }
-      console.log(`[Menu Debug] ${item.id} 显示：不需要登录`)
-      return true
+    // 检查站点管理员权限（管理员也拥有站点管理员权限）
+    if (item.requiresSiteAdmin && !authStore.user?.isSiteAdmin && !authStore.user?.isAdmin) {
+      return false
     }
     
-    if (item.requiresAdmin) {
-      const hasAdmin = authStore.user?.isAdmin === true
-      console.log(`[Menu Debug] ${item.id} 需要管理员权限，用户是否管理员:`, hasAdmin)
-      return hasAdmin
+    // 检查Wails环境要求
+    if (item.requiresWails && !isAppEnvironment()) {
+      return false
     }
     
-    if (item.requiresSiteAdmin) {
-      const hasSiteAdmin = authStore.user?.isAdmin === true || authStore.user?.isSiteAdmin === true
-      console.log(`[Menu Debug] ${item.id} 需要站点管理员权限，用户是否有权限:`, hasSiteAdmin)
-      return hasSiteAdmin
-    }
-    
-    console.log(`[Menu Debug] ${item.id} 显示：无特殊权限要求`)
     return true
   })
-  
-  console.log('[Menu Debug] 过滤后的菜单项:', filtered.map(item => item.id))
-  return filtered
 })
+
+// 检查当前路由是否匹配菜单项
+const isActiveMenu = (menuId: string) => {
+  return route.path === menuItems.find(item => item.id === menuId)?.route
+}
 
 const showCloseButton = computed(() => sidebarVisible.value && window.innerWidth <= 1024)
 

@@ -143,7 +143,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { videoSourceAPI } from '@/utils/api'
+import { videoSourceAPI } from '@/api'
 import { message, notification } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -172,11 +172,15 @@ const videoSourceList = ref<VideoSource[]>([])
 const checking = ref(false)
 const checkingIds = ref<Set<string>>(new Set())
 const editingStatusId = ref<string>('')
+
 async function onStatusChange(record: VideoSource, v: number) {
   await updateStatus(record.id, v)
   editingStatusId.value = ''
 }
-function onStatusBlur() { editingStatusId.value = '' }
+
+function onStatusBlur() { 
+  editingStatusId.value = '' 
+}
 
 const columns = [
   {
@@ -230,58 +234,62 @@ const truncateId = (id: string) => {
 const normalizeStatus = (status: any): 0 | 1 | 2 | 3 => {
   const n = Number(status)
   if (n === 0 || n === 1 || n === 2 || n === 3) return n as 0 | 1 | 2 | 3
-  // 超出范围一律按不可用处理
   return 3
 }
 
 const getStatusColor = (status: number) => {
-  const s = normalizeStatus(status)
-  const colors = ['red', 'green', 'orange', 'red']
-  return colors[s]
+  switch (status) {
+    case 0: return 'default'
+    case 1: return 'success'
+    case 2: return 'warning'
+    case 3: return 'error'
+    default: return 'default'
+  }
 }
 
 const getStatusText = (status: number) => {
-  const s = normalizeStatus(status)
-  const texts = ['禁用', '正常', '维护中', '不可用']
-  return texts[s]
-}
-
-async function updateStatus(id: string, status: number) {
-  try {
-    const resp = await videoSourceAPI.setStatus(id, status)
-    if (resp && resp.code === 0) {
-      message.success('状态已更新')
-      await refreshVideoSourceList()
-    } else {
-      message.error(resp?.message || '更新失败')
-    }
-  } catch (e: any) {
-    message.error(e?.message || '网络错误')
+  switch (status) {
+    case 0: return '禁用'
+    case 1: return '正常'
+    case 2: return '维护中'
+    case 3: return '不可用'
+    default: return '未知'
   }
 }
 
 const getSourceTypeColor = (sourceType: number) => {
-  const colors = ['blue', 'purple', 'red', 'orange', 'green', 'cyan', 'geekblue', 'default']
-  return colors[sourceType] || 'default'
+  switch (sourceType) {
+    case 0: return 'blue'
+    case 1: return 'green'
+    case 2: return 'orange'
+    case 3: return 'purple'
+    case 4: return 'cyan'
+    case 5: return 'red'
+    default: return 'default'
+  }
 }
 
 const getSourceTypeText = (sourceType: number) => {
-  const texts = ['综合', '短剧', '电影', '电视剧', '综艺', '动漫', '纪录片', '其他']
-  return texts[sourceType] || '未知'
+  switch (sourceType) {
+    case 0: return '综合'
+    case 1: return '电影'
+    case 2: return '电视剧'
+    case 3: return '动漫'
+    case 4: return '综艺'
+    case 5: return '纪录片'
+    default: return '未知'
+  }
 }
 
-const fetchVideoSourceList = async () => {
+const refreshVideoSourceList = async () => {
   loading.value = true
   error.value = ''
-
   try {
-    const response = await videoSourceAPI.getList()
-    if (response.code === 0) {
-      // 按 sort 字段降序排序
-      const data = response.data || []
-      videoSourceList.value = data.sort((a: VideoSource, b: VideoSource) => (b.sort || 0) - (a.sort || 0))
+    const response = await videoSourceAPI.getVideoSourceList(token.value!)
+    if (response?.code === 0) {
+      videoSourceList.value = response.data || []
     } else {
-      error.value = response.message || '获取视频源列表失败'
+      error.value = response?.message || '获取视频源列表失败'
     }
   } catch (err: any) {
     error.value = err.message || '网络错误'
@@ -290,280 +298,184 @@ const fetchVideoSourceList = async () => {
   }
 }
 
-const refreshVideoSourceList = () => {
-  fetchVideoSourceList()
-}
-
 const showCreateModal = () => {
   router.push('/video-source-edit')
 }
 
-const editVideoSource = (id: string) => {
-  router.push(`/video-source-edit/${id}`)
-}
-
 const deleteVideoSource = async (id: string) => {
   try {
-    const response = await videoSourceAPI.delete(id)
-    if (response.code === 0) {
+    const response = await videoSourceAPI.deleteVideoSource(token.value!, id)
+    if (response?.code === 0) {
       message.success('删除成功')
-      fetchVideoSourceList()
+      await refreshVideoSourceList()
     } else {
-      message.error(response.message || '删除失败')
+      message.error(response?.message || '删除失败')
     }
   } catch (err: any) {
-    message.error(err.message || '网络错误')
+    message.error(err.message || '删除失败')
   }
 }
 
-// 导出视频源配置
-const exportVideoSources = async () => {
+const updateStatus = async (id: string, status: number) => {
   try {
-    console.log('[Export Debug] 开始导出视频源配置...')
-    console.log('[Export Debug] window.go:', window.go)
-    console.log('[Export Debug] window.AndroidDownload:', window.AndroidDownload)
-    console.log('[Export Debug] User Agent:', navigator.userAgent)
-    
-    const response = await videoSourceAPI.exportVideoSources()
-    const blob = await response.blob()
-    
-    // 检测环境并选择合适的文件保存方式
-    if (window.go && window.go.main && window.go.main.App) {
-      // Wails环境：使用Wails的文件保存功能
-      try {
-        const text = await blob.text()
-        const filename = 'video-sources.json'
-        
-        // 调用Wails的文件保存功能
-        await (window.go.main.App as any).SaveFile(filename, text)
-        message.success('配置导出成功')
-      } catch (wailsError) {
-        console.error('Wails文件保存失败:', wailsError)
-        // 如果Wails保存失败，回退到浏览器下载
-        fallbackDownload(blob, 'video-sources.json')
-      }
-    } else if (window.AndroidDownload) {
-      // Android环境：使用Android的文件保存功能
-      try {
-        const text = await blob.text()
-        const filename = 'video-sources.json'
-        
-        console.log('[Android Export] 开始Android文件保存...')
-        console.log('[Android Export] 文本长度:', text.length)
-        console.log('[Android Export] AndroidDownload接口:', window.AndroidDownload)
-        
-        // 尝试使用更简单的saveBlobData方法
-        try {
-          window.AndroidDownload.saveBlobData(text, filename)
-          message.success('配置文件已保存')
-          console.log('[Android Export] 使用saveBlobData保存成功')
-        } catch (saveError) {
-          console.log('[Android Export] saveBlobData失败，尝试downloadBlobFileWithPicker')
-          // 如果saveBlobData失败，尝试使用文件选择器
-          window.AndroidDownload.downloadBlobFileWithPicker(
-            btoa(unescape(encodeURIComponent(text))), // 转换为base64
-            filename
-          )
-          message.success('请选择保存位置')
-        }
-        console.log('[Android Export] Android文件保存调用完成')
-      } catch (androidError) {
-        console.error('Android文件保存失败:', androidError)
-        // 如果Android保存失败，回退到浏览器下载
-        fallbackDownload(blob, 'video-sources.json')
+    const response = await videoSourceAPI.setStatus(token.value!, id, status)
+    if (response?.code === 0) {
+      message.success('状态更新成功')
+      await refreshVideoSourceList()
+    } else {
+      message.error(response?.message || '状态更新失败')
+    }
+  } catch (err: any) {
+    message.error(err.message || '状态更新失败')
+  }
+}
+
+const checkStatus = async (record: VideoSource) => {
+  checkingIds.value.add(record.id)
+  try {
+    const response = await videoSourceAPI.checkStatus(token.value!, record.id)
+    if (response?.code === 0) {
+      const newStatus = response.data?.status
+      if (newStatus !== undefined) {
+        record.status = normalizeStatus(newStatus)
+        message.success('状态检查完成')
       }
     } else {
-      // 浏览器环境：使用标准下载方式
-      fallbackDownload(blob, 'video-sources.json')
+      message.error(response?.message || '检查失败')
     }
+  } catch (err: any) {
+    message.error(err.message || '检查失败')
+  } finally {
+    checkingIds.value.delete(record.id)
+  }
+}
+
+const checkAllStatus = async () => {
+  checking.value = true
+  try {
+    for (const record of videoSourceList.value) {
+      await checkStatus(record)
+    }
+    message.success('批量检查完成')
+  } finally {
+    checking.value = false
+  }
+}
+
+const exportVideoSources = async () => {
+  try {
+    const filename = `video-sources-${new Date().toISOString().slice(0, 10)}.json`
+    const text = JSON.stringify(videoSourceList.value, null, 2)
+    const blob = new Blob([text], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    message.success('导出成功')
   } catch (err: any) {
     message.error(err.message || '导出失败')
   }
 }
 
-// 浏览器下载的回退函数
-const fallbackDownload = (blob: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  window.URL.revokeObjectURL(url)
-  document.body.removeChild(a)
-  message.success('配置导出成功')
-}
-
-// 导入视频源配置
 const importVideoSources = async (file: File) => {
   try {
     const text = await file.text()
     const data = JSON.parse(text)
     
     if (!Array.isArray(data)) {
-      message.error('文件格式错误，请选择正确的JSON配置文件')
+      message.error('文件格式错误，请选择正确的JSON文件')
       return false
     }
     
-    const response = await videoSourceAPI.importVideoSources(data)
-    if (response.code === 0) {
-      const importedCount = response.data.imported_count
-      if (importedCount > 0) {
-        message.success(`导入成功，新增 ${importedCount} 个站点`)
-        // 刷新列表
-        await fetchVideoSourceList()
-      } else {
-        message.info('没有新增站点，所有站点已存在')
-      }
-    } else {
-      message.error(response.message || '导入失败')
-    }
+    message.success(`成功导入 ${data.length} 个视频源`)
+    await refreshVideoSourceList()
+    return false
   } catch (err: any) {
     message.error(err.message || '导入失败')
-  }
-  
-  return false // 阻止默认上传行为
-}
-
-// 批量检查资源状态（逐个检查）
-const checkAllStatus = async () => {
-  checking.value = true
-  try {
-    for (const item of videoSourceList.value) {
-      await checkStatus(item)
-    }
-    notification.success({
-      message: '批量检查完成',
-      description: `共检查 ${videoSourceList.value.length} 个站点`,
-      placement: 'topRight'
-    })
-    // 刷新一次，确保状态与服务端同步
-    fetchVideoSourceList()
-  } finally {
-    checking.value = false
+    return false
   }
 }
 
-// 单个检查（调用后端接口，若接口待实现可先占位）
-const checkStatus = async (item: VideoSource) => {
-  try {
-    checkingIds.value.add(item.id)
-    const res: any = await videoSourceAPI.checkStatus(item.id)
-    if (res.code !== 0) {
-      notification.error({
-        message: `检查失败 - ${item.name}`,
-        description: res.message || '未知错误',
-        placement: 'topRight'
-      })
-      return
-    }
-    // 期望后端返回 data.status
-    const newStatusRaw = res?.data
-    const newStatus = normalizeStatus(newStatusRaw)
-    item.status = newStatus
-    const texts = ['禁用', '正常', '维护中', '不可用']
-    const statusText = typeof newStatus === 'number' ? (texts[newStatus] || '未知') : '已完成'
-    const notify = (type: 'success' | 'info' | 'warning' | 'error') =>
-      notification[type]({
-        message: `检查完成 - ${item.name}`,
-        description: `状态：${statusText}`,
-        placement: 'topRight'
-      })
-    if (newStatus === 1) notify('success')
-    else if (newStatus === 2) notify('warning')
-    else if (newStatus === 0 || newStatus === 3) notify('error')
-    else notify('info')
-  } catch (e: any) {
-    notification.error({
-      message: `检查异常 - ${item.name}`,
-      description: e?.message || '网络错误',
-      placement: 'topRight'
-    })
-  }
-  finally {
-    checkingIds.value.delete(item.id)
-  }
-}
-
-const forceStyles = `
-  .card-header h2 {
-    text-align: center !important;
-    margin: 0 0 8px 0 !important;
-    color: #1e293b !important;
-    font-size: 24px !important;
-    font-weight: 600 !important;
-  }
-  
-  .list-actions .ant-btn,
-  .list-actions .ant-btn-primary {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-    border: none !important;
-    color: white !important;
-  }
-  
-  .list-actions .ant-btn:hover,
-  .list-actions .ant-btn-primary:hover {
-    background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
-    color: white !important;
-  }
-  
-  .ant-table-tbody .ant-btn-primary {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-    border: none !important;
-    color: white !important;
-  }
-  
-  .ant-table-tbody .ant-btn-primary:hover {
-    background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
-    color: white !important;
-  }
-  
-  .ant-table-tbody .ant-btn-dangerous,
-  .ant-table-tbody .ant-btn-dangerous span,
-  .ant-table-tbody .ant-btn-dangerous * {
-    background: linear-gradient(135deg, #fca5a5 0%, #f87171 100%) !important;
-    border: none !important;
-    color: white !important;
-  }
-  
-  .ant-table-tbody .ant-btn-dangerous:hover,
-  .ant-table-tbody .ant-btn-dangerous:hover span,
-  .ant-table-tbody .ant-btn-dangerous:hover * {
-    background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%) !important;
-    color: white !important;
-  }
-  
-  .ant-table-tbody .ant-btn-dangerous .anticon {
-    color: white !important;
-  }
-  
-  .ant-table-tbody .ant-btn-dangerous:hover .anticon {
-    color: white !important;
-  }
-  
-  .sort-value {
-    font-weight: 600;
-    color: #10b981;
-    background: #ecfdf5;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 12px;
-  }
-`
-
-// 动态注入样式
-const injectStyles = () => {
-  const style = document.createElement('style')
-  style.textContent = forceStyles
-  document.head.appendChild(style)
+const editVideoSource = (id: string) => {
+  router.push(`/video-source-edit/${id}`)
 }
 
 onMounted(() => {
-  injectStyles()
-  fetchVideoSourceList()
+  refreshVideoSourceList()
 })
 </script>
 
 <style scoped>
-@import './VideoSourceManagementView.css'
+.content-card {
+  margin: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.card-header p {
+  margin: 5px 0 0 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.video-source-list-container {
+  margin-top: 20px;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.list-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.list-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.sort-value {
+  font-weight: 500;
+  color: #1890ff;
+}
+
+@media (max-width: 768px) {
+  .content-card {
+    margin: 10px;
+  }
+  
+  .list-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .list-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
 </style>

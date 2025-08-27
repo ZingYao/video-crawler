@@ -34,7 +34,6 @@ const testHealth = async () => {
       status: 'healthy',
       lastCheck: new Date().toLocaleString('zh-CN')
     }
-    console.log('Health check result:', data)
   } catch (error) {
     healthStatus.value = {
       status: 'unhealthy',
@@ -55,7 +54,6 @@ const testApi = async () => {
       lastCheck: new Date().toLocaleString('zh-CN')
     }
     apiResult.value = data
-    console.log('API info result:', data)
   } catch (error) {
     apiStatus.value = {
       status: 'unhealthy',

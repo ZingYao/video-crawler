@@ -7,32 +7,29 @@ export interface SearchSite {
   id: string
   name: string
   enabled: boolean
+  status?: number // 来自API的状态
+  source_type?: number // 来自API的资源类型
+  sort?: number // 来自API的排序
 }
 
 export interface Settings {
   longPressPlaybackSpeed: number
   progressBarSensitivity: number
   searchSites: SearchSite[]
-  allSitesSelected: boolean // 新增：全选标记
+  allSitesSelected: boolean // 全选标记 - true表示全选模式，false表示手动选择模式
 }
-
-const defaultSearchSites: SearchSite[] = [
-  { id: 'site1', name: '网站1', enabled: true },
-  { id: 'site2', name: '网站2', enabled: true },
-  { id: 'site3', name: '网站3', enabled: true },
-  { id: 'site4', name: '网站4', enabled: true },
-  { id: 'site5', name: '网站5', enabled: true },
-]
 
 const defaultSettings: Settings = {
   longPressPlaybackSpeed: 2.0,
   progressBarSensitivity: 0.7,
-  searchSites: defaultSearchSites,
-  allSitesSelected: true, // 默认全选
+  searchSites: [],
+  allSitesSelected: true, // 默认全选模式
 }
 
 export const useSettingsStore = defineStore('settings', () => {
   const settings = ref<Settings>({ ...defaultSettings })
+  const isLoading = ref(false)
+  const lastUpdateTime = ref<number>(0)
 
   // 计算属性
   const enabledSearchSites = computed(() => 
@@ -49,48 +46,53 @@ export const useSettingsStore = defineStore('settings', () => {
     settings.value.searchSites.every(site => site.enabled)
   )
 
+  // 获取缓存的勾选状态
+  const getCachedEnabledState = (siteId: string): boolean => {
+    const cachedSites = settings.value.searchSites
+    const cachedSite = cachedSites.find(site => site.id === siteId)
+    
+    // 如果是全选模式，所有站点都启用
+    if (settings.value.allSitesSelected) {
+      return true
+    }
+    
+    // 如果是手动选择模式，返回缓存的勾选状态
+    return cachedSite ? cachedSite.enabled : false
+  }
+
   // 从后端加载实际的视频源站点
   const loadActualVideoSources = async () => {
     try {
-      console.log('[Settings] 开始加载实际视频源...')
-      
       const authStore = useAuthStore()
-      
-      console.log('[Settings] Auth token:', authStore.token ? '存在' : '不存在')
       
       if (!authStore.token) {
         console.warn('[Settings] No auth token available for loading video sources')
         return
       }
       
-      console.log('[Settings] 调用 videoSourceAPI.getVideoSourceList...')
       const response = await videoSourceAPI.getVideoSourceList(authStore.token)
-      console.log('[Settings] API响应:', response)
       
       if (response?.code === 0 && Array.isArray(response.data)) {
-        // 获取当前缓存的勾选状态
-        const currentSites = settings.value.searchSites
-        const currentEnabledMap = new Map(currentSites.map(site => [site.id, site.enabled]))
-        
-        // 从API获取站点列表，并合并勾选状态
+        // 从API获取站点列表，只包含正常状态的站点
         const actualSites: SearchSite[] = response.data
           .filter((source: any) => source.status === 1) // 只包含正常状态的站点
           .map((source: any) => ({
             id: source.id,
             name: source.name,
-            enabled: currentEnabledMap.has(source.id) 
-              ? currentEnabledMap.get(source.id)! // 使用缓存的勾选状态
-              : settings.value.allSitesSelected // 新站点根据全选状态决定是否启用
+            status: source.status,
+            source_type: source.source_type,
+            sort: source.sort,
+            enabled: getCachedEnabledState(source.id) // 使用缓存的勾选状态
           }))
-        
-        console.log('[Settings] 合并后的站点:', actualSites)
+          .sort((a: SearchSite, b: SearchSite) => (b.sort || 0) - (a.sort || 0)) // 按sort降序排列
         
         if (actualSites.length > 0) {
+          // 更新站点列表，移除缓存中不存在于API返回列表中的站点
           settings.value.searchSites = actualSites
-          // 更新全选状态
-          settings.value.allSitesSelected = actualSites.every(site => site.enabled)
+          
+          // 不自动更新全选状态，保持用户的手动设置
+          lastUpdateTime.value = Date.now()
           await saveSettings()
-          console.log('[Settings] 成功更新站点列表')
         } else {
           console.warn('[Settings] 没有找到可用的视频源站点')
         }
@@ -99,7 +101,7 @@ export const useSettingsStore = defineStore('settings', () => {
       }
     } catch (error) {
       console.error('[Settings] Failed to load actual video sources:', error)
-      // 如果加载失败，保持默认设置
+      // 如果加载失败，保持现有设置
     }
   }
 
@@ -137,34 +139,22 @@ export const useSettingsStore = defineStore('settings', () => {
         settings.value = {
           ...defaultSettings,
           ...loaded,
-          searchSites: loaded.searchSites || defaultSearchSites,
+          searchSites: loaded.searchSites || [],
           allSitesSelected: loaded.allSitesSelected !== undefined ? loaded.allSitesSelected : true
         }
-        
-        // 如果之前是全选状态，确保所有网站都被选中
-        if (settings.value.allSitesSelected) {
-          settings.value.searchSites.forEach(site => {
-            site.enabled = true
-          })
-        }
-        
-        // 无论是否有缓存数据，都尝试获取最新的视频源列表
-        await loadActualVideoSources()
       } catch (e) {
         console.error('Failed to parse settings:', e)
         settings.value = { ...defaultSettings }
         await saveSettings() // 保存默认设置到缓存
-        // 尝试获取实际的视频源
-        await loadActualVideoSources()
       }
     } else {
       // 首次加载，使用默认设置
       settings.value = { ...defaultSettings }
-      // 尝试获取实际的视频源
-      await loadActualVideoSources()
-      // 确保默认设置被保存到缓存
       await saveSettings()
     }
+
+    // 无论是否有缓存数据，都尝试获取最新的视频源列表
+    await loadActualVideoSources()
   }
 
   // 更新设置
@@ -192,24 +182,12 @@ export const useSettingsStore = defineStore('settings', () => {
       sites[0].enabled = true
     }
     
-    // 更新全选标记
+    // 更新全选标记 - 只有当所有站点都被选中时，才设置为全选模式
     const allSelected = sites.length > 0 && sites.every(site => site.enabled)
     
     settings.value.searchSites = sites
     settings.value.allSitesSelected = allSelected
     await saveSettings()
-  }
-
-  // 添加新网站
-  const addSearchSite = async (site: SearchSite) => {
-    const newSites = [...settings.value.searchSites, site]
-    
-    // 如果当前是全选状态，新网站也应该被选中
-    if (settings.value.allSitesSelected) {
-      site.enabled = true
-    }
-    
-    await updateSearchSites(newSites)
   }
 
   // 切换单个网站状态
@@ -222,7 +200,7 @@ export const useSettingsStore = defineStore('settings', () => {
       }
       site.enabled = !site.enabled
       
-      // 更新全选标记
+      // 更新全选标记 - 如果所有站点都被选中，设置为全选模式
       settings.value.allSitesSelected = isAllSitesSelected.value
       
       await saveSettings()
@@ -234,6 +212,7 @@ export const useSettingsStore = defineStore('settings', () => {
     settings.value.searchSites.forEach(site => {
       site.enabled = enabled
     })
+    // 设置全选标记 - true表示全选模式，false表示手动选择模式
     settings.value.allSitesSelected = enabled
     await saveSettings()
   }
@@ -242,11 +221,18 @@ export const useSettingsStore = defineStore('settings', () => {
   const resetToDefaults = async () => {
     settings.value = { ...defaultSettings }
     await saveSettings()
+    // 重新加载视频源列表
+    await loadActualVideoSources()
   }
 
   // 刷新视频源列表
   const refreshVideoSources = async () => {
-    await loadActualVideoSources()
+    isLoading.value = true
+    try {
+      await loadActualVideoSources()
+    } finally {
+      isLoading.value = false
+    }
   }
 
   return {
@@ -254,12 +240,13 @@ export const useSettingsStore = defineStore('settings', () => {
     enabledSearchSites,
     hasEnabledSites,
     isAllSitesSelected,
+    isLoading: readonly(isLoading),
+    lastUpdateTime: readonly(lastUpdateTime),
     loadSettings,
     updateSettings,
     updatePlaybackSpeed,
     updateProgressSensitivity,
     updateSearchSites,
-    addSearchSite,
     toggleSearchSite,
     toggleAllSearchSites,
     resetToDefaults,

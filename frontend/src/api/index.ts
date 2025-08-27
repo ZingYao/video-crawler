@@ -1,5 +1,54 @@
+// 导入Wails绑定
+import { GetServerPort } from '../../wailsjs/go/main/App'
+import { isWails } from '../utils/wails'
+
 // API 基础配置
-const API_BASE_URL = window.location.origin
+const getApiBaseUrl = async (): Promise<string> => {
+  // 检查是否在Wails环境中
+  let isWailsEnv = isWails()
+  
+  // 如果第一次检测失败，尝试延迟检测
+  if (!isWailsEnv) {
+    console.error('第一次检测失败，尝试延迟检测...')
+    // 等待一段时间后再次检测
+    await new Promise(resolve => setTimeout(resolve, 500))
+    isWailsEnv = isWails()
+    console.error('延迟检测结果:', isWailsEnv)
+  }
+  
+  // 调试信息（生产环境构建时会自动移除）
+  console.error('=== getApiBaseUrl 环境检测 ===')
+  console.error('isWails:', isWailsEnv)
+  
+  console.log('getApiBaseUrl - 环境检测:', {
+    isWails: isWailsEnv
+  })
+  
+  if (isWailsEnv) {
+    // 在Wails环境中，动态获取后端服务端口
+    try {
+      const port = await GetServerPort()
+      console.log('getApiBaseUrl - Wails端口获取:', { port })
+      
+      if (port && port > 0) {
+        const result = `http://localhost:${port}`
+        console.log('getApiBaseUrl - 返回Wails URL:', result)
+        return result
+      }
+    } catch (error) {
+      console.warn('无法获取Wails服务端口，使用默认端口:', error)
+    }
+    // 回退到默认端口
+    const fallback = 'http://localhost:8080'
+    console.log('getApiBaseUrl - 回退到默认端口:', fallback)
+    return fallback
+  }
+  
+  // 在浏览器环境中，使用当前域名
+  const browserUrl = window.location.origin
+  console.log('getApiBaseUrl - 返回浏览器 URL:', browserUrl)
+  return browserUrl
+}
 
 import router from '@/router'
 import { useAuthStore } from '@/stores/auth'
@@ -26,7 +75,19 @@ async function request<T = any>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${path}`
+  const apiBaseUrl = await getApiBaseUrl()
+  const url = `${apiBaseUrl}${path}`
+  
+  // 调试信息（生产环境构建时会自动移除）
+  console.log('API请求:', {
+    path,
+    apiBaseUrl,
+    fullUrl: url,
+    isWails: !!(window as any).go,
+    currentDomain: window.location.origin,
+    currentProtocol: window.location.protocol
+  })
+  
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
@@ -72,6 +133,12 @@ async function authenticatedRequest<T = any>(
       ...options.headers,
     },
   })
+}
+
+// 配置相关API
+export const configAPI = {
+  // 获取系统配置
+  getConfig: () => request('/api/config'),
 }
 
 // 用户相关API

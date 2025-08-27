@@ -74,13 +74,22 @@ func (c *VideoSourceController) Delete(ctx *gin.Context) {
 		utils.SendResponse(ctx, consts.ResponseCodeNoPermission, "no permission", nil)
 		return
 	}
-	videoSourceId := ctx.Query("id")
-	if videoSourceId == "" {
+
+	// 从请求体中获取ID
+	var deleteRequest struct {
+		ID string `json:"id" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&deleteRequest); err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeParamError, "站点ID不能为空", nil)
 		return
 	}
 
-	err := c.videoSourceService.Delete(videoSourceId)
+	if deleteRequest.ID == "" {
+		utils.SendResponse(ctx, consts.ResponseCodeParamError, "站点ID不能为空", nil)
+		return
+	}
+
+	err := c.videoSourceService.Delete(deleteRequest.ID)
 	if err != nil {
 		utils.SendResponse(ctx, consts.ResponseCodeDeleteVideoSourceFailed, err.Error(), nil)
 		return
