@@ -154,9 +154,9 @@ const menuItems: MenuItem[] = [
 // 计算属性
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
-    // 如果系统配置为不需要登录，隐藏用户管理相关菜单
+    // 如果系统配置为不需要登录，只隐藏用户管理相关菜单
     if (!configStore.needsLogin()) {
-      if (item.id === 'user-management' || item.id === 'watch-history') {
+      if (item.id === 'user-management') {
         return false
       }
     }

@@ -68,19 +68,19 @@ const router = createRouter({
       path: '/video-source-management',
       name: 'video-source-management',
       component: VideoSourceManagementView,
-      meta: { requiresAuth: true, requiresAdmin: true, title: '视频源管理' }
+      meta: { requiresAuth: false, requiresAdmin: true, title: '视频源管理' }
     },
     {
       path: '/video-source-edit/:id?',
       name: 'video-source-edit',
       component: VideoSourceEditView,
-      meta: { requiresAuth: true, requiresAdmin: true, title: '编辑视频源' }
+      meta: { requiresAuth: false, requiresAdmin: true, title: '编辑视频源' }
     },
     {
       path: '/history/watch/:userId?',
       name: 'watch-history',
       component: WatchHistoryView,
-      meta: { requiresAuth: true, title: '观看历史' }
+      meta: { requiresAuth: false, title: '观看历史' }
     },
     {
       path: '/movie',
@@ -216,7 +216,7 @@ router.beforeEach(async (to, from, next) => {
       next('/404')
       return
     }
-    // 不需要登录时，其他页面都允许访问
+    // 不需要登录时，其他页面都允许访问（包括站点管理和观看历史）
     next()
     return
   }
