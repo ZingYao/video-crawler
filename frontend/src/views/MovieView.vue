@@ -61,19 +61,31 @@
                   </a-button>
                 </a-col>
               </a-row>
+              <transition name="vm-progress-fade">
+                <div v-show="showProgress" class="search-progress-wrap" :class="{ closing: progressClosing }">
+                  <a-progress
+                    :percent="progressDisplay"
+                    :show-info="true"
+                    status="active"
+                    size="small"
+                    :stroke-width="4"
+                  />
+                  <div class="progress-meta">
+                    <span>站点 {{ finishedSites }}/{{ totalSites }}</span>
+                    <span class="dot">·</span>
+                    <span>结果 {{ searchResults.length }}</span>
+                  </div>
+                </div>
+              </transition>
             </div>
           </a-card>
         </div>
 
         <!-- 搜索结果区域 -->
         <div class="results-section" v-if="hasSearched">
-          <!-- 搜索结果loading -->
-          <div v-if="searching" class="results-loading">
-            <a-spin size="large" tip="搜索中..." />
-          </div>
           
-          <!-- 搜索结果列表 -->
-          <div v-else-if="searchResults.length > 0">
+          <!-- 搜索结果列表（增量渲染） -->
+          <div v-if="searchResults.length > 0">
             <a-row :gutter="[16, 16]">
               <a-col
                 v-for="movie in searchResults"
@@ -223,6 +235,64 @@ const searchKeyword = ref('')
 const selectedSourceType = ref('')
 const searching = ref(false)
 const hasSearched = ref(false)
+const totalSites = ref(0)
+const finishedSites = ref(0)
+const showProgress = ref(false)
+const progressClosing = ref(false)
+const progressDisplay = ref(0)
+let progressTimer: number | null = null
+
+function resetProgress() {
+  if (progressTimer) {
+    window.clearInterval(progressTimer)
+    progressTimer = null
+  }
+  totalSites.value = 0
+  finishedSites.value = 0
+  progressDisplay.value = 0
+  showProgress.value = false
+  progressClosing.value = false
+}
+
+function startProgress(total: number) {
+  if (progressTimer) {
+    window.clearInterval(progressTimer)
+    progressTimer = null
+  }
+  totalSites.value = total
+  finishedSites.value = 0
+  progressDisplay.value = total > 0 ? 5 : 0 // 假加载起步，避免从0突变
+  showProgress.value = total > 0
+  progressClosing.value = false
+
+  if (total <= 0) return
+
+  progressTimer = window.setInterval(() => {
+    const real = Math.round((finishedSites.value / Math.max(1, totalSites.value)) * 100)
+    const floor = 5
+    // 不超过真实进度，也保留一点缓冲，且在未完成前不超过98
+    const target = Math.min(98, Math.max(floor, real))
+    if (progressDisplay.value < target - 1) {
+      const step = Math.max(1, Math.ceil((target - progressDisplay.value) / 4))
+      progressDisplay.value = Math.min(target, progressDisplay.value + step)
+    }
+  }, 120)
+}
+
+function finishProgress() {
+  // 收尾到100，然后1s 动画关闭
+  progressDisplay.value = 100
+  progressClosing.value = true
+  if (progressTimer) {
+    window.clearInterval(progressTimer)
+    progressTimer = null
+  }
+  window.setTimeout(() => {
+    showProgress.value = false
+    progressClosing.value = false
+    progressDisplay.value = 0
+  }, 1000)
+}
 
 // 搜索历史
 const searchHistory = ref<string[]>([])
@@ -333,6 +403,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   saveSearchCache()
+  if (progressTimer) {
+    window.clearInterval(progressTimer)
+    progressTimer = null
+  }
 })
 
 // 加载搜索历史
@@ -398,6 +472,9 @@ const handleSearch = async () => {
 
   searching.value = true
   hasSearched.value = true
+  // 启动时清空旧结果并重置进度
+  searchResults.value = []
+  resetProgress()
   
   try {
     // 1) 拉取站点列表并按 sort 降序（越大越靠前）
@@ -434,7 +511,8 @@ const handleSearch = async () => {
 
     if (sources.length === 0) {
       message.warning('没有找到启用的搜索网站，请检查设置')
-      searchResults.value = []
+      // 无站点也不显示进度
+      resetProgress()
       return
     }
 
@@ -442,6 +520,9 @@ const handleSearch = async () => {
     const concurrency = 2
     const queue = [...sources]
     const results: MovieResult[] = []
+    startProgress(queue.length)
+    totalSites.value = queue.length
+    finishedSites.value = 0
 
     const runner = async () => {
       while (queue.length > 0) {
@@ -467,9 +548,14 @@ const handleSearch = async () => {
               source_id: String(src.id || ''),
             })
           }
+          // 增量渲染：每完成一个站点就更新一次 UI
+          searchResults.value = results.slice()
+          saveSearchCache()
         } catch (e) {
           // 单站点失败不中断
           console.warn('search failed for source', src?.id, e)
+        } finally {
+          finishedSites.value = Math.min(totalSites.value, finishedSites.value + 1)
         }
       }
     }
@@ -479,9 +565,7 @@ const handleSearch = async () => {
       workers.push(runner())
     }
     await Promise.all(workers)
-
-    searchResults.value = results
-    saveSearchCache()
+    finishProgress()
     saveSearchHistory(searchKeyword.value)
     
     const searchedSitesCount = sources.length
@@ -527,4 +611,26 @@ const goToOriginal = (movie: MovieResult) => {
 
 <style scoped>
 @import './MovieView.css';
+.search-progress-wrap {
+  margin-top: 8px;
+}
+.search-progress-wrap .progress-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #888;
+  display: flex;
+  align-items: center;
+}
+.search-progress-wrap .progress-meta .dot {
+  margin: 0 8px;
+  color: #bbb;
+}
+.vm-progress-fade-enter-active,
+.vm-progress-fade-leave-active {
+  transition: opacity 1s ease;
+}
+.vm-progress-fade-enter-from,
+.vm-progress-fade-leave-to {
+  opacity: 0;
+}
 </style>

@@ -164,20 +164,22 @@ class LocalHistoryManager {
   addSearchHistory(keyword: string, sourceId: string): void {
     try {
       const histories = this.getSearchHistories()
-      const existingIndex = histories.findIndex(h => h.keyword === keyword && h.source_id === sourceId)
-      if (existingIndex !== -1) {
-        histories[existingIndex].created_at = this.getCurrentTime()
-      } else {
-        const newHistory: LocalSearchHistory = {
-          id: this.generateId(),
-          keyword: keyword,
-          source_id: sourceId,
-          created_at: this.getCurrentTime()
-        }
-        histories.push(newHistory)
-        if (histories.length > this.MAX_SEARCH_HISTORY) histories.shift()
+      // 去重：删除旧项（当提供 sourceId 时按 keyword+sourceId，否则按 keyword）
+      const filtered = histories.filter(h => {
+        return sourceId ? !(h.keyword === keyword && h.source_id === sourceId) : h.keyword !== keyword
+      })
+
+      // 插入新项到最前
+      const newHistory: LocalSearchHistory = {
+        id: this.generateId(),
+        keyword: keyword,
+        source_id: sourceId,
+        created_at: this.getCurrentTime()
       }
-      kvSet(this.SEARCH_HISTORY_KEY, JSON.stringify(histories))
+      const merged = [newHistory, ...filtered]
+      // 限制容量
+      const trimmed = merged.slice(0, this.MAX_SEARCH_HISTORY)
+      kvSet(this.SEARCH_HISTORY_KEY, JSON.stringify(trimmed))
     } catch (error) {
       console.error('保存本地搜索历史记录失败:', error)
     }
