@@ -965,6 +965,12 @@ public class MainActivity extends AppCompatActivity {
                     keyCode, keyName, keyName, keyName, keyCode, keyCode
                 );
                 webView.evaluateJavascript(js, null);
+                
+                // 对于特定按键（如返回键），阻止 Android 默认处理
+                if (keyCode == KeyEvent.KEYCODE_BACK) {
+                    android.util.Log.d("MainActivity", "阻止 Android 返回键默认处理");
+                    return true;
+                }
             }
         }
         
@@ -1017,6 +1023,12 @@ public class MainActivity extends AppCompatActivity {
                     keyCode, keyName, keyName, keyName, keyCode, keyCode
                 );
                 webView.evaluateJavascript(js, null);
+                
+                // 对于特定按键（如返回键），阻止 Android 默认处理
+                if (keyCode == KeyEvent.KEYCODE_BACK) {
+                    android.util.Log.d("MainActivity", "阻止 Android 返回键默认处理 (keyup)");
+                    return true;
+                }
             }
         }
         
