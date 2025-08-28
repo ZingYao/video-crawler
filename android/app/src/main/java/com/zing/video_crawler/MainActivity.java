@@ -1011,23 +1011,51 @@ public class MainActivity extends AppCompatActivity {
             
             // 延迟检查，给 JavaScript 时间处理事件
             webView.postDelayed(() -> {
+                android.util.Log.d("MainActivity", "延迟检查开始 - 检查 WebView 历史记录和 JavaScript 处理结果");
+                
                 // 检查 WebView 是否能处理返回键（通过检查是否有历史记录）
-                if (webView.canGoBack()) {
-                    android.util.Log.d("MainActivity", "WebView 可以返回，让 WebView 处理");
-                    webView.goBack();
-                } else {
-                    // WebView 无法处理返回键，检查是否需要退出应用
-                    if (currentTime - lastBackPressTime < BACK_PRESS_INTERVAL) {
-                        // 第二次按返回键，退出应用
-                        android.util.Log.d("MainActivity", "第二次按返回键，退出应用");
-                        finish();
-                    } else {
-                        // 第一次按返回键，显示提示
-                        android.util.Log.d("MainActivity", "第一次按返回键，显示退出提示");
-                        lastBackPressTime = currentTime;
-                        android.widget.Toast.makeText(this, "再按一次返回键退出应用", android.widget.Toast.LENGTH_SHORT).show();
+                boolean canGoBack = webView.canGoBack();
+                android.util.Log.d("MainActivity", "WebView.canGoBack() = " + canGoBack);
+                
+                // 通过 JavaScript 检查是否有输入框聚焦
+                String checkFocusJs = 
+                    "try {" +
+                    "  const activeElement = document.activeElement;" +
+                    "  const isEditable = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.getAttribute('contenteditable') === 'true');" +
+                    "  console.log('[ANDROID_CHECK] 检查焦点状态:', {activeElement: activeElement?.tagName, isEditable: isEditable});" +
+                    "  return isEditable;" +
+                    "} catch (error) {" +
+                    "  console.error('[ANDROID_CHECK] 检查焦点失败:', error);" +
+                    "  return false;" +
+                    "}";
+                
+                webView.evaluateJavascript(checkFocusJs, result -> {
+                    android.util.Log.d("MainActivity", "JavaScript 焦点检查结果: " + result);
+                    boolean hasEditableFocus = "true".equals(result);
+                    
+                    if (hasEditableFocus) {
+                        android.util.Log.d("MainActivity", "检测到输入框聚焦，JavaScript 已处理，不执行 Android 返回");
+                        // 输入框聚焦时，JavaScript 已经处理了返回键，不执行 Android 的返回逻辑
+                        return;
                     }
-                }
+                    
+                    if (canGoBack) {
+                        android.util.Log.d("MainActivity", "WebView 可以返回，让 WebView 处理");
+                        webView.goBack();
+                    } else {
+                        // WebView 无法处理返回键，检查是否需要退出应用
+                        if (currentTime - lastBackPressTime < BACK_PRESS_INTERVAL) {
+                            // 第二次按返回键，退出应用
+                            android.util.Log.d("MainActivity", "第二次按返回键，退出应用");
+                            finish();
+                        } else {
+                            // 第一次按返回键，显示提示
+                            android.util.Log.d("MainActivity", "第一次按返回键，显示退出提示");
+                            lastBackPressTime = currentTime;
+                            android.widget.Toast.makeText(this, "再按一次返回键退出应用", android.widget.Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
             }, 100); // 延迟100ms给JavaScript处理时间
         }
         
