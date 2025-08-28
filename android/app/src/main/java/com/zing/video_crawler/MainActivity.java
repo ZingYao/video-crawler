@@ -209,13 +209,11 @@ public class MainActivity extends AppCompatActivity {
         webView.addJavascriptInterface(new Object() {
             @android.webkit.JavascriptInterface
             public void onKeyEvent(String eventType, int keyCode, String key, boolean ctrlKey, boolean shiftKey, boolean altKey, boolean metaKey) {
-                android.util.Log.d("AndroidKeyEvent", String.format("KeyEvent: type=%s, keyCode=%d, key=%s, ctrl=%b, shift=%b, alt=%b, meta=%b", 
-                    eventType, keyCode, key, ctrlKey, shiftKey, altKey, metaKey));
+                // 静默处理按键事件
             }
             
             @android.webkit.JavascriptInterface
             public void injectKeyEvent(String eventType, int keyCode, String key) {
-                android.util.Log.d("AndroidKeyEvent", "Injecting key event: " + eventType + " " + keyCode + " " + key);
                 // 通过 JavaScript 注入来触发按键事件
                 runOnUiThread(() -> {
                     String js = String.format(
@@ -353,25 +351,6 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 showLoading(false);
                 try { CookieManager.getInstance().flush(); } catch (Exception ignored) {}
-                
-                android.util.Log.d("MainActivity", "页面加载完成: " + url);
-                
-                // 页面加载完成后，注入一些必要的 JavaScript
-                String js = "console.log('页面加载完成，JavaScript 环境已就绪');";
-                view.evaluateJavascript(js, null);
-                
-                // 测试 JavaScript 注入是否正常工作
-                String testJs = "console.log('[ANDROID_INJECT] 页面加载完成，测试 JavaScript 注入');";
-                view.evaluateJavascript(testJs, null);
-                
-                // 添加一个全局的按键事件测试函数
-                String testFunctionJs = 
-                    "window.testAndroidKeyInjection = function() {" +
-                    "  console.log('[ANDROID_INJECT] 测试函数被调用');" +
-                    "  return 'JavaScript 注入测试成功';" +
-                    "};" +
-                    "console.log('[ANDROID_INJECT] 测试函数已注册');";
-                view.evaluateJavascript(testFunctionJs, null);
             }
         });
 
@@ -925,8 +904,6 @@ public class MainActivity extends AppCompatActivity {
     // 重写按键事件处理，允许按键透传到 WebView
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        android.util.Log.d("MainActivity", "onKeyDown: keyCode=" + keyCode + ", event=" + event);
-        
         // 处理返回键的特殊逻辑
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             return handleBackKey();
@@ -936,26 +913,17 @@ public class MainActivity extends AppCompatActivity {
         if (webView != null) {
             // 将按键事件传递给 WebView
             boolean handled = webView.dispatchKeyEvent(event);
-            android.util.Log.d("MainActivity", "WebView dispatchKeyEvent result: " + handled + " for keyCode: " + keyCode);
             
             if (handled) {
-                android.util.Log.d("MainActivity", "WebView handled key event: " + keyCode);
                 return true;
             }
             
             // 如果 WebView 没有处理，尝试通过 JavaScript 注入来触发
             String keyName = getKeyName(keyCode);
             if (keyName != null) {
-                android.util.Log.d("MainActivity", "Injecting key event via JavaScript: " + keyName);
-                
-                // 先测试 JavaScript 是否能正常执行
-                String testJs = "console.log('[ANDROID_INJECT] JavaScript 测试注入成功');";
-                webView.evaluateJavascript(testJs, null);
-                
                 // 直接创建并分发 KeyboardEvent
                 String js = String.format(
                     "try {" +
-                    "  console.log('[ANDROID_INJECT] 开始注入按键事件:', {keyCode: %d, key: '%s'});" +
                     "  const event = new KeyboardEvent('keydown', {" +
                     "    key: '%s'," +
                     "    code: 'Key%s'," +
@@ -964,14 +932,10 @@ public class MainActivity extends AppCompatActivity {
                     "    bubbles: true," +
                     "    cancelable: true" +
                     "  });" +
-                    "  console.log('[ANDROID_INJECT] 创建的事件对象:', event);" +
                     "  window.dispatchEvent(event);" +
                     "  document.dispatchEvent(event);" +
-                    "  console.log('[ANDROID_INJECT] 事件已分发');" +
-                    "} catch (error) {" +
-                    "  console.error('[ANDROID_INJECT] 注入失败:', error);" +
-                    "}",
-                    keyCode, keyName, keyName, keyName, keyCode, keyCode
+                    "} catch (error) {}",
+                    keyName, keyName, keyCode, keyCode
                 );
                 webView.evaluateJavascript(js, null);
             }
@@ -993,24 +957,19 @@ public class MainActivity extends AppCompatActivity {
                 "  try {" +
                 "    const activeElement = document.activeElement;" +
                 "    const isEditable = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.getAttribute('contenteditable') === 'true');" +
-                "    console.log('[ANDROID_CHECK] 注入前检查焦点状态:', {activeElement: activeElement?.tagName, isEditable: isEditable});" +
                 "    return isEditable;" +
                 "  } catch (error) {" +
-                "    console.error('[ANDROID_CHECK] 注入前检查焦点失败:', error);" +
                 "    return false;" +
                 "  }" +
                 "})()";
             
-            webView.evaluateJavascript(checkFocusBeforeJs, result -> {
-                android.util.Log.d("MainActivity", "注入前焦点检查结果: " + result);
-                boolean hasEditableFocus = "true".equals(result);
+            webView.evaluateJavascript(checkFocusBeforeJs, result1 -> {
+                boolean hasEditableFocus1 = "true".equals(result1);
                 
-                if (hasEditableFocus) {
-                    android.util.Log.d("MainActivity", "检测到输入框聚焦，只注入事件，不执行 Android 返回逻辑");
+                if (hasEditableFocus1) {
                     // 只注入事件，不执行后续的 Android 返回逻辑
                     String js = String.format(
                         "try {" +
-                        "  console.log('[ANDROID_INJECT] 开始注入返回键事件:', {keyCode: 4, key: 'Backspace'});" +
                         "  const event = new KeyboardEvent('keydown', {" +
                         "    key: 'Backspace'," +
                         "    code: 'KeyBackspace'," +
@@ -1019,21 +978,15 @@ public class MainActivity extends AppCompatActivity {
                         "    bubbles: true," +
                         "    cancelable: true" +
                         "  });" +
-                        "  console.log('[ANDROID_INJECT] 创建返回键事件对象:', event);" +
                         "  window.dispatchEvent(event);" +
                         "  document.dispatchEvent(event);" +
-                        "  console.log('[ANDROID_INJECT] 返回键事件已分发');" +
-                        "} catch (error) {" +
-                        "  console.error('[ANDROID_INJECT] 返回键注入失败:', error);" +
-                        "}"
+                        "} catch (error) {}"
                     );
                     webView.evaluateJavascript(js, null);
                 } else {
-                    android.util.Log.d("MainActivity", "没有输入框聚焦，注入事件并执行 Android 返回逻辑");
                     // 注入事件
                     String js = String.format(
                         "try {" +
-                        "  console.log('[ANDROID_INJECT] 开始注入返回键事件:', {keyCode: 4, key: 'Backspace'});" +
                         "  const event = new KeyboardEvent('keydown', {" +
                         "    key: 'Backspace'," +
                         "    code: 'KeyBackspace'," +
@@ -1042,66 +995,54 @@ public class MainActivity extends AppCompatActivity {
                         "    bubbles: true," +
                         "    cancelable: true" +
                         "  });" +
-                        "  console.log('[ANDROID_INJECT] 创建返回键事件对象:', event);" +
                         "  window.dispatchEvent(event);" +
                         "  document.dispatchEvent(event);" +
-                        "  console.log('[ANDROID_INJECT] 返回键事件已分发');" +
-                        "} catch (error) {" +
-                        "  console.error('[ANDROID_INJECT] 返回键注入失败:', error);" +
-                        "}"
+                        "} catch (error) {}"
                     );
                     webView.evaluateJavascript(js, null);
                     
                     // 延迟检查，给 JavaScript 时间处理事件
                     webView.postDelayed(() -> {
-                android.util.Log.d("MainActivity", "延迟检查开始 - 检查 WebView 历史记录和 JavaScript 处理结果");
-                
-                // 检查 WebView 是否能处理返回键（通过检查是否有历史记录）
-                boolean canGoBack = webView.canGoBack();
-                android.util.Log.d("MainActivity", "WebView.canGoBack() = " + canGoBack);
-                
-                // 通过 JavaScript 检查是否有输入框聚焦
-                String checkFocusJs = 
-                    "(function() {" +
-                    "  try {" +
-                    "    const activeElement = document.activeElement;" +
-                    "    const isEditable = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.getAttribute('contenteditable') === 'true');" +
-                    "    console.log('[ANDROID_CHECK] 检查焦点状态:', {activeElement: activeElement?.tagName, isEditable: isEditable});" +
-                    "    return isEditable;" +
-                    "  } catch (error) {" +
-                    "    console.error('[ANDROID_CHECK] 检查焦点失败:', error);" +
-                    "    return false;" +
-                    "  }" +
-                    "})()";
-                
-                webView.evaluateJavascript(checkFocusJs, result -> {
-                    android.util.Log.d("MainActivity", "JavaScript 焦点检查结果: " + result);
-                    boolean hasEditableFocus = "true".equals(result);
-                    
-                    if (hasEditableFocus) {
-                        android.util.Log.d("MainActivity", "检测到输入框聚焦，JavaScript 已处理，不执行 Android 返回");
-                        // 输入框聚焦时，JavaScript 已经处理了返回键，不执行 Android 的返回逻辑
-                        return;
-                    }
-                    
-                    if (canGoBack) {
-                        android.util.Log.d("MainActivity", "WebView 可以返回，让 WebView 处理");
-                        webView.goBack();
-                    } else {
-                        // WebView 无法处理返回键，检查是否需要退出应用
-                        if (currentTime - lastBackPressTime < BACK_PRESS_INTERVAL) {
-                            // 第二次按返回键，退出应用
-                            android.util.Log.d("MainActivity", "第二次按返回键，退出应用");
-                            finish();
-                        } else {
-                            // 第一次按返回键，显示提示
-                            android.util.Log.d("MainActivity", "第一次按返回键，显示退出提示");
-                            lastBackPressTime = currentTime;
-                            android.widget.Toast.makeText(this, "再按一次返回键退出应用", android.widget.Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
-            }, 100); // 延迟100ms给JavaScript处理时间
+                        // 检查 WebView 是否能处理返回键（通过检查是否有历史记录）
+                        boolean canGoBack = webView.canGoBack();
+                        
+                        // 通过 JavaScript 检查是否有输入框聚焦
+                        String checkFocusJs = 
+                            "(function() {" +
+                            "  try {" +
+                            "    const activeElement = document.activeElement;" +
+                            "    const isEditable = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.getAttribute('contenteditable') === 'true');" +
+                            "    return isEditable;" +
+                            "  } catch (error) {" +
+                            "    return false;" +
+                            "  }" +
+                            "})()";
+                        
+                        webView.evaluateJavascript(checkFocusJs, result2 -> {
+                            boolean hasEditableFocus2 = "true".equals(result2);
+                            
+                            if (hasEditableFocus2) {
+                                // 输入框聚焦时，JavaScript 已经处理了返回键，不执行 Android 的返回逻辑
+                                return;
+                            }
+                            
+                            if (canGoBack) {
+                                webView.goBack();
+                            } else {
+                                // WebView 无法处理返回键，检查是否需要退出应用
+                                if (currentTime - lastBackPressTime < BACK_PRESS_INTERVAL) {
+                                    // 第二次按返回键，退出应用
+                                    finish();
+                                } else {
+                                    // 第一次按返回键，显示提示
+                                    lastBackPressTime = currentTime;
+                                    android.widget.Toast.makeText(this, "再按一次返回键退出应用", android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+                    }, 100); // 延迟100ms给JavaScript处理时间
+                }
+            });
         }
         
         // 总是返回 true，阻止默认的返回键行为
@@ -1110,8 +1051,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        android.util.Log.d("MainActivity", "onKeyUp: keyCode=" + keyCode + ", event=" + event);
-        
         // 返回键在 onKeyDown 中统一处理，这里跳过
         if (keyCode == KeyEvent.KEYCODE_BACK) {
             return true;
@@ -1120,26 +1059,17 @@ public class MainActivity extends AppCompatActivity {
         // 让 WebView 优先处理其他按键事件
         if (webView != null) {
             boolean handled = webView.dispatchKeyEvent(event);
-            android.util.Log.d("MainActivity", "WebView dispatchKeyEvent result: " + handled + " for keyCode: " + keyCode);
             
             if (handled) {
-                android.util.Log.d("MainActivity", "WebView handled key up event: " + keyCode);
                 return true;
             }
             
             // 如果 WebView 没有处理，尝试通过 JavaScript 注入来触发
             String keyName = getKeyName(keyCode);
             if (keyName != null) {
-                android.util.Log.d("MainActivity", "Injecting key up event via JavaScript: " + keyName);
-                
-                // 先测试 JavaScript 是否能正常执行
-                String testJs = "console.log('[ANDROID_INJECT] JavaScript 测试注入成功 (keyup)');";
-                webView.evaluateJavascript(testJs, null);
-                
                 // 直接创建并分发 KeyboardEvent
                 String js = String.format(
                     "try {" +
-                    "  console.log('[ANDROID_INJECT] 开始注入按键释放事件:', {keyCode: %d, key: '%s'});" +
                     "  const event = new KeyboardEvent('keyup', {" +
                     "    key: '%s'," +
                     "    code: 'Key%s'," +
@@ -1148,14 +1078,10 @@ public class MainActivity extends AppCompatActivity {
                     "    bubbles: true," +
                     "    cancelable: true" +
                     "  });" +
-                    "  console.log('[ANDROID_INJECT] 创建的释放事件对象:', event);" +
                     "  window.dispatchEvent(event);" +
                     "  document.dispatchEvent(event);" +
-                    "  console.log('[ANDROID_INJECT] 释放事件已分发');" +
-                    "} catch (error) {" +
-                    "  console.error('[ANDROID_INJECT] 注入释放事件失败:', error);" +
-                    "}",
-                    keyCode, keyName, keyName, keyName, keyCode, keyCode
+                    "} catch (error) {}",
+                    keyName, keyName, keyCode, keyCode
                 );
                 webView.evaluateJavascript(js, null);
             }
@@ -1167,8 +1093,6 @@ public class MainActivity extends AppCompatActivity {
     // 处理系统按键（如返回键）
     @Override
     public boolean onKeyLongPress(int keyCode, KeyEvent event) {
-        android.util.Log.d("MainActivity", "onKeyLongPress: keyCode=" + keyCode + ", event=" + event);
-        
         if (webView != null) {
             boolean handled = webView.dispatchKeyEvent(event);
             if (handled) {
