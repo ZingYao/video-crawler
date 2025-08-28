@@ -48,6 +48,8 @@ export class VirtualMouse {
   private lastMousePos = { x: 0, y: 0 } // 记录鼠标最后位置
   private isKeyboardMode = false // 是否处于键盘控制模式
   private lastHoveredElement: Element | null = null // 记录最后hover的元素
+  private hiddenByTouch = false
+  private touchHideTimer: number | null = null
 
   constructor(options?: VirtualMouseOptions) {
     this.opts = {
@@ -708,6 +710,7 @@ export class VirtualMouse {
     
     // 添加鼠标事件监听器
     this.addMouseEventListeners()
+    this.addTouchEventListeners()
     
     // capture: true 进一步拦截，优先于页面其它监听器
     window.addEventListener('keydown', this.onKeyDown, { passive: false, capture: true })
@@ -741,12 +744,14 @@ export class VirtualMouse {
     
     // 移除鼠标事件监听器
     this.removeMouseEventListeners()
+    this.removeTouchEventListeners()
     
     // 清理鼠标活动定时器
     if (this.mouseActivityTimer) {
       clearTimeout(this.mouseActivityTimer)
       this.mouseActivityTimer = null
     }
+    if (this.touchHideTimer) { window.clearTimeout(this.touchHideTimer); this.touchHideTimer = null }
     
     // 恢复默认鼠标样式
     this.restoreDefaultCursorStyle()
@@ -776,6 +781,7 @@ export class VirtualMouse {
       hiddenByInputFocus: this.hiddenByInputFocus,
       hiddenByInactivity: this.hiddenByInactivity,
       hiddenByMouse: this.hiddenByMouse,
+      hiddenByTouch: this.hiddenByTouch,
       timestamp: Date.now()
     })
     
@@ -787,6 +793,9 @@ export class VirtualMouse {
     if (this.hiddenByMouse) {
       vmLog('[VM][showCursor] 跳过显示 (鼠标隐藏状态)')
       return // 鼠标活动时保持隐藏
+    }
+    if (this.hiddenByTouch) {
+      return // 触摸时保持隐藏
     }
     this.cursor.style.transition = `background-color 120ms ease, opacity ${durationMs}ms ease`
     void this.cursor.offsetWidth
@@ -911,14 +920,7 @@ export class VirtualMouse {
       window.addEventListener(eventType, this.onMouseActivity, { passive: true })
     })
     
-    // 监听触摸事件（移动设备）
-    const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel']
-    touchEvents.forEach(eventType => {
-      document.addEventListener(eventType, this.onMouseActivity, { passive: true })
-      window.addEventListener(eventType, this.onMouseActivity, { passive: true })
-    })
-    
-    vmLog('[VM] 鼠标事件监听器已添加，监听事件类型:', mouseEvents.concat(touchEvents))
+    vmLog('[VM] 鼠标事件监听器已添加，监听事件类型:', mouseEvents)
   }
 
   // 新增：鼠标活动处理（用虚拟光标跟随鼠标，实现与键盘一致的视觉）
@@ -979,17 +981,46 @@ export class VirtualMouse {
       'wheel', 'scroll'
     ]
     
-    const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel']
-    
     mouseEvents.forEach(eventType => {
       document.removeEventListener(eventType, this.onMouseActivity)
       window.removeEventListener(eventType, this.onMouseActivity)
     })
-    
-    touchEvents.forEach(eventType => {
-      document.removeEventListener(eventType, this.onMouseActivity)
-      window.removeEventListener(eventType, this.onMouseActivity)
-    })
+  }
+
+  // 触摸事件：按下/移动时隐藏虚拟光标，结束后短时间内不显示
+  private onTouchStart = (_e: TouchEvent) => {
+    this.hiddenByTouch = true
+    this.hideCursor(120, 'mouse')
+    if (this.touchHideTimer) { window.clearTimeout(this.touchHideTimer); this.touchHideTimer = null }
+  }
+
+  private onTouchMove = (_e: TouchEvent) => {
+    this.hiddenByTouch = true
+    this.hideCursor(120, 'mouse')
+  }
+
+  private onTouchEnd = (_e: TouchEvent) => {
+    // 延迟恢复允许显示，防止手指抬起瞬间出现
+    if (this.touchHideTimer) { window.clearTimeout(this.touchHideTimer) }
+    this.touchHideTimer = window.setTimeout(() => {
+      this.hiddenByTouch = false
+      this.touchHideTimer = null
+    }, 800)
+  }
+
+  private addTouchEventListeners() {
+    const opts: AddEventListenerOptions = { passive: true }
+    window.addEventListener('touchstart', this.onTouchStart, opts)
+    window.addEventListener('touchmove', this.onTouchMove, opts)
+    window.addEventListener('touchend', this.onTouchEnd, opts)
+    window.addEventListener('touchcancel', this.onTouchEnd, opts)
+  }
+
+  private removeTouchEventListeners() {
+    window.removeEventListener('touchstart', this.onTouchStart)
+    window.removeEventListener('touchmove', this.onTouchMove)
+    window.removeEventListener('touchend', this.onTouchEnd)
+    window.removeEventListener('touchcancel', this.onTouchEnd)
   }
 
   private removeGlobalKeyLogger() {

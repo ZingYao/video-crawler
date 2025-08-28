@@ -597,7 +597,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         if (customView != null) {
-            WebChromeClient wc = (WebChromeClient) webView.getWebChromeClient();
+            WebChromeClient wc = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                wc = (WebChromeClient) webView.getWebChromeClient();
+            }
             try { wc.onHideCustomView(); } catch (Exception ignored) {}
             return;
         }
