@@ -39,6 +39,9 @@ export class VirtualMouse {
   private hiddenByInactivity = false
   private inactivityTimer: number | null = null
   private inactivityMs = 10000
+  private hiddenByMouse = false // 新增：被鼠标隐藏
+  private mouseActivityTimer: number | null = null
+  private mouseInactivityMs = 3000 // 鼠标无活动3秒后重新显示虚拟光标
 
   constructor(options?: VirtualMouseOptions) {
     this.opts = {
@@ -452,6 +455,9 @@ export class VirtualMouse {
     // 添加全局按键监听器，打印所有物理按键
     this.addGlobalKeyLogger()
     
+    // 添加鼠标事件监听器
+    this.addMouseEventListeners()
+    
     // capture: true 进一步拦截，优先于页面其它监听器
     window.addEventListener('keydown', this.onKeyDown, { passive: false, capture: true })
     window.addEventListener('keyup', this.onKeyUp, { passive: false, capture: true })
@@ -482,6 +488,15 @@ export class VirtualMouse {
     // 移除全局按键监听器
     this.removeGlobalKeyLogger()
     
+    // 移除鼠标事件监听器
+    this.removeMouseEventListeners()
+    
+    // 清理鼠标活动定时器
+    if (this.mouseActivityTimer) {
+      clearTimeout(this.mouseActivityTimer)
+      this.mouseActivityTimer = null
+    }
+    
     try { this.cursor.remove() } catch {}
   }
 
@@ -506,6 +521,7 @@ export class VirtualMouse {
       durationMs,
       hiddenByInputFocus: this.hiddenByInputFocus,
       hiddenByInactivity: this.hiddenByInactivity,
+      hiddenByMouse: this.hiddenByMouse,
       timestamp: Date.now()
     })
     
@@ -513,6 +529,10 @@ export class VirtualMouse {
     if (this.hiddenByInputFocus) {
       console.log('[VM][showCursor] 跳过显示 (输入框隐藏状态)')
       return // 输入态仍保持隐藏
+    }
+    if (this.hiddenByMouse) {
+      console.log('[VM][showCursor] 跳过显示 (鼠标隐藏状态)')
+      return // 鼠标活动时保持隐藏
     }
     this.cursor.style.transition = `background-color 120ms ease, opacity ${durationMs}ms ease`
     void this.cursor.offsetWidth
@@ -619,6 +639,77 @@ export class VirtualMouse {
     // 测试监听器是否正常工作
     console.log('[VM] 全局按键监听器已添加，监听事件类型:', events.concat(androidEvents))
     console.log('[VM] 请按任意键测试，如果看不到日志，可能是 Android 系统拦截了按键事件')
+  }
+
+  // 新增：添加鼠标事件监听器
+  private addMouseEventListeners() {
+    console.log('[VM] 添加鼠标事件监听器')
+    
+    // 监听所有鼠标事件
+    const mouseEvents = [
+      'mousedown', 'mouseup', 'mousemove', 'mouseenter', 'mouseleave',
+      'mouseover', 'mouseout', 'click', 'dblclick', 'contextmenu',
+      'wheel', 'scroll'
+    ]
+    
+    mouseEvents.forEach(eventType => {
+      document.addEventListener(eventType, this.onMouseActivity, { passive: true })
+      window.addEventListener(eventType, this.onMouseActivity, { passive: true })
+    })
+    
+    // 监听触摸事件（移动设备）
+    const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel']
+    touchEvents.forEach(eventType => {
+      document.addEventListener(eventType, this.onMouseActivity, { passive: true })
+      window.addEventListener(eventType, this.onMouseActivity, { passive: true })
+    })
+    
+    console.log('[VM] 鼠标事件监听器已添加，监听事件类型:', mouseEvents.concat(touchEvents))
+  }
+
+  // 新增：鼠标活动处理
+  private onMouseActivity = (e: Event) => {
+    // 清除鼠标无活动定时器
+    if (this.mouseActivityTimer) {
+      clearTimeout(this.mouseActivityTimer)
+      this.mouseActivityTimer = null
+    }
+    
+    // 如果虚拟光标被鼠标隐藏，立即隐藏
+    if (!this.hiddenByMouse) {
+      this.hiddenByMouse = true
+      this.hideCursor()
+      console.log('[VM] 检测到鼠标活动，隐藏虚拟光标')
+    }
+    
+    // 设置鼠标无活动定时器
+    this.mouseActivityTimer = window.setTimeout(() => {
+      this.hiddenByMouse = false
+      console.log('[VM] 鼠标无活动超时，允许显示虚拟光标')
+    }, this.mouseInactivityMs)
+  }
+
+  // 新增：移除鼠标事件监听器
+  private removeMouseEventListeners() {
+    console.log('[VM] 移除鼠标事件监听器')
+    
+    const mouseEvents = [
+      'mousedown', 'mouseup', 'mousemove', 'mouseenter', 'mouseleave',
+      'mouseover', 'mouseout', 'click', 'dblclick', 'contextmenu',
+      'wheel', 'scroll'
+    ]
+    
+    const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel']
+    
+    mouseEvents.forEach(eventType => {
+      document.removeEventListener(eventType, this.onMouseActivity)
+      window.removeEventListener(eventType, this.onMouseActivity)
+    })
+    
+    touchEvents.forEach(eventType => {
+      document.removeEventListener(eventType, this.onMouseActivity)
+      window.removeEventListener(eventType, this.onMouseActivity)
+    })
   }
 
   private removeGlobalKeyLogger() {

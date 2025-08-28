@@ -138,8 +138,10 @@ import('./utils/virtualMouse').then(async ({ initVirtualMouse }) => {
                 h('li', '无操作10秒自动隐藏（1秒淡出），操作后0.25秒淡入'),
               ]),
               h('div', { style: 'margin-top:15px;padding:10px;background:#f3f4f6;border-radius:6px;border-left:4px solid #10b981' }, [
-                h('p', { style: 'margin:0 0 8px;font-weight:600;color:#374151' }, '💡 如何关闭虚拟光标？'),
-                h('p', { style: 'margin:0;color:#6b7280;font-size:14px' }, '进入"设置"页面，关闭"启用虚拟光标"开关即可。关闭后功能立即生效，无需刷新页面。'),
+                h('p', { style: 'margin:0 0 8px;font-weight:600;color:#374151' }, '💡 智能隐藏功能'),
+                h('p', { style: 'margin:0;color:#6b7280;font-size:14px' }, '• 检测到鼠标活动时自动隐藏虚拟光标'),
+                h('p', { style: 'margin:0;color:#6b7280;font-size:14px' }, '• 鼠标无活动3秒后重新显示虚拟光标'),
+                h('p', { style: 'margin:0;color:#6b7280;font-size:14px' }, '• 如何关闭：进入"设置"页面，关闭"启用虚拟光标"开关'),
               ]),
             ]),
             okText: '已了解',
