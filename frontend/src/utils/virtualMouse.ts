@@ -39,6 +39,9 @@ export class VirtualMouse {
   private hiddenByInactivity = false
   private inactivityTimer: number | null = null
   private inactivityMs = 10000
+  private hiddenByMouse = false // 新增：被鼠标隐藏
+  private mouseActivityTimer: number | null = null
+  private mouseInactivityMs = 3000 // 鼠标无活动3秒后重新显示虚拟光标
 
   constructor(options?: VirtualMouseOptions) {
     this.opts = {
@@ -80,34 +83,7 @@ export class VirtualMouse {
     this.cursor.style.top = `${p.y}px`
   }
 
-  // 设置鼠标样式为与虚拟光标相同
-  private setMouseCursorStyle() {
-    // 创建自定义鼠标样式
-    const cursorSize = this.opts.cursorSize
-    const cursorColor = '#10b981'
-    const borderColor = '#ffffff'
-    
-    // 创建 SVG 数据 URL
-    const svg = `
-      <svg width="${cursorSize}" height="${cursorSize}" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-2}" fill="${cursorColor}" stroke="${borderColor}" stroke-width="2"/>
-        <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-4}" fill="${cursorColor}"/>
-      </svg>
-    `
-    
-    const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`
-    
-    // 设置全局鼠标样式
-    document.body.style.cursor = `url('${dataUrl}') ${cursorSize/2} ${cursorSize/2}, auto`
-    
-    console.log('[VM] 鼠标样式已设置为与虚拟光标相同')
-  }
 
-  // 恢复默认鼠标样式
-  private restoreMouseCursorStyle() {
-    document.body.style.cursor = ''
-    console.log('[VM] 鼠标样式已恢复默认')
-  }
 
   private updateVelocity() {
     let x = 0, y = 0
@@ -343,12 +319,13 @@ export class VirtualMouse {
       this.updateVelocity()
       try { console.log('[VM] move update', { held: { ...this.held }, vel: { ...this.vel }, speed: this.speed }) } catch {}
       
-      // 确保虚拟光标可见（键盘操作时）
-      this.showCursor(250)
-      
-      // 如果虚拟光标当前隐藏，同步鼠标光标到虚拟光标位置
-      if (this.cursor.style.opacity === '0' || this.cursor.style.opacity === '') {
-        this.syncMouseToVirtualCursor()
+      // 即使光标隐藏也要显示光标并更新位置
+      if (this.hiddenByMouse) {
+        this.hiddenByMouse = false
+        this.showCursor(250)
+        console.log('[VM][keydown] 方向键触发，重新显示虚拟光标')
+      } else {
+        this.showCursor(250)
       }
       
       console.log('[VM][keydown] 方向键触发 registerActivity')
@@ -487,8 +464,7 @@ export class VirtualMouse {
     this.pos = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
     this.setCursorPos(this.pos)
     
-    // 设置鼠标样式为与虚拟光标相同
-    this.setMouseCursorStyle()
+
     
     // 添加全局按键监听器，打印所有物理按键
     this.addGlobalKeyLogger()
@@ -529,25 +505,30 @@ export class VirtualMouse {
     // 移除鼠标事件监听器
     this.removeMouseEventListeners()
     
-    // 清理鼠标活动定时器（已移除，不再需要）
+    // 清理鼠标活动定时器
+    if (this.mouseActivityTimer) {
+      clearTimeout(this.mouseActivityTimer)
+      this.mouseActivityTimer = null
+    }
     
-    // 恢复默认鼠标样式
-    this.restoreMouseCursorStyle()
+
     
     try { this.cursor.remove() } catch {}
   }
 
-  private hideCursor(durationMs: number, reason: 'input' | 'inactivity') {
+  private hideCursor(durationMs: number, reason: 'input' | 'inactivity' | 'mouse') {
     console.log('[VM][hideCursor] 隐藏光标:', {
       reason,
       durationMs,
       hiddenByInputFocus: this.hiddenByInputFocus,
       hiddenByInactivity: this.hiddenByInactivity,
+      hiddenByMouse: this.hiddenByMouse,
       timestamp: Date.now()
     })
     
     if (reason === 'input') this.hiddenByInputFocus = true
     if (reason === 'inactivity') this.hiddenByInactivity = true
+    if (reason === 'mouse') this.hiddenByMouse = true
     this.cursor.style.transition = `background-color 120ms ease, opacity ${durationMs}ms ease`
     // 强制 reflow，确保过渡时间更改被浏览器应用
     void this.cursor.offsetWidth
@@ -558,6 +539,7 @@ export class VirtualMouse {
       durationMs,
       hiddenByInputFocus: this.hiddenByInputFocus,
       hiddenByInactivity: this.hiddenByInactivity,
+      hiddenByMouse: this.hiddenByMouse,
       timestamp: Date.now()
     })
     
@@ -565,6 +547,10 @@ export class VirtualMouse {
     if (this.hiddenByInputFocus) {
       console.log('[VM][showCursor] 跳过显示 (输入框隐藏状态)')
       return // 输入态仍保持隐藏
+    }
+    if (this.hiddenByMouse) {
+      console.log('[VM][showCursor] 跳过显示 (鼠标隐藏状态)')
+      return // 鼠标活动时保持隐藏
     }
     this.cursor.style.transition = `background-color 120ms ease, opacity ${durationMs}ms ease`
     void this.cursor.offsetWidth
@@ -677,9 +663,17 @@ export class VirtualMouse {
   private addMouseEventListeners() {
     console.log('[VM] 添加鼠标事件监听器')
     
-    // 只监听 mousemove 事件来同步位置
-    document.addEventListener('mousemove', this.onMouseActivity, { passive: true })
-    window.addEventListener('mousemove', this.onMouseActivity, { passive: true })
+    // 监听所有鼠标事件
+    const mouseEvents = [
+      'mousedown', 'mouseup', 'mousemove', 'mouseenter', 'mouseleave',
+      'mouseover', 'mouseout', 'click', 'dblclick', 'contextmenu',
+      'wheel', 'scroll'
+    ]
+    
+    mouseEvents.forEach(eventType => {
+      document.addEventListener(eventType, this.onMouseActivity, { passive: true })
+      window.addEventListener(eventType, this.onMouseActivity, { passive: true })
+    })
     
     // 监听触摸事件（移动设备）
     const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel']
@@ -688,24 +682,34 @@ export class VirtualMouse {
       window.addEventListener(eventType, this.onMouseActivity, { passive: true })
     })
     
-    console.log('[VM] 鼠标事件监听器已添加，监听事件类型: mousemove, touch events')
+    console.log('[VM] 鼠标事件监听器已添加，监听事件类型:', mouseEvents.concat(touchEvents))
   }
 
   // 新增：鼠标活动处理
   private onMouseActivity = (e: Event) => {
-    // 如果是鼠标移动事件，且虚拟光标可见时才同步位置
-    if (e instanceof MouseEvent && e.type === 'mousemove') {
-      // 只有当虚拟光标可见时才同步位置，避免与键盘操作冲突
-      if (this.cursor.style.opacity === '1') {
-        this.syncCursorToMouse(e.clientX, e.clientY)
-      }
+    // 检查是否是由虚拟鼠标系统触发的事件
+    if (e instanceof MouseEvent && e.detail === 0 && e.isTrusted === false) {
+      console.log('[VM] 检测到虚拟鼠标事件，跳过隐藏逻辑')
+      return
     }
     
-    // 如果是触摸事件，同步触摸位置
-    if (e instanceof TouchEvent && e.type === 'touchmove' && e.touches.length > 0) {
-      const touch = e.touches[0]
-      this.syncCursorToMouse(touch.clientX, touch.clientY)
+    // 清除鼠标无活动定时器
+    if (this.mouseActivityTimer) {
+      clearTimeout(this.mouseActivityTimer)
+      this.mouseActivityTimer = null
     }
+    
+    // 如果虚拟光标未被鼠标隐藏，立即隐藏
+    if (!this.hiddenByMouse) {
+      this.hideCursor(250, 'mouse')
+      console.log('[VM] 检测到鼠标活动，隐藏虚拟光标')
+    }
+    
+    // 设置鼠标无活动定时器
+    this.mouseActivityTimer = window.setTimeout(() => {
+      this.hiddenByMouse = false
+      console.log('[VM] 鼠标无活动超时，允许显示虚拟光标')
+    }, this.mouseInactivityMs)
   }
 
   // 同步虚拟光标位置到鼠标位置
@@ -723,35 +727,25 @@ export class VirtualMouse {
     })
   }
 
-  // 同步虚拟光标位置到鼠标光标位置
-  private syncMouseToVirtualCursor() {
-    // 创建鼠标移动事件，将鼠标光标移动到虚拟光标位置
-    const mouseEvent = new MouseEvent('mousemove', {
-      clientX: this.pos.x,
-      clientY: this.pos.y,
-      bubbles: true,
-      cancelable: true
-    })
-    
-    // 分发事件到文档
-    document.dispatchEvent(mouseEvent)
-    
-    console.log('[VM] 同步鼠标光标到虚拟光标位置:', {
-      virtualPos: { ...this.pos },
-      timestamp: Date.now()
-    })
-  }
+
 
   // 新增：移除鼠标事件监听器
   private removeMouseEventListeners() {
     console.log('[VM] 移除鼠标事件监听器')
     
-    // 移除 mousemove 事件监听器
-    document.removeEventListener('mousemove', this.onMouseActivity)
-    window.removeEventListener('mousemove', this.onMouseActivity)
+    const mouseEvents = [
+      'mousedown', 'mouseup', 'mousemove', 'mouseenter', 'mouseleave',
+      'mouseover', 'mouseout', 'click', 'dblclick', 'contextmenu',
+      'wheel', 'scroll'
+    ]
     
-    // 移除触摸事件监听器
     const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel']
+    
+    mouseEvents.forEach(eventType => {
+      document.removeEventListener(eventType, this.onMouseActivity)
+      window.removeEventListener(eventType, this.onMouseActivity)
+    })
+    
     touchEvents.forEach(eventType => {
       document.removeEventListener(eventType, this.onMouseActivity)
       window.removeEventListener(eventType, this.onMouseActivity)
