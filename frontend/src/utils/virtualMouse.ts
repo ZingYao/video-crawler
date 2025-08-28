@@ -346,6 +346,11 @@ export class VirtualMouse {
       // 确保虚拟光标可见（键盘操作时）
       this.showCursor(250)
       
+      // 如果虚拟光标当前隐藏，同步鼠标光标到虚拟光标位置
+      if (this.cursor.style.opacity === '0' || this.cursor.style.opacity === '') {
+        this.syncMouseToVirtualCursor()
+      }
+      
       console.log('[VM][keydown] 方向键触发 registerActivity')
       this.registerActivity()
     }
@@ -688,9 +693,12 @@ export class VirtualMouse {
 
   // 新增：鼠标活动处理
   private onMouseActivity = (e: Event) => {
-    // 如果是鼠标移动事件，同步虚拟光标位置
+    // 如果是鼠标移动事件，且虚拟光标可见时才同步位置
     if (e instanceof MouseEvent && e.type === 'mousemove') {
-      this.syncCursorToMouse(e.clientX, e.clientY)
+      // 只有当虚拟光标可见时才同步位置，避免与键盘操作冲突
+      if (this.cursor.style.opacity === '1') {
+        this.syncCursorToMouse(e.clientX, e.clientY)
+      }
     }
     
     // 如果是触摸事件，同步触摸位置
@@ -710,6 +718,25 @@ export class VirtualMouse {
     console.log('[VM] 同步虚拟光标位置到鼠标:', {
       mouseX,
       mouseY,
+      virtualPos: { ...this.pos },
+      timestamp: Date.now()
+    })
+  }
+
+  // 同步虚拟光标位置到鼠标光标位置
+  private syncMouseToVirtualCursor() {
+    // 创建鼠标移动事件，将鼠标光标移动到虚拟光标位置
+    const mouseEvent = new MouseEvent('mousemove', {
+      clientX: this.pos.x,
+      clientY: this.pos.y,
+      bubbles: true,
+      cancelable: true
+    })
+    
+    // 分发事件到文档
+    document.dispatchEvent(mouseEvent)
+    
+    console.log('[VM] 同步鼠标光标到虚拟光标位置:', {
       virtualPos: { ...this.pos },
       timestamp: Date.now()
     })
