@@ -38,6 +38,25 @@
       </div>
 
       <div class="settings-section">
+        <h2>显示与缩放</h2>
+        <div class="setting-item">
+          <label>页面缩放（解决大屏/高DPI比例异常）</label>
+          <div class="slider-container">
+            <input 
+              type="range" 
+              min="0.5" 
+              max="1.5" 
+              step="0.01" 
+              v-model.number="pageScale"
+              @change="onScaleChangeEnd"
+              class="slider"
+            />
+            <span class="value-display">{{ pageScale.toFixed(2) }}x</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <h2>虚拟光标</h2>
         <div class="setting-item">
           <label>启用虚拟光标（默认开启）</label>
@@ -139,12 +158,14 @@ import { useSettingsStore } from '@/stores/settings'
 import AppLayout from '@/components/AppLayout.vue'
 import type { SearchSite } from '@/stores/settings'
 import { Modal, message } from 'ant-design-vue'
+import { applyPageScale } from '@/utils/zoom'
 
 const settingsStore = useSettingsStore()
 
 // 响应式数据
 const playbackSpeed = ref(2.0)
 const progressSensitivity = ref(0.7)
+const pageScale = ref(1)
 
 // 计算属性
 const searchSites = computed(() => settingsStore.settings.searchSites)
@@ -164,6 +185,7 @@ onMounted(async () => {
   // 更新本地状态
   playbackSpeed.value = settingsStore.settings.longPressPlaybackSpeed
   progressSensitivity.value = settingsStore.settings.progressBarSensitivity
+  pageScale.value = settingsStore.settings.pageScale ?? 1
 })
 
 // 更新播放倍速
@@ -174,6 +196,12 @@ const updatePlaybackSpeed = async () => {
 // 更新进度条敏感度
 const updateProgressSensitivity = async () => {
   await settingsStore.updateProgressSensitivity(progressSensitivity.value)
+}
+
+// 更新缩放（滑动结束生效）
+const onScaleChangeEnd = async () => {
+  await settingsStore.updatePageScale(pageScale.value)
+  applyPageScale(pageScale.value)
 }
 
 // 切换网站状态

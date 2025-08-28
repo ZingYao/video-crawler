@@ -20,6 +20,7 @@ export interface Settings {
   allSitesSelected: boolean // 全选标记 - true表示全选模式，false表示手动选择模式
   virtualCursorEnabled: boolean // 虚拟光标开关
   virtualCursorTipsShown: boolean // 是否已展示过一次使用说明
+  pageScale: number // 页面缩放比例，用于大屏/高DPI
 }
 
 const defaultSettings: Settings = {
@@ -29,6 +30,7 @@ const defaultSettings: Settings = {
   allSitesSelected: true, // 默认全选模式
   virtualCursorEnabled: true,
   virtualCursorTipsShown: false,
+  pageScale: 1,
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -167,6 +169,7 @@ export const useSettingsStore = defineStore('settings', () => {
           allSitesSelected: loaded.allSitesSelected !== undefined ? loaded.allSitesSelected : true,
           virtualCursorEnabled: loaded.virtualCursorEnabled !== undefined ? loaded.virtualCursorEnabled : true,
           virtualCursorTipsShown: loaded.virtualCursorTipsShown !== undefined ? loaded.virtualCursorTipsShown : false,
+          pageScale: typeof loaded.pageScale === 'number' ? loaded.pageScale : 1,
         }
         
         console.log('[SETTINGS] 设置合并完成:', {
@@ -277,6 +280,13 @@ export const useSettingsStore = defineStore('settings', () => {
     await loadActualVideoSources()
   }
 
+  // 更新页面缩放
+  const updatePageScale = async (scale: number) => {
+    const clamped = Math.max(0.5, Math.min(1.5, Number(scale) || 1))
+    settings.value.pageScale = clamped
+    await saveSettings()
+  }
+
   // 刷新视频源列表
   const refreshVideoSources = async () => {
     isLoading.value = true
@@ -305,5 +315,6 @@ export const useSettingsStore = defineStore('settings', () => {
     toggleAllSearchSites,
     resetToDefaults,
     refreshVideoSources,
+    updatePageScale,
   }
 })

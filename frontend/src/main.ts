@@ -11,6 +11,7 @@ import App from './App.vue'
 import router from './router'
 import { isWails } from './utils/wails'
 import { useSettingsStore } from '@/stores/settings'
+import { applyPageScale } from '@/utils/zoom'
 
 const app = createApp(App)
 
@@ -88,6 +89,16 @@ setTimeout(() => {
 }, 3000)
 
 app.mount('#app')
+
+// 应用页面缩放（启动时）
+try {
+  const settingsStoreAtBoot = useSettingsStore()
+  // 尝试读取缓存，不阻塞：若已在 SettingsView 加载过会覆盖
+  settingsStoreAtBoot.loadSettings().then(() => {
+    const scale = settingsStoreAtBoot.settings.pageScale ?? 1
+    applyPageScale(scale)
+  })
+} catch {}
 
 // 按设置开关加载虚拟鼠标，并在首次使用时弹出说明
 console.log('[MAIN] 开始检查虚拟光标启动条件...')
