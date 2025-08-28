@@ -49,6 +49,7 @@ import android.view.ViewTreeObserver;
 import android.graphics.drawable.GradientDrawable;
 import android.view.ViewConfiguration;
 import android.view.KeyEvent;
+import android.os.PowerManager;
 
 public class MainActivity extends AppCompatActivity {
     static {
@@ -79,6 +80,9 @@ public class MainActivity extends AppCompatActivity {
     private View customView;
     private FrameLayout fullScreenContainer;
     private WebChromeClient.CustomViewCallback customViewCallback;
+    
+    // screen wake lock support
+    private PowerManager.WakeLock wakeLock;
 
     // root and loading
     private FrameLayout rootLayout;
@@ -412,6 +416,9 @@ public class MainActivity extends AppCompatActivity {
                 webView.setVisibility(View.GONE);
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
                 enterImmersive();
+                
+                // 获取屏幕常亮锁
+                acquireWakeLock();
             }
 
             @Override
@@ -424,6 +431,9 @@ public class MainActivity extends AppCompatActivity {
                 if (customViewCallback != null) customViewCallback.onCustomViewHidden();
                 setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
                 exitImmersive();
+                
+                // 释放屏幕常亮锁
+                releaseWakeLock();
             }
         });
 
@@ -710,6 +720,31 @@ public class MainActivity extends AppCompatActivity {
             controller.show(WindowInsetsCompat.Type.systemBars());
             WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         } catch (Exception ignored) {}
+    }
+
+    private void acquireWakeLock() {
+        try {
+            if (wakeLock == null || !wakeLock.isHeld()) {
+                PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+                wakeLock = powerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "VideoCrawler:ScreenWakeLock");
+                wakeLock.acquire();
+                android.util.Log.d("MainActivity", "屏幕常亮锁已获取");
+            }
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "获取屏幕常亮锁失败: " + e.getMessage());
+        }
+    }
+
+    private void releaseWakeLock() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+                wakeLock = null;
+                android.util.Log.d("MainActivity", "屏幕常亮锁已释放");
+            }
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "释放屏幕常亮锁失败: " + e.getMessage());
+        }
     }
 
     private void goHome() {
@@ -1136,5 +1171,12 @@ public class MainActivity extends AppCompatActivity {
             default:
                 return null;
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // 确保在Activity销毁时释放WakeLock
+        releaseWakeLock();
     }
 }

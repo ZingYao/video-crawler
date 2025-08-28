@@ -42,6 +42,9 @@ export class VirtualMouse {
   private hiddenByMouse = false // 新增：被鼠标隐藏
   private mouseActivityTimer: number | null = null
   private mouseInactivityMs = 3000 // 鼠标无活动3秒后重新显示虚拟光标
+  private lastMousePos = { x: 0, y: 0 } // 记录鼠标最后位置
+  private isKeyboardMode = false // 是否处于键盘控制模式
+  private lastHoveredElement: Element | null = null // 记录最后hover的元素
 
   constructor(options?: VirtualMouseOptions) {
     this.opts = {
@@ -81,9 +84,130 @@ export class VirtualMouse {
   private setCursorPos(p: Vec2) {
     this.cursor.style.left = `${p.x}px`
     this.cursor.style.top = `${p.y}px`
+    
+    // 触发虚拟光标的鼠标事件
+    this.triggerVirtualMouseEvents(p)
+  }
+
+  // 触发虚拟光标的鼠标事件
+  private triggerVirtualMouseEvents(pos: Vec2) {
+    // 获取虚拟光标位置下的元素
+    const element = document.elementFromPoint(pos.x, pos.y)
+    if (!element) return
+    
+    // 检查是否需要触发hover事件
+    const lastElement = this.lastHoveredElement
+    if (lastElement !== element) {
+      // 触发mouseleave事件
+      if (lastElement) {
+        const leaveEvent = new MouseEvent('mouseleave', {
+          bubbles: true,
+          cancelable: true,
+          clientX: pos.x,
+          clientY: pos.y,
+          relatedTarget: element
+        })
+        lastElement.dispatchEvent(leaveEvent)
+      }
+      
+      // 触发mouseenter事件
+      const enterEvent = new MouseEvent('mouseenter', {
+        bubbles: true,
+        cancelable: true,
+        clientX: pos.x,
+        clientY: pos.y,
+        relatedTarget: lastElement
+      })
+      element.dispatchEvent(enterEvent)
+      
+      // 触发mouseover事件
+      const overEvent = new MouseEvent('mouseover', {
+        bubbles: true,
+        cancelable: true,
+        clientX: pos.x,
+        clientY: pos.y,
+        relatedTarget: lastElement
+      })
+      element.dispatchEvent(overEvent)
+      
+      this.lastHoveredElement = element
+      
+      console.log('[VM] 虚拟光标hover事件:', {
+        element: element.tagName,
+        pos: { x: pos.x, y: pos.y },
+        timestamp: Date.now()
+      })
+    }
   }
 
 
+
+  // 设置鼠标样式为虚拟光标样式
+  private setVirtualCursorStyle() {
+    const cursorSize = this.opts.cursorSize
+    const cursorColor = '#10b981'
+    const borderColor = '#ffffff'
+    
+    // 创建 SVG 数据 URL
+    const svg = `
+      <svg width="${cursorSize}" height="${cursorSize}" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-2}" fill="${cursorColor}" stroke="${borderColor}" stroke-width="2"/>
+        <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-4}" fill="${cursorColor}"/>
+      </svg>
+    `
+    
+    const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`
+    
+    // 设置全局鼠标样式，包括所有状态
+    const cursorStyle = `url('${dataUrl}') ${cursorSize/2} ${cursorSize/2}, auto`
+    document.body.style.cursor = cursorStyle
+    
+    // 为所有可交互元素设置相同的鼠标样式
+    const style = document.createElement('style')
+    style.id = 'virtual-mouse-cursor-style'
+    style.textContent = `
+      * {
+        cursor: ${cursorStyle} !important;
+      }
+    `
+    
+    // 移除旧的样式（如果存在）
+    const oldStyle = document.getElementById('virtual-mouse-cursor-style')
+    if (oldStyle) {
+      oldStyle.remove()
+    }
+    
+    document.head.appendChild(style)
+    
+    console.log('[VM] 设置全局鼠标样式为虚拟光标样式')
+  }
+
+  // 设置鼠标样式为透明（隐藏鼠标）
+  private setTransparentCursorStyle() {
+    const svg = `
+      <svg width="1" height="1" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1" height="1" fill="transparent"/>
+      </svg>
+    `
+    
+    const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`
+    document.body.style.cursor = `url('${dataUrl}') 0 0, none`
+    
+    console.log('[VM] 设置鼠标样式为透明')
+  }
+
+  // 恢复默认鼠标样式
+  private restoreDefaultCursorStyle() {
+    document.body.style.cursor = ''
+    
+    // 移除自定义鼠标样式
+    const style = document.getElementById('virtual-mouse-cursor-style')
+    if (style) {
+      style.remove()
+    }
+    
+    console.log('[VM] 恢复默认鼠标样式')
+  }
 
   private updateVelocity() {
     let x = 0, y = 0
@@ -319,11 +443,21 @@ export class VirtualMouse {
       this.updateVelocity()
       try { console.log('[VM] move update', { held: { ...this.held }, vel: { ...this.vel }, speed: this.speed }) } catch {}
       
-      // 即使光标隐藏也要显示光标并更新位置
+      // 进入键盘控制模式
+      if (!this.isKeyboardMode) {
+        this.isKeyboardMode = true
+        this.setTransparentCursorStyle()
+        console.log('[VM][keydown] 进入键盘控制模式，隐藏鼠标光标')
+      }
+      
+      // 如果虚拟光标被鼠标隐藏，在鼠标最后位置显示
       if (this.hiddenByMouse) {
         this.hiddenByMouse = false
+        this.pos.x = this.lastMousePos.x
+        this.pos.y = this.lastMousePos.y
+        this.setCursorPos(this.pos)
         this.showCursor(250)
-        console.log('[VM][keydown] 方向键触发，重新显示虚拟光标')
+        console.log('[VM][keydown] 方向键触发，在鼠标最后位置显示虚拟光标:', this.lastMousePos)
       } else {
         this.showCursor(250)
       }
@@ -464,6 +598,9 @@ export class VirtualMouse {
     this.pos = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
     this.setCursorPos(this.pos)
     
+    // 设置鼠标样式为虚拟光标样式
+    this.setVirtualCursorStyle()
+    
 
     
     // 添加全局按键监听器，打印所有物理按键
@@ -510,6 +647,12 @@ export class VirtualMouse {
       clearTimeout(this.mouseActivityTimer)
       this.mouseActivityTimer = null
     }
+    
+    // 恢复默认鼠标样式
+    this.restoreDefaultCursorStyle()
+    
+    // 清理hover状态
+    this.lastHoveredElement = null
     
 
     
@@ -693,10 +836,24 @@ export class VirtualMouse {
       return
     }
     
+    // 记录鼠标位置
+    if (e instanceof MouseEvent) {
+      this.lastMousePos.x = e.clientX
+      this.lastMousePos.y = e.clientY
+      console.log('[VM] 记录鼠标位置:', { x: e.clientX, y: e.clientY })
+    }
+    
     // 清除鼠标无活动定时器
     if (this.mouseActivityTimer) {
       clearTimeout(this.mouseActivityTimer)
       this.mouseActivityTimer = null
+    }
+    
+    // 退出键盘控制模式
+    if (this.isKeyboardMode) {
+      this.isKeyboardMode = false
+      this.setVirtualCursorStyle()
+      console.log('[VM] 检测到鼠标活动，退出键盘控制模式')
     }
     
     // 如果虚拟光标未被鼠标隐藏，立即隐藏
