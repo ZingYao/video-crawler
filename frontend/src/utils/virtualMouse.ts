@@ -108,6 +108,16 @@ export class VirtualMouse {
           relatedTarget: element
         })
         lastElement.dispatchEvent(leaveEvent)
+        
+        // 也触发mouseout事件
+        const outEvent = new MouseEvent('mouseout', {
+          bubbles: true,
+          cancelable: true,
+          clientX: pos.x,
+          clientY: pos.y,
+          relatedTarget: element
+        })
+        lastElement.dispatchEvent(outEvent)
       }
       
       // 触发mouseenter事件
@@ -130,6 +140,16 @@ export class VirtualMouse {
       })
       element.dispatchEvent(overEvent)
       
+      // 触发mousemove事件（某些组件可能需要这个来更新hover状态）
+      const moveEvent = new MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: pos.x,
+        clientY: pos.y,
+        relatedTarget: lastElement
+      })
+      element.dispatchEvent(moveEvent)
+      
       this.lastHoveredElement = element
       
       console.log('[VM] 虚拟光标hover事件:', {
@@ -137,6 +157,15 @@ export class VirtualMouse {
         pos: { x: pos.x, y: pos.y },
         timestamp: Date.now()
       })
+    } else if (element) {
+      // 即使元素没有变化，也触发mousemove事件来保持hover状态
+      const moveEvent = new MouseEvent('mousemove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: pos.x,
+        clientY: pos.y
+      })
+      element.dispatchEvent(moveEvent)
     }
   }
 
@@ -184,16 +213,16 @@ export class VirtualMouse {
 
   // 设置鼠标样式为透明（隐藏鼠标）
   private setTransparentCursorStyle() {
-    const svg = `
-      <svg width="1" height="1" xmlns="http://www.w3.org/2000/svg">
-        <rect width="1" height="1" fill="transparent"/>
-      </svg>
-    `
+    // 直接设置为none，完全隐藏鼠标光标
+    document.body.style.cursor = 'none'
     
-    const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`
-    document.body.style.cursor = `url('${dataUrl}') 0 0, none`
+    // 移除虚拟光标样式表
+    const style = document.getElementById('virtual-mouse-cursor-style')
+    if (style) {
+      style.remove()
+    }
     
-    console.log('[VM] 设置鼠标样式为透明')
+    console.log('[VM] 设置鼠标样式为透明（none）')
   }
 
   // 恢复默认鼠标样式
@@ -461,6 +490,9 @@ export class VirtualMouse {
       } else {
         this.showCursor(250)
       }
+      
+      // 确保触发hover事件
+      this.triggerVirtualMouseEvents(this.pos)
       
       console.log('[VM][keydown] 方向键触发 registerActivity')
       this.registerActivity()
