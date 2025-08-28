@@ -235,6 +235,8 @@ export class VirtualMouse {
       if (code === 38) return 'ArrowUp'
       if (code === 39) return 'ArrowRight'
       if (code === 40) return 'ArrowDown'
+      // Android 返回键映射到 Escape
+      if (code === 4) return 'Escape'
       return k
     })()
     const isEditable = !!active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.getAttribute('contenteditable') === 'true')
@@ -352,6 +354,8 @@ export class VirtualMouse {
       if (code === 38) return 'ArrowUp'
       if (code === 39) return 'ArrowRight'
       if (code === 40) return 'ArrowDown'
+      // Android 返回键映射到 Escape
+      if (code === 4) return 'Escape'
       return k
     })()
     if (normKey === 'ArrowLeft' || normKey === 'ArrowRight' || normKey === 'ArrowUp' || normKey === 'ArrowDown') {
