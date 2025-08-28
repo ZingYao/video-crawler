@@ -1,6 +1,6 @@
 .app-layout {
   display: flex;
-  height: 100vh;
+  height: calc(100dvh / var(--app-scale, 1));
   overflow: hidden;
 }
 
@@ -157,6 +157,7 @@
   flex-direction: column;
   background: #f8fafc;
   transition: margin-left 0.3s ease;
+  overflow-y: auto;
 }
 
 .main-content.expanded {
@@ -206,7 +207,7 @@
 .page-content {
   flex: 1;
   padding: 24px;
-  overflow-y: auto;
+  overflow: visible;
 }
 
 /* 响应式设计 */

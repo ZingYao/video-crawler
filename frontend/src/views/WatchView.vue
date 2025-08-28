@@ -2183,8 +2183,8 @@ async function resolvePlayUrl() {
         bindPlayerEvents()
       } catch {}
     }
-    // 初始化情况下，将当前播放 url 与初始 url 对齐
-    if (!currentPlayUrl.value) currentPlayUrl.value = videoUrl.value
+    // 初始化情况下，将当前播放 url 与选中的剧集 url 对齐
+    if (!currentPlayUrl.value) currentPlayUrl.value = episodeUrl
   } catch (e: any) {
     // 忽略错误，保留空源
   }

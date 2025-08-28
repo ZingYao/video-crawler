@@ -1,7 +1,7 @@
 <template>
   <div class="app-layout">
     <!-- 左侧菜单 -->
-    <aside class="sidebar" :class="sidebarVisible ? '' : 'collapsed'" :data-visible="sidebarVisible" ref="sidebarRef" data-focus-scope>
+    <aside class="sidebar" :class="isSidebarOpen ? '' : 'collapsed'" :data-visible="isSidebarOpen" ref="sidebarRef" data-focus-scope>
       <div class="sidebar-header">
         <div class="logo">
           <span class="logo-icon">🎬</span>
@@ -37,7 +37,7 @@
     </aside>
 
     <!-- 主内容区域 -->
-    <main class="main-content" :class="sidebarVisible ? '' : 'sidebar-collapsed'" :data-visible="sidebarVisible" @click="handleMainClick">
+    <main class="main-content" :class="isSidebarOpen ? '' : 'sidebar-collapsed'" :data-visible="isSidebarOpen" @click="handleMainClick">
       <!-- 顶部导航栏 -->
       <header class="top-header">
         <div class="header-left">
@@ -128,7 +128,22 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const configStore = useConfigStore()
-const sidebarVisible = ref(false) // 默认收起，让用户手动控制
+const sidebarVisible = ref(false) // 用户手动开关的显式状态
+const isSidebarOpen = computed(() => sidebarVisible.value && !autoCollapsed.value)
+const autoCollapsed = ref(false) // 按缩放与窗口宽度自动折叠
+const DESIGN_BREAKPOINT = 1024 // 设计断点（未缩放）
+
+const getScale = () => {
+  const s = (window as any).__APP_SCALE
+  const ds = Number(document.documentElement.getAttribute('data-app-scale') || '')
+  return Number(s || ds || 1) || 1
+}
+
+const recomputeAutoCollapsed = () => {
+  const scale = getScale()
+  const effectiveWidth = window.innerWidth / scale
+  autoCollapsed.value = effectiveWidth < DESIGN_BREAKPOINT
+}
 const sidebarRef = ref<HTMLElement | null>(null)
 let outsideClickHandler: ((e: MouseEvent) => void) | null = null
 let outsideClickTimer: number | null = null
@@ -195,7 +210,7 @@ const isActiveMenu = (menuId: string) => {
   return route.path === menuItems.find(item => item.id === menuId)?.route
 }
 
-const showCloseButton = computed(() => sidebarVisible.value && window.innerWidth <= 1024)
+const showCloseButton = computed(() => isSidebarOpen.value && (window.innerWidth / (getScale() || 1)) <= DESIGN_BREAKPOINT)
 
 // 方法
 const removeOutsideListener = () => {
@@ -249,7 +264,12 @@ const updateActiveMenu = () => {
 }
 
 // 生命周期
-onMounted(() => { updateActiveMenu() })
+onMounted(() => {
+  updateActiveMenu()
+  recomputeAutoCollapsed()
+  window.addEventListener('resize', recomputeAutoCollapsed)
+  window.addEventListener('app-scale-changed', recomputeAutoCollapsed as any)
+})
 
 // —— 全局键盘导航（上下左右与回车）——
 const isTypingElement = (el: Element | null) => {
@@ -301,6 +321,8 @@ onMounted(() => { window.addEventListener('keydown', keyHandler) })
 onBeforeUnmount(() => {
   removeOutsideListener()
   window.removeEventListener('keydown', keyHandler)
+  window.removeEventListener('resize', recomputeAutoCollapsed)
+  window.removeEventListener('app-scale-changed', recomputeAutoCollapsed as any)
 })
 </script>
 

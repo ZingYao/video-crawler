@@ -12,10 +12,10 @@ import UserEditView from '../views/UserEditView.vue'
 import VideoSourceManagementView from '../views/VideoSourceManagementView.vue'
 const VideoSourceEditView = () => import('../views/VideoSourceEditView.vue')
 // 懒加载观看历史页面（新增）
-const WatchHistoryView = () => import('../views/WatchHistoryView.vue')
+const WatchHistoryView = () => import('@/views/WatchHistoryView.vue')
 import MovieView from '../views/MovieView.vue'
-const WatchView = () => import('../views/WatchView.vue')
-const NotFoundView = () => import('../views/NotFoundView.vue')
+const WatchView = () => import('@/views/WatchView.vue')
+const NotFoundView = () => import('@/views/NotFoundView.vue')
 import SettingsView from '@/views/SettingsView.vue'
 import StartupView from '@/views/StartupView.vue'
 

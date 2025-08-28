@@ -5,7 +5,17 @@
         <h2>播放控制</h2>
         
         <div class="setting-item">
-          <label>长按播放倍速</label>
+          <p class="item-hint">仅在“播放页面”中生效：长按（触摸/鼠标左键）临时加速到该倍速，松开恢复。</p>
+          <label class="setting-title">
+            <span>长按播放倍速</span>
+            <a-tooltip title="重置当前项目">
+              <a-button danger type="primary" size="small" @click="resetPlaybackSpeed" class="reset-btn">
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+          </label>
           <div class="slider-container">
             <input 
               type="range" 
@@ -21,7 +31,17 @@
         </div>
 
         <div class="setting-item">
-          <label>进度条移动倍率</label>
+          <p class="item-hint">仅在“播放页面”中生效：影响拖动进度条/左右方向键快进快退的灵敏度，数值越大移动越快。</p>
+          <label class="setting-title">
+            <span>进度条移动倍率</span>
+            <a-tooltip title="重置当前项目">
+              <a-button danger type="primary" size="small" @click="resetProgressSensitivity" class="reset-btn">
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+          </label>
           <div class="slider-container">
             <input 
               type="range" 
@@ -39,8 +59,19 @@
 
       <div class="settings-section">
         <h2>显示与缩放</h2>
+        <p class="section-description">此功能通过缩放整个页面来适配大屏/高 DPI。可能会导致个别页面布局异常，请谨慎使用。</p>
         <div class="setting-item">
-          <label>页面缩放（解决大屏/高DPI比例异常）</label>
+          <p class="item-hint">全局生效：缩放整个页面元素，适配大屏或高 DPI 显示比例。</p>
+          <label class="setting-title">
+            <span>页面缩放</span>
+            <a-tooltip title="重置当前项目">
+              <a-button danger type="primary" size="small" @click="resetPageScale" class="reset-btn">
+                <template #icon>
+                  <ReloadOutlined />
+                </template>
+              </a-button>
+            </a-tooltip>
+          </label>
           <div class="slider-container">
             <input 
               type="range" 
@@ -50,6 +81,16 @@
               v-model.number="pageScale"
               @change="onScaleChangeEnd"
               class="slider"
+            />
+            <input
+              type="number"
+              class="number-input"
+              min="0.5"
+              max="1.5"
+              step="0.01"
+              v-model.number="pageScale"
+              @change="onScaleChangeEnd"
+              @keyup.enter="onScaleChangeEnd"
             />
             <span class="value-display">{{ pageScale.toFixed(2) }}x</span>
           </div>
@@ -158,6 +199,7 @@ import { useSettingsStore } from '@/stores/settings'
 import AppLayout from '@/components/AppLayout.vue'
 import type { SearchSite } from '@/stores/settings'
 import { Modal, message } from 'ant-design-vue'
+import { ReloadOutlined } from '@ant-design/icons-vue'
 import { applyPageScale } from '@/utils/zoom'
 
 const settingsStore = useSettingsStore()
@@ -193,13 +235,29 @@ const updatePlaybackSpeed = async () => {
   await settingsStore.updatePlaybackSpeed(playbackSpeed.value)
 }
 
+const resetPlaybackSpeed = async () => {
+  playbackSpeed.value = 2.0
+  await settingsStore.updatePlaybackSpeed(playbackSpeed.value)
+}
+
 // 更新进度条敏感度
 const updateProgressSensitivity = async () => {
   await settingsStore.updateProgressSensitivity(progressSensitivity.value)
 }
 
+const resetProgressSensitivity = async () => {
+  progressSensitivity.value = 0.7
+  await settingsStore.updateProgressSensitivity(progressSensitivity.value)
+}
+
 // 更新缩放（滑动结束生效）
 const onScaleChangeEnd = async () => {
+  await settingsStore.updatePageScale(pageScale.value)
+  applyPageScale(pageScale.value)
+}
+
+const resetPageScale = async () => {
+  pageScale.value = 1
   await settingsStore.updatePageScale(pageScale.value)
   applyPageScale(pageScale.value)
 }
@@ -355,6 +413,18 @@ const formatUpdateTime = (timestamp: number) => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* 统一卡片内部间距与排版 */
+.settings-section .setting-item + .setting-item {
+  margin-top: 16px;
+}
+.settings-section .setting-title > span {
+  font-weight: 500;
+  color: #374151;
+}
+.settings-section .slider-container {
+  align-items: center;
+}
+
 h2 {
   color: #555;
   margin-bottom: 15px;
@@ -378,20 +448,69 @@ h2 {
   color: #333;
 }
 
+.setting-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  overflow: visible;
+}
+
+.reset-btn {
+  margin-left: 8px;
+}
+
+/* 确保小按钮完整显示并垂直居中 */
+.setting-title :deep(.ant-btn) {
+  height: 24px;
+  width: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 24px;
+}
+.setting-title :deep(.ant-btn .anticon) {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .slider-container {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 }
 
 .slider {
-  flex: 1;
+  flex: 0 0 260px; /* 统一滑块长度，与其它模块一致 */
   height: 6px;
   border-radius: 3px;
   background: #ddd;
   outline: none;
   -webkit-appearance: none;
 }
+
+.mini-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+}
+.mini-btn:hover {
+  background: #f3f4f6;
+}
+
+.number-input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+
+/* 显示与缩放模块优化 */
 
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -417,6 +536,12 @@ h2 {
   text-align: center;
   font-weight: 500;
   color: #10b981;
+}
+
+.item-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .search-sites-controls {
@@ -605,10 +730,8 @@ h2 {
     grid-template-columns: 1fr;
   }
   
-  .slider-container {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  .slider-container { flex-direction: column; align-items: stretch; }
+  .slider { flex: 1 1 auto; width: 100%; }
   
   .value-display {
     text-align: center;
