@@ -111,7 +111,9 @@ import('./utils/virtualMouse').then(async ({ initVirtualMouse }) => {
       const initOptions = { baseSpeed: 120, maxSpeed: 600, accelerateIntervalMs: 240, accelerateFactor: 1.35, cursorSize: 22 }
       console.log('[MAIN] 虚拟光标初始化参数:', initOptions)
       
-      initVirtualMouse(initOptions)
+      // 使用新的全局管理函数
+      const { enableVirtualMouse } = await import('./utils/virtualMouse')
+      enableVirtualMouse(initOptions)
       console.log('[MAIN] 虚拟光标初始化完成')
       
       // 首次使用提示

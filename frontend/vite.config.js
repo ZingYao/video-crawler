@@ -64,9 +64,8 @@ export default defineConfig(function (_a) {
                 }
             }
         },
-        // 临时开启 console 方法用于调试
         esbuild: {
-            drop: [], // 临时禁用 console 过滤
+            drop: mode === 'production' ? ['console', 'debugger'] : [],
         },
         build: {
             rollupOptions: {
@@ -91,7 +90,7 @@ export default defineConfig(function (_a) {
             minify: 'terser',
             terserOptions: {
                 compress: {
-                    drop_console: false, // 临时禁用 console 过滤
+                    drop_console: mode === 'production',
                     drop_debugger: true,
                     passes: 2,
                     pure_getters: true,

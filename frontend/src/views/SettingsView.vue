@@ -138,7 +138,7 @@ import { ref, computed, onMounted, h } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import AppLayout from '@/components/AppLayout.vue'
 import type { SearchSite } from '@/stores/settings'
-import { Modal } from 'ant-design-vue'
+import { Modal, message } from 'ant-design-vue'
 
 const settingsStore = useSettingsStore()
 
@@ -208,7 +208,29 @@ const resetSettings = async () => {
 // 切换虚拟光标
 const onToggleVirtualCursor = async (e: Event) => {
   const target = e.target as HTMLInputElement
-  await settingsStore.setVirtualCursorEnabled(!!target.checked)
+  const enabled = !!target.checked
+  
+  // 保存设置
+  await settingsStore.setVirtualCursorEnabled(enabled)
+  
+  // 动态启用/禁用虚拟光标
+  try {
+    const { enableVirtualMouse, disableVirtualMouse } = await import('@/utils/virtualMouse')
+    
+    if (enabled) {
+      // 启用虚拟光标
+      const initOptions = { baseSpeed: 120, maxSpeed: 600, accelerateIntervalMs: 240, accelerateFactor: 1.35, cursorSize: 22 }
+      enableVirtualMouse(initOptions)
+      message.success('虚拟光标已启用')
+    } else {
+      // 禁用虚拟光标
+      disableVirtualMouse()
+      message.success('虚拟光标已禁用')
+    }
+  } catch (error) {
+    console.error('虚拟光标切换失败:', error)
+    message.error('虚拟光标切换失败，请刷新页面重试')
+  }
 }
 
 // 使用说明弹窗（更美观）

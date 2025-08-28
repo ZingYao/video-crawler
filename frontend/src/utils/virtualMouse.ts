@@ -17,6 +17,9 @@ export interface VirtualMouseOptions {
   cursorSize?: number
 }
 
+// 全局虚拟光标实例管理
+let globalVirtualMouse: VirtualMouse | null = null
+
 export class VirtualMouse {
   private opts: Required<VirtualMouseOptions>
   private cursor: HTMLDivElement
@@ -635,6 +638,11 @@ export class VirtualMouse {
       document.removeEventListener(eventType, this.globalKeyLogger, { capture: true })
     })
   }
+
+  // 公共方法：检查是否启用
+  public isEnabled(): boolean {
+    return this.enabled
+  }
 }
 
 // 工具：便捷启用（按需加载）
@@ -643,6 +651,37 @@ export const initVirtualMouse = (opts?: VirtualMouseOptions) => {
   vm.enable()
   ;(window as any).__virtualMouse = vm
   return vm
+}
+
+// 全局虚拟光标管理函数
+export const enableVirtualMouse = (opts?: VirtualMouseOptions) => {
+  // 如果已经存在实例，先禁用
+  if (globalVirtualMouse) {
+    globalVirtualMouse.disable()
+  }
+  
+  // 创建新实例并启用
+  globalVirtualMouse = new VirtualMouse(opts)
+  globalVirtualMouse.enable()
+  ;(window as any).__virtualMouse = globalVirtualMouse
+  
+  return globalVirtualMouse
+}
+
+export const disableVirtualMouse = () => {
+  if (globalVirtualMouse) {
+    globalVirtualMouse.disable()
+    globalVirtualMouse = null
+    ;(window as any).__virtualMouse = null
+  }
+}
+
+export const isVirtualMouseEnabled = () => {
+  return globalVirtualMouse !== null && globalVirtualMouse.isEnabled()
+}
+
+export const getVirtualMouseInstance = () => {
+  return globalVirtualMouse
 }
 
 
