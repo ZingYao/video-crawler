@@ -500,17 +500,19 @@ export class VirtualMouse {
     try { this.cursor.remove() } catch {}
   }
 
-  private hideCursor(durationMs: number, reason: 'input' | 'inactivity') {
+  private hideCursor(durationMs: number, reason: 'input' | 'inactivity' | 'mouse') {
     console.log('[VM][hideCursor] 隐藏光标:', {
       reason,
       durationMs,
       hiddenByInputFocus: this.hiddenByInputFocus,
       hiddenByInactivity: this.hiddenByInactivity,
+      hiddenByMouse: this.hiddenByMouse,
       timestamp: Date.now()
     })
     
     if (reason === 'input') this.hiddenByInputFocus = true
     if (reason === 'inactivity') this.hiddenByInactivity = true
+    if (reason === 'mouse') this.hiddenByMouse = true
     this.cursor.style.transition = `background-color 120ms ease, opacity ${durationMs}ms ease`
     // 强制 reflow，确保过渡时间更改被浏览器应用
     void this.cursor.offsetWidth
@@ -675,10 +677,9 @@ export class VirtualMouse {
       this.mouseActivityTimer = null
     }
     
-    // 如果虚拟光标被鼠标隐藏，立即隐藏
+    // 如果虚拟光标未被鼠标隐藏，立即隐藏
     if (!this.hiddenByMouse) {
-      this.hiddenByMouse = true
-      this.hideCursor()
+      this.hideCursor(250, 'mouse')
       console.log('[VM] 检测到鼠标活动，隐藏虚拟光标')
     }
     
