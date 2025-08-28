@@ -918,12 +918,21 @@ public class MainActivity extends AppCompatActivity {
         try { CookieManager.getInstance().flush(); } catch (Exception ignored) {}
     }
 
+    // 返回键处理状态
+    private long lastBackPressTime = 0;
+    private static final long BACK_PRESS_INTERVAL = 2000; // 2秒内按两次返回键退出
+    
     // 重写按键事件处理，允许按键透传到 WebView
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         android.util.Log.d("MainActivity", "onKeyDown: keyCode=" + keyCode + ", event=" + event);
         
-        // 让 WebView 优先处理按键事件
+        // 处理返回键的特殊逻辑
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            return handleBackKey();
+        }
+        
+        // 让 WebView 优先处理其他按键事件
         if (webView != null) {
             // 将按键事件传递给 WebView
             boolean handled = webView.dispatchKeyEvent(event);
@@ -965,24 +974,74 @@ public class MainActivity extends AppCompatActivity {
                     keyCode, keyName, keyName, keyName, keyCode, keyCode
                 );
                 webView.evaluateJavascript(js, null);
-                
-                // 对于特定按键（如返回键），阻止 Android 默认处理
-                if (keyCode == KeyEvent.KEYCODE_BACK) {
-                    android.util.Log.d("MainActivity", "阻止 Android 返回键默认处理");
-                    return true;
-                }
             }
         }
         
         // 如果 WebView 没有处理，则使用默认处理
         return super.onKeyDown(keyCode, event);
     }
+    
+    // 处理返回键逻辑
+    private boolean handleBackKey() {
+        long currentTime = System.currentTimeMillis();
+        
+        // 先尝试让 WebView 处理返回键
+        if (webView != null) {
+            // 注入返回键事件到 WebView
+            String js = String.format(
+                "try {" +
+                "  console.log('[ANDROID_INJECT] 开始注入返回键事件:', {keyCode: 4, key: 'Backspace'});" +
+                "  const event = new KeyboardEvent('keydown', {" +
+                "    key: 'Backspace'," +
+                "    code: 'KeyBackspace'," +
+                "    keyCode: 4," +
+                "    which: 4," +
+                "    bubbles: true," +
+                "    cancelable: true" +
+                "  });" +
+                "  console.log('[ANDROID_INJECT] 创建返回键事件对象:', event);" +
+                "  window.dispatchEvent(event);" +
+                "  document.dispatchEvent(event);" +
+                "  console.log('[ANDROID_INJECT] 返回键事件已分发');" +
+                "} catch (error) {" +
+                "  console.error('[ANDROID_INJECT] 返回键注入失败:', error);" +
+                "}"
+            );
+            webView.evaluateJavascript(js, null);
+            
+            // 检查 WebView 是否能处理返回键（通过检查是否有历史记录）
+            if (webView.canGoBack()) {
+                android.util.Log.d("MainActivity", "WebView 可以返回，让 WebView 处理");
+                webView.goBack();
+                return true;
+            }
+        }
+        
+        // WebView 无法处理返回键，检查是否需要退出应用
+        if (currentTime - lastBackPressTime < BACK_PRESS_INTERVAL) {
+            // 第二次按返回键，退出应用
+            android.util.Log.d("MainActivity", "第二次按返回键，退出应用");
+            finish();
+            return true;
+        } else {
+            // 第一次按返回键，显示提示
+            android.util.Log.d("MainActivity", "第一次按返回键，显示退出提示");
+            lastBackPressTime = currentTime;
+            android.widget.Toast.makeText(this, "再按一次返回键退出应用", android.widget.Toast.LENGTH_SHORT).show();
+            return true;
+        }
+    }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         android.util.Log.d("MainActivity", "onKeyUp: keyCode=" + keyCode + ", event=" + event);
         
-        // 让 WebView 优先处理按键事件
+        // 返回键在 onKeyDown 中统一处理，这里跳过
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            return true;
+        }
+        
+        // 让 WebView 优先处理其他按键事件
         if (webView != null) {
             boolean handled = webView.dispatchKeyEvent(event);
             android.util.Log.d("MainActivity", "WebView dispatchKeyEvent result: " + handled + " for keyCode: " + keyCode);
@@ -1023,12 +1082,6 @@ public class MainActivity extends AppCompatActivity {
                     keyCode, keyName, keyName, keyName, keyCode, keyCode
                 );
                 webView.evaluateJavascript(js, null);
-                
-                // 对于特定按键（如返回键），阻止 Android 默认处理
-                if (keyCode == KeyEvent.KEYCODE_BACK) {
-                    android.util.Log.d("MainActivity", "阻止 Android 返回键默认处理 (keyup)");
-                    return true;
-                }
             }
         }
         
