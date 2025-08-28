@@ -83,6 +83,35 @@ export class VirtualMouse {
     this.cursor.style.top = `${p.y}px`
   }
 
+  // 设置鼠标样式为与虚拟光标相同
+  private setMouseCursorStyle() {
+    // 创建自定义鼠标样式
+    const cursorSize = this.opts.cursorSize
+    const cursorColor = '#10b981'
+    const borderColor = '#ffffff'
+    
+    // 创建 SVG 数据 URL
+    const svg = `
+      <svg width="${cursorSize}" height="${cursorSize}" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-2}" fill="${cursorColor}" stroke="${borderColor}" stroke-width="2"/>
+        <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-4}" fill="${cursorColor}"/>
+      </svg>
+    `
+    
+    const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`
+    
+    // 设置全局鼠标样式
+    document.body.style.cursor = `url('${dataUrl}') ${cursorSize/2} ${cursorSize/2}, auto`
+    
+    console.log('[VM] 鼠标样式已设置为与虚拟光标相同')
+  }
+
+  // 恢复默认鼠标样式
+  private restoreMouseCursorStyle() {
+    document.body.style.cursor = ''
+    console.log('[VM] 鼠标样式已恢复默认')
+  }
+
   private updateVelocity() {
     let x = 0, y = 0
     if (this.held['ArrowLeft']) x -= 1
@@ -275,8 +304,8 @@ export class VirtualMouse {
         el.dispatchEvent(new MouseEvent('mouseup', ev))
         el.dispatchEvent(new MouseEvent('click', ev))
       }
-      console.log('[VM][keydown] Enter 键触发 registerActivity')
-      this.registerActivity()
+      // 不调用 registerActivity，避免虚拟光标被隐藏
+      console.log('[VM][keydown] Enter 键点击完成，不触发 registerActivity')
       return
     }
 
@@ -308,6 +337,7 @@ export class VirtualMouse {
         vel: { ...this.vel },
         speed: this.speed,
         pos: { ...this.pos },
+        hiddenByMouse: this.hiddenByMouse,
         timestamp: Date.now()
       })
       // 阻止默认与冒泡，避免焦点移动/页面滚动
@@ -316,6 +346,14 @@ export class VirtualMouse {
       this.held[normKey] = true
       this.updateVelocity()
       try { console.log('[VM] move update', { held: { ...this.held }, vel: { ...this.vel }, speed: this.speed }) } catch {}
+      
+      // 即使光标隐藏也要显示光标并更新位置
+      if (this.hiddenByMouse) {
+        this.hiddenByMouse = false
+        this.showCursor(250)
+        console.log('[VM][keydown] 方向键触发，重新显示虚拟光标')
+      }
+      
       console.log('[VM][keydown] 方向键触发 registerActivity')
       this.registerActivity()
     }
@@ -452,6 +490,9 @@ export class VirtualMouse {
     this.pos = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
     this.setCursorPos(this.pos)
     
+    // 设置鼠标样式为与虚拟光标相同
+    this.setMouseCursorStyle()
+    
     // 添加全局按键监听器，打印所有物理按键
     this.addGlobalKeyLogger()
     
@@ -496,6 +537,9 @@ export class VirtualMouse {
       clearTimeout(this.mouseActivityTimer)
       this.mouseActivityTimer = null
     }
+    
+    // 恢复默认鼠标样式
+    this.restoreMouseCursorStyle()
     
     try { this.cursor.remove() } catch {}
   }
