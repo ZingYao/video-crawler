@@ -1019,15 +1019,17 @@ public class MainActivity extends AppCompatActivity {
                 
                 // 通过 JavaScript 检查是否有输入框聚焦
                 String checkFocusJs = 
-                    "try {" +
-                    "  const activeElement = document.activeElement;" +
-                    "  const isEditable = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.getAttribute('contenteditable') === 'true');" +
-                    "  console.log('[ANDROID_CHECK] 检查焦点状态:', {activeElement: activeElement?.tagName, isEditable: isEditable});" +
-                    "  return isEditable;" +
-                    "} catch (error) {" +
-                    "  console.error('[ANDROID_CHECK] 检查焦点失败:', error);" +
-                    "  return false;" +
-                    "}";
+                    "(function() {" +
+                    "  try {" +
+                    "    const activeElement = document.activeElement;" +
+                    "    const isEditable = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.getAttribute('contenteditable') === 'true');" +
+                    "    console.log('[ANDROID_CHECK] 检查焦点状态:', {activeElement: activeElement?.tagName, isEditable: isEditable});" +
+                    "    return isEditable;" +
+                    "  } catch (error) {" +
+                    "    console.error('[ANDROID_CHECK] 检查焦点失败:', error);" +
+                    "    return false;" +
+                    "  }" +
+                    "})()";
                 
                 webView.evaluateJavascript(checkFocusJs, result -> {
                     android.util.Log.d("MainActivity", "JavaScript 焦点检查结果: " + result);
