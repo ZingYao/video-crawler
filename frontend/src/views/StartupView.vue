@@ -44,19 +44,7 @@ const errorMessage = ref('')
 let startupTimer: number | null = null
 let progressTimer: number | null = null
 let checkTimer: number | null = null
-// 强制显示调试信息
-console.error('=== StartupView 组件加载 ===')
-console.error('当前时间:', new Date().toISOString())
-console.error('Wails环境检测:', isWails())
-console.error('window.location:', window.location.href)
-console.error('test')
-
-// 同时使用 console.log
-console.log('=== StartupView 组件加载 ===')
-console.log('当前时间:', new Date().toISOString())
-console.log('Wails环境检测:', isWails())
-console.log('window.location:', window.location.href)
-console.log('test')
+// 启动页面组件
 const checkServiceStatus = async () => {
   try {
     // 检查是否在Wails环境中
@@ -96,7 +84,7 @@ const checkServiceStatus = async () => {
               setTimeout(() => router.replace(targetPath), 1000)
               return true
             } catch (configError) {
-              console.error('配置加载失败:', configError)
+              console.log('配置加载失败:', configError)
               // 即使配置加载失败，也继续跳转（默认跳转到首页）
               progress.value = 100
               currentMessage.value = '启动完成，正在跳转...'
@@ -137,7 +125,7 @@ const checkServiceStatus = async () => {
           setTimeout(() => router.replace(targetPath), 1000)
           return true
         } catch (configError) {
-          console.error('配置加载失败:', configError)
+          console.log('配置加载失败:', configError)
           // 即使配置加载失败，也继续跳转（默认跳转到首页）
           progress.value = 100
           currentMessage.value = '启动完成，正在跳转...'
@@ -153,13 +141,9 @@ const checkServiceStatus = async () => {
 }
 
 const startServiceCheck = () => {
-  console.error('=== startServiceCheck 开始 ===')
   checkTimer = window.setInterval(async () => {
-    console.error('检查服务状态...')
     const isReady = await checkServiceStatus()
-    console.error('服务状态检查结果:', isReady)
     if (isReady && checkTimer) {
-      console.error('服务已就绪，停止检查')
       clearInterval(checkTimer)
       checkTimer = null
     }
@@ -183,28 +167,20 @@ const simulateStartup = () => {
 }
 
 onMounted(() => {
-  console.error('=== StartupView onMounted ===')
-  console.error('组件挂载时间:', new Date().toISOString())
-  console.error('当前进度:', progress.value)
-  console.error('当前消息:', currentMessage.value)
-  
   simulateStartup()
   startServiceCheck()
   
   setTimeout(() => {
     currentMessage.value = '正在启动HTTP服务...'
-    console.error('设置消息: 正在启动HTTP服务...')
   }, 1000)
   
   setTimeout(() => {
     currentMessage.value = '正在连接数据库...'
-    console.error('设置消息: 正在连接数据库...')
   }, 2000)
   
   startupTimer = window.setTimeout(() => {
     hasError.value = true
     errorMessage.value = '服务启动超时，请检查网络连接或重启应用'
-    console.error('服务启动超时!')
   }, 30000)
 })
 

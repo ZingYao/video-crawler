@@ -9,20 +9,14 @@ const getApiBaseUrl = async (): Promise<string> => {
   
   // 如果第一次检测失败，尝试延迟检测
   if (!isWailsEnv) {
-    console.error('第一次检测失败，尝试延迟检测...')
     // 等待一段时间后再次检测
     await new Promise(resolve => setTimeout(resolve, 500))
     isWailsEnv = isWails()
-    console.error('延迟检测结果:', isWailsEnv)
   }
   
-  // 调试信息（生产环境构建时会自动移除）
-  console.error('=== getApiBaseUrl 环境检测 ===')
-  console.error('isWails:', isWailsEnv)
-  
-  console.log('getApiBaseUrl - 环境检测:', {
-    isWails: isWailsEnv
-  })
+  // console.log('getApiBaseUrl - 环境检测:', {
+  //   isWails: isWailsEnv
+  // })
   
   if (isWailsEnv) {
     // 在Wails环境中，动态获取后端服务端口

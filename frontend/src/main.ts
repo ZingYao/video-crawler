@@ -39,18 +39,18 @@ const checkWailsEnvironment = () => {
   const isWailsEnv = isWails()
 
   // 调试信息（生产环境构建时会自动移除）
-  console.error('=== main.ts 环境检测 ===')
-  console.error('isWails:', isWailsEnv)
-  console.error('window.location.pathname:', window.location.pathname)
+  console.log('=== main.ts 环境检测 ===')
+  console.log('isWails:', isWailsEnv)
+  console.log('window.location.pathname:', window.location.pathname)
 
   if (isWailsEnv && window.location.pathname === '/') {
-    console.error('检测到Wails环境，重定向到启动页面')
+    console.log('检测到Wails环境，重定向到启动页面')
     // 延迟重定向，确保路由已经初始化
     setTimeout(() => {
       router.push('/startup')
     }, 100)
   } else {
-    console.error('非Wails环境或不在根路径，不重定向')
+    console.log('非Wails环境或不在根路径，不重定向')
   }
 }
 
@@ -65,7 +65,7 @@ const performWailsEnvironmentCheck = () => {
   const isWailsEnv = isWails()
   if (isWailsEnv && window.location.pathname === '/') {
     hasCheckedWailsEnvironment = true
-    console.error('检测到Wails环境，重定向到启动页面')
+    console.log('检测到Wails环境，重定向到启动页面')
     setTimeout(() => {
       router.push('/startup')
     }, 100)
@@ -77,28 +77,48 @@ performWailsEnvironmentCheck()
 
 // 延迟检查，以防 window.go 在页面加载后才被注入
 setTimeout(() => {
-  console.error('=== 延迟环境检测 ===')
+  console.log('=== 延迟环境检测 ===')
   performWailsEnvironmentCheck()
 }, 1000)
 
 // 再次延迟检查
 setTimeout(() => {
-  console.error('=== 再次延迟环境检测 ===')
+  console.log('=== 再次延迟环境检测 ===')
   performWailsEnvironmentCheck()
 }, 3000)
 
 app.mount('#app')
 
 // 按设置开关加载虚拟鼠标，并在首次使用时弹出说明
+console.log('[MAIN] 开始检查虚拟光标启动条件...')
 import('./utils/virtualMouse').then(async ({ initVirtualMouse }) => {
   try {
+    console.log('[MAIN] 虚拟鼠标模块加载成功')
     const settingsStore = useSettingsStore()
+    console.log('[MAIN] 开始加载设置...')
     await settingsStore.loadSettings()
-    if (settingsStore.settings.virtualCursorEnabled) {
-      initVirtualMouse({ baseSpeed: 120, maxSpeed: 600, accelerateIntervalMs: 240, accelerateFactor: 1.35, cursorSize: 22 })
+    
+    const settings = settingsStore.settings
+    console.log('[MAIN] 设置加载完成，检查虚拟光标配置:', {
+      virtualCursorEnabled: settings.virtualCursorEnabled,
+      virtualCursorTipsShown: settings.virtualCursorTipsShown,
+      allSettings: settings,
+      timestamp: Date.now()
+    })
+    
+    if (settings.virtualCursorEnabled) {
+      console.log('[MAIN] ✅ 虚拟光标已启用，开始初始化...')
+      const initOptions = { baseSpeed: 120, maxSpeed: 600, accelerateIntervalMs: 240, accelerateFactor: 1.35, cursorSize: 22 }
+      console.log('[MAIN] 虚拟光标初始化参数:', initOptions)
+      
+      initVirtualMouse(initOptions)
+      console.log('[MAIN] 虚拟光标初始化完成')
+      
       // 首次使用提示
       const onFirstUse = async () => {
+        console.log('[MAIN] 虚拟光标首次使用事件触发')
         if (!settingsStore.settings.virtualCursorTipsShown) {
+          console.log('[MAIN] 显示虚拟光标使用说明弹窗')
           const { Modal } = await import('ant-design-vue')
           const { h } = await import('vue')
           Modal.info({
@@ -121,10 +141,20 @@ import('./utils/virtualMouse').then(async ({ initVirtualMouse }) => {
             centered: true,
           })
           await settingsStore.markVirtualCursorTipsShown()
+          console.log('[MAIN] 虚拟光标使用说明已标记为已显示')
+        } else {
+          console.log('[MAIN] 虚拟光标使用说明已显示过，跳过弹窗')
         }
         window.removeEventListener('virtual-mouse-first-use', onFirstUse as any)
       }
       window.addEventListener('virtual-mouse-first-use', onFirstUse as any, { once: true })
+      console.log('[MAIN] 虚拟光标首次使用事件监听器已注册')
+    } else {
+      console.log('[MAIN] ❌ 虚拟光标未启用，跳过初始化')
     }
-  } catch {}
-}).catch(() => {})
+  } catch (error) {
+    console.log('[MAIN] 虚拟光标初始化失败:', error)
+  }
+}).catch((error) => {
+  console.log('[MAIN] 虚拟鼠标模块加载失败:', error)
+})

@@ -23,7 +23,7 @@ export const useConfigStore = defineStore('config', () => {
     isLoading.value = true
     try {
       const result = await configAPI.getConfig()
-      console.error('loadConfig result:', result)
+      console.log('loadConfig result:', result)
       if (result?.code === 0 && result.data) {
         config.value = {
           requireLogin: result.data.require_login || false ,
@@ -33,7 +33,7 @@ export const useConfigStore = defineStore('config', () => {
       }
       isLoaded.value = true
     } catch (error) {
-      console.error('Failed to load config:', error)
+      console.log('Failed to load config:', error)
       isLoaded.value = true
     } finally {
       isLoading.value = false

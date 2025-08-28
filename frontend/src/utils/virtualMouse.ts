@@ -126,20 +126,42 @@ export class VirtualMouse {
   }
 
   private registerActivity() {
+    // 获取调用堆栈信息
+    const stack = new Error().stack
+    const callerInfo = stack?.split('\n')[2]?.trim() || 'unknown'
+    
+    console.log('[VM][registerActivity] 触发显示原因:', {
+      hiddenByInputFocus: this.hiddenByInputFocus,
+      hiddenByInactivity: this.hiddenByInactivity,
+      currentOpacity: this.cursor.style.opacity,
+      callerInfo,
+      timestamp: Date.now()
+    })
+    
     // 若由输入框隐藏则不显示
-    if (!this.hiddenByInputFocus) this.showCursor(250)
+    if (!this.hiddenByInputFocus) {
+      console.log('[VM][registerActivity] 显示光标 (非输入框隐藏状态)')
+      this.showCursor(250)
+    } else {
+      console.log('[VM][registerActivity] 跳过显示 (输入框隐藏状态)')
+    }
+    
     // 重置 10s 无操作隐藏
     if (this.inactivityTimer) { window.clearTimeout(this.inactivityTimer); this.inactivityTimer = null }
     this.inactivityTimer = window.setTimeout(() => {
       // 仅当没有方向键按住时才隐藏
       if (!(this.held['ArrowLeft'] || this.held['ArrowRight'] || this.held['ArrowUp'] || this.held['ArrowDown'])) {
+        console.log('[VM][registerActivity] 设置无操作隐藏定时器 (10s)')
         this.hideCursor(1000, 'inactivity')
+      } else {
+        console.log('[VM][registerActivity] 跳过无操作隐藏 (方向键按住中)')
       }
     }, this.inactivityMs)
 
     // 首次使用事件（供外部弹窗提示）
     if (!(window as any).__vmFirstUseNotified) {
       (window as any).__vmFirstUseNotified = true
+      console.log('[VM][registerActivity] 触发首次使用事件')
       try { window.dispatchEvent(new CustomEvent('virtual-mouse-first-use')) } catch {}
     }
   }
@@ -219,11 +241,24 @@ export class VirtualMouse {
 
     // 调试日志：按键与状态
     try {
-      console.log('[VM][keydown]', { key: e.key, normKey, repeat: e.repeat, ts: Date.now() })
+      console.log('[VM][keydown] 按键按下:', { 
+        key: e.key, 
+        normKey, 
+        repeat: e.repeat, 
+        isEditable,
+        activeElement: active?.tagName,
+        held: { ...this.held },
+        timestamp: Date.now() 
+      })
     } catch {}
 
     // Enter：在非输入模式下触发鼠标点击
     if (normKey === 'Enter' && !isEditable) {
+      console.log('[VM][keydown] Enter 键触发点击:', {
+        pos: { ...this.pos },
+        targetElement: document.elementFromPoint(this.pos.x, this.pos.y)?.tagName,
+        timestamp: Date.now()
+      })
       e.preventDefault(); e.stopPropagation()
       const el = document.elementFromPoint(this.pos.x, this.pos.y) as HTMLElement | null
       if (el) {
@@ -232,39 +267,71 @@ export class VirtualMouse {
         el.dispatchEvent(new MouseEvent('mouseup', ev))
         el.dispatchEvent(new MouseEvent('click', ev))
       }
+      console.log('[VM][keydown] Enter 键触发 registerActivity')
       this.registerActivity()
       return
     }
 
-    // 输入聚焦时：方向键不接管，仅处理 Esc/Back 退出并显示光标
+    // 输入聚焦时：方向键不接管，仅处理 Esc 退出并显示光标
     if (isEditable) {
-      if (normKey === 'Escape' || normKey === 'Backspace' || normKey === 'BrowserBack') {
+      if (normKey === 'Escape') {
+        console.log('[VM][keydown] 输入框退出键 (Esc):', {
+          normKey,
+          activeElement: active?.tagName,
+          timestamp: Date.now()
+        })
         e.preventDefault(); e.stopPropagation()
         try { active?.blur() } catch {}
         this.showCursor(250)
+      } else {
+        console.log('[VM][keydown] 输入框内按键，跳过处理:', {
+          normKey,
+          activeElement: active?.tagName,
+          timestamp: Date.now()
+        })
       }
       return
     }
     if (normKey === 'ArrowLeft' || normKey === 'ArrowRight' || normKey === 'ArrowUp' || normKey === 'ArrowDown') {
+      console.log('[VM][keydown] 方向键移动:', {
+        normKey,
+        repeat: e.repeat,
+        held: { ...this.held },
+        vel: { ...this.vel },
+        speed: this.speed,
+        pos: { ...this.pos },
+        timestamp: Date.now()
+      })
       // 阻止默认与冒泡，避免焦点移动/页面滚动
       e.preventDefault(); e.stopPropagation()
       // keydown 仅用于移动，双击滚动改由 keyup 识别，更稳定
       this.held[normKey] = true
       this.updateVelocity()
       try { console.log('[VM] move update', { held: { ...this.held }, vel: { ...this.vel }, speed: this.speed }) } catch {}
+      console.log('[VM][keydown] 方向键触发 registerActivity')
       this.registerActivity()
     }
-    // AndroidTV 返回键兼容（无输入态时，模拟 Esc 行为）
+    // AndroidTV 返回键兼容（仅在非输入框状态下处理）
     if (normKey === 'Backspace' || normKey === 'BrowserBack') {
-      e.preventDefault(); e.stopPropagation()
-      const activeEl = document.activeElement as HTMLElement | null
-      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.getAttribute('contenteditable') === 'true')) {
-        try { activeEl.blur() } catch {}
-      } else {
-        // 非输入态：尽量不影响页面路由，交由业务自行处理返回
-        // 这里仅发出一个事件供业务层监听
-        try { window.dispatchEvent(new CustomEvent('virtual-mouse-back')) } catch {}
+      console.log('[VM][keydown] AndroidTV 返回键:', {
+        normKey,
+        activeElement: document.activeElement?.tagName,
+        isEditable,
+        timestamp: Date.now()
+      })
+      
+      // 如果在输入框中，让 Backspace 正常处理（删除文本）
+      if (isEditable) {
+        console.log('[VM][keydown] 输入框中的 Backspace，允许正常删除文本')
+        return // 不阻止默认行为，让 Backspace 正常删除文本
       }
+      
+      // 非输入框状态：处理返回逻辑
+      e.preventDefault(); e.stopPropagation()
+      console.log('[VM][keydown] 非输入框返回键，触发返回事件')
+      // 非输入态：尽量不影响页面路由，交由业务自行处理返回
+      // 这里仅发出一个事件供业务层监听
+      try { window.dispatchEvent(new CustomEvent('virtual-mouse-back')) } catch {}
       this.showCursor(250)
       return
     }
@@ -304,31 +371,80 @@ export class VirtualMouse {
       } else {
         this.keyUpCount[normKey] = 1
       }
-      try { console.log('[VM][keyup]', { normKey, interval, count: this.keyUpCount[normKey] }) } catch {}
+      try { 
+        console.log('[VM][keyup] 方向键释放:', { 
+          normKey, 
+          interval, 
+          count: this.keyUpCount[normKey],
+          threshold: this.dblPressThreshold,
+          held: { ...this.held },
+          timestamp: Date.now()
+        }) 
+      } catch {}
       if (this.keyUpCount[normKey] <= 2 && interval <= this.dblPressThreshold) {
         if (normKey === 'ArrowUp' || normKey === 'ArrowDown') {
           const delta = Math.round(window.innerHeight * 0.6) * (normKey === 'ArrowDown' ? 1 : -1)
-          try { console.log('[VM] vertical double via keyup', { normKey, delta, interval }) } catch {}
+          try { 
+            console.log('[VM] 垂直双击滚动触发:', { 
+              normKey, 
+              delta, 
+              interval,
+              windowHeight: window.innerHeight,
+              timestamp: Date.now()
+            }) 
+          } catch {}
           this.scrollByDelta(delta)
         } else if (normKey === 'ArrowLeft' || normKey === 'ArrowRight') {
           const deltaX = Math.round(window.innerWidth * 0.6) * (normKey === 'ArrowRight' ? 1 : -1)
-          try { console.log('[VM] horizontal double via keyup', { normKey, deltaX, interval }) } catch {}
+          try { 
+            console.log('[VM] 水平双击滚动触发:', { 
+              normKey, 
+              deltaX, 
+              interval,
+              windowWidth: window.innerWidth,
+              timestamp: Date.now()
+            }) 
+          } catch {}
           this.scrollByDeltaX(deltaX)
         }
         // 重置，避免第三击误抑制
         this.lastKeyUpTs[normKey] = 0
         this.keyUpCount[normKey] = 0
+      } else {
+        try {
+          console.log('[VM][keyup] 双击滚动未触发:', {
+            normKey,
+            interval,
+            count: this.keyUpCount[normKey],
+            threshold: this.dblPressThreshold,
+            reason: this.keyUpCount[normKey] > 2 ? '超过2次点击' : '间隔过长',
+            timestamp: Date.now()
+          })
+        } catch {}
       }
+      console.log('[VM][keyup] 方向键释放触发 registerActivity')
       this.registerActivity()
     }
   }
 
   enable() {
-    if (this.enabled) return
+    if (this.enabled) {
+      console.log('[VM][enable] 虚拟光标已启用，跳过')
+      return
+    }
+    console.log('[VM][enable] 启用虚拟光标:', {
+      opts: this.opts,
+      initialPos: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+      timestamp: Date.now()
+    })
     this.enabled = true
     // 初始放到视口中心
     this.pos = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
     this.setCursorPos(this.pos)
+    
+    // 添加全局按键监听器，打印所有物理按键
+    this.addGlobalKeyLogger()
+    
     // capture: true 进一步拦截，优先于页面其它监听器
     window.addEventListener('keydown', this.onKeyDown, { passive: false, capture: true })
     window.addEventListener('keyup', this.onKeyUp, { passive: false, capture: true })
@@ -341,7 +457,13 @@ export class VirtualMouse {
   }
 
   disable() {
-    if (!this.enabled) return
+    if (!this.enabled) {
+      console.log('[VM][disable] 虚拟光标未启用，跳过')
+      return
+    }
+    console.log('[VM][disable] 禁用虚拟光标:', {
+      timestamp: Date.now()
+    })
     this.enabled = false
     this.stopAcceleration()
     if (this.rafId !== null) { cancelAnimationFrame(this.rafId); this.rafId = null }
@@ -349,10 +471,22 @@ export class VirtualMouse {
     window.removeEventListener('keyup', this.onKeyUp)
     window.removeEventListener('focusin', this.onFocusIn as any)
     window.removeEventListener('focusout', this.onFocusOut as any)
+    
+    // 移除全局按键监听器
+    this.removeGlobalKeyLogger()
+    
     try { this.cursor.remove() } catch {}
   }
 
   private hideCursor(durationMs: number, reason: 'input' | 'inactivity') {
+    console.log('[VM][hideCursor] 隐藏光标:', {
+      reason,
+      durationMs,
+      hiddenByInputFocus: this.hiddenByInputFocus,
+      hiddenByInactivity: this.hiddenByInactivity,
+      timestamp: Date.now()
+    })
+    
     if (reason === 'input') this.hiddenByInputFocus = true
     if (reason === 'inactivity') this.hiddenByInactivity = true
     this.cursor.style.transition = `background-color 120ms ease, opacity ${durationMs}ms ease`
@@ -361,8 +495,18 @@ export class VirtualMouse {
     this.cursor.style.opacity = '0'
   }
   private showCursor(durationMs: number) {
+    console.log('[VM][showCursor] 显示光标:', {
+      durationMs,
+      hiddenByInputFocus: this.hiddenByInputFocus,
+      hiddenByInactivity: this.hiddenByInactivity,
+      timestamp: Date.now()
+    })
+    
     this.hiddenByInactivity = false
-    if (this.hiddenByInputFocus) return // 输入态仍保持隐藏
+    if (this.hiddenByInputFocus) {
+      console.log('[VM][showCursor] 跳过显示 (输入框隐藏状态)')
+      return // 输入态仍保持隐藏
+    }
     this.cursor.style.transition = `background-color 120ms ease, opacity ${durationMs}ms ease`
     void this.cursor.offsetWidth
     this.cursor.style.opacity = '1'
@@ -371,9 +515,122 @@ export class VirtualMouse {
     const t = e.target as HTMLElement | null
     if (!t) return
     const isEditable = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.getAttribute('contenteditable') === 'true'
-    if (isEditable) this.hideCursor(250, 'input')
+    console.log('[VM][onFocusIn] 焦点进入:', {
+      tagName: t.tagName,
+      isEditable,
+      timestamp: Date.now()
+    })
+    if (isEditable) {
+      this.hideCursor(250, 'input')
+    }
   }
-  private onFocusOut = (_e: FocusEvent) => { this.hiddenByInputFocus = false; this.showCursor(250) }
+  private onFocusOut = (e: FocusEvent) => { 
+    const t = e.target as HTMLElement | null
+    if (!t) return
+    const isEditable = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.getAttribute('contenteditable') === 'true'
+    
+    console.log('[VM][onFocusOut] 焦点离开:', {
+      tagName: t.tagName,
+      isEditable,
+      timestamp: Date.now()
+    })
+    
+    // 删除焦点离开时显示光标的逻辑，只保留方向键触发
+    if (isEditable) {
+      this.hiddenByInputFocus = false
+      // 不再自动显示光标，等待方向键触发
+    }
+  }
+
+  // 全局按键监听器，打印所有物理按键
+  private globalKeyLogger = (e: Event) => {
+    // 只处理键盘事件
+    if (!(e instanceof KeyboardEvent)) return
+    
+    const ke = e as KeyboardEvent
+    console.log('[VM][GLOBAL_KEY] 物理按键检测:', {
+      key: ke.key,
+      code: ke.code,
+      keyCode: ke.keyCode,
+      which: ke.which,
+      charCode: ke.charCode,
+      type: ke.type,
+      repeat: ke.repeat,
+      ctrlKey: ke.ctrlKey,
+      shiftKey: ke.shiftKey,
+      altKey: ke.altKey,
+      metaKey: ke.metaKey,
+      location: ke.location,
+      isComposing: ke.isComposing,
+      timeStamp: ke.timeStamp,
+      target: (ke.target as HTMLElement)?.tagName,
+      activeElement: document.activeElement?.tagName,
+      timestamp: Date.now()
+    })
+    
+    // 如果检测到 Android 环境，将按键事件发送到 Android 端
+    if ((window as any).AndroidKeyEvent) {
+      try {
+        (window as any).AndroidKeyEvent.onKeyEvent(
+          ke.type,
+          ke.keyCode,
+          ke.key,
+          ke.ctrlKey,
+          ke.shiftKey,
+          ke.altKey,
+          ke.metaKey
+        )
+      } catch (error) {
+        console.log('[VM][GLOBAL_KEY] Android 按键事件发送失败:', error)
+      }
+    }
+  }
+
+  private addGlobalKeyLogger() {
+    console.log('[VM] 添加全局按键监听器')
+    
+    // 监听多种事件类型，包括可能的 Android 事件
+    const events = ['keydown', 'keyup', 'keypress', 'input', 'beforeinput']
+    
+    events.forEach(eventType => {
+      window.addEventListener(eventType, this.globalKeyLogger, { capture: true, passive: true })
+      document.addEventListener(eventType, this.globalKeyLogger, { capture: true, passive: true })
+      document.body.addEventListener(eventType, this.globalKeyLogger, { capture: true, passive: true })
+    })
+    
+    // 监听可能的 Android 特定事件
+    const androidEvents = ['backbutton', 'menubutton', 'searchbutton', 'volumeup', 'volumedown']
+    androidEvents.forEach(eventType => {
+      document.addEventListener(eventType, this.globalKeyLogger, { capture: true, passive: true })
+    })
+    
+    // Android 按键事件注入接口（由 Android 端直接调用）
+    if ((window as any).AndroidKeyEvent) {
+      console.log('[VM] Android 按键事件接口已可用')
+    }
+    
+    // 测试监听器是否正常工作
+    console.log('[VM] 全局按键监听器已添加，监听事件类型:', events.concat(androidEvents))
+    console.log('[VM] 请按任意键测试，如果看不到日志，可能是 Android 系统拦截了按键事件')
+  }
+
+  private removeGlobalKeyLogger() {
+    console.log('[VM] 移除全局按键监听器')
+    
+    // 移除所有事件监听器
+    const events = ['keydown', 'keyup', 'keypress', 'input', 'beforeinput']
+    const androidEvents = ['backbutton', 'menubutton', 'searchbutton', 'volumeup', 'volumedown']
+    
+    events.forEach(eventType => {
+      window.removeEventListener(eventType, this.globalKeyLogger, { capture: true })
+      document.removeEventListener(eventType, this.globalKeyLogger, { capture: true })
+      document.body.removeEventListener(eventType, this.globalKeyLogger, { capture: true })
+    })
+    
+    androidEvents.forEach(eventType => {
+      document.removeEventListener(eventType, this.globalKeyLogger, { capture: true })
+    })
+  }
 }
 
 // 工具：便捷启用（按需加载）

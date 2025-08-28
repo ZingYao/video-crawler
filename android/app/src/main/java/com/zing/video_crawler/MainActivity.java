@@ -48,6 +48,7 @@ import android.widget.ImageView;
 import android.view.ViewTreeObserver;
 import android.graphics.drawable.GradientDrawable;
 import android.view.ViewConfiguration;
+import android.view.KeyEvent;
 
 public class MainActivity extends AppCompatActivity {
     static {
@@ -203,6 +204,39 @@ public class MainActivity extends AppCompatActivity {
         android.util.Log.d("MainActivity", "注册JavaScript接口...");
         webView.addJavascriptInterface(new AndroidSession(), "AndroidSession");
         webView.addJavascriptInterface(new AndroidKV(), "AndroidKV");
+        
+        // 添加按键事件接口
+        webView.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void onKeyEvent(String eventType, int keyCode, String key, boolean ctrlKey, boolean shiftKey, boolean altKey, boolean metaKey) {
+                android.util.Log.d("AndroidKeyEvent", String.format("KeyEvent: type=%s, keyCode=%d, key=%s, ctrl=%b, shift=%b, alt=%b, meta=%b", 
+                    eventType, keyCode, key, ctrlKey, shiftKey, altKey, metaKey));
+            }
+            
+            @android.webkit.JavascriptInterface
+            public void injectKeyEvent(String eventType, int keyCode, String key) {
+                android.util.Log.d("AndroidKeyEvent", "Injecting key event: " + eventType + " " + keyCode + " " + key);
+                // 通过 JavaScript 注入来触发按键事件
+                runOnUiThread(() -> {
+                    String js = String.format(
+                        "if (window.dispatchEvent) {" +
+                        "  const event = new KeyboardEvent('%s', {" +
+                        "    key: '%s'," +
+                        "    code: 'Key%s'," +
+                        "    keyCode: %d," +
+                        "    which: %d," +
+                        "    bubbles: true," +
+                        "    cancelable: true" +
+                        "  });" +
+                        "  window.dispatchEvent(event);" +
+                        "  document.dispatchEvent(event);" +
+                        "}",
+                        eventType, key, key, keyCode, keyCode
+                    );
+                    webView.evaluateJavascript(js, null);
+                });
+            }
+        }, "AndroidKeyEvent");
 
         // 添加 JS 接口：AndroidDownload（已存在）
         android.util.Log.d("MainActivity", "注册AndroidDownload接口...");
@@ -863,5 +897,150 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         try { CookieManager.getInstance().flush(); } catch (Exception ignored) {}
+    }
+
+    // 重写按键事件处理，允许按键透传到 WebView
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        android.util.Log.d("MainActivity", "onKeyDown: keyCode=" + keyCode + ", event=" + event);
+        
+        // 让 WebView 优先处理按键事件
+        if (webView != null) {
+            // 将按键事件传递给 WebView
+            boolean handled = webView.dispatchKeyEvent(event);
+            android.util.Log.d("MainActivity", "WebView dispatchKeyEvent result: " + handled + " for keyCode: " + keyCode);
+            
+            if (handled) {
+                android.util.Log.d("MainActivity", "WebView handled key event: " + keyCode);
+                return true;
+            }
+            
+            // 如果 WebView 没有处理，尝试通过 JavaScript 注入来触发
+            String keyName = getKeyName(keyCode);
+            if (keyName != null) {
+                android.util.Log.d("MainActivity", "Injecting key event via JavaScript: " + keyName);
+                // 直接创建并分发 KeyboardEvent
+                String js = String.format(
+                    "try {" +
+                    "  console.log('[ANDROID_INJECT] 开始注入按键事件:', {keyCode: %d, key: '%s'});" +
+                    "  const event = new KeyboardEvent('keydown', {" +
+                    "    key: '%s'," +
+                    "    code: 'Key%s'," +
+                    "    keyCode: %d," +
+                    "    which: %d," +
+                    "    bubbles: true," +
+                    "    cancelable: true" +
+                    "  });" +
+                    "  console.log('[ANDROID_INJECT] 创建的事件对象:', event);" +
+                    "  window.dispatchEvent(event);" +
+                    "  document.dispatchEvent(event);" +
+                    "  console.log('[ANDROID_INJECT] 事件已分发');" +
+                    "} catch (error) {" +
+                    "  console.error('[ANDROID_INJECT] 注入失败:', error);" +
+                    "}",
+                    keyCode, keyName, keyName, keyName, keyCode, keyCode
+                );
+                webView.evaluateJavascript(js, null);
+            }
+        }
+        
+        // 如果 WebView 没有处理，则使用默认处理
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        android.util.Log.d("MainActivity", "onKeyUp: keyCode=" + keyCode + ", event=" + event);
+        
+        // 让 WebView 优先处理按键事件
+        if (webView != null) {
+            boolean handled = webView.dispatchKeyEvent(event);
+            android.util.Log.d("MainActivity", "WebView dispatchKeyEvent result: " + handled + " for keyCode: " + keyCode);
+            
+            if (handled) {
+                android.util.Log.d("MainActivity", "WebView handled key up event: " + keyCode);
+                return true;
+            }
+            
+            // 如果 WebView 没有处理，尝试通过 JavaScript 注入来触发
+            String keyName = getKeyName(keyCode);
+            if (keyName != null) {
+                android.util.Log.d("MainActivity", "Injecting key up event via JavaScript: " + keyName);
+                // 直接创建并分发 KeyboardEvent
+                String js = String.format(
+                    "try {" +
+                    "  console.log('[ANDROID_INJECT] 开始注入按键释放事件:', {keyCode: %d, key: '%s'});" +
+                    "  const event = new KeyboardEvent('keyup', {" +
+                    "    key: '%s'," +
+                    "    code: 'Key%s'," +
+                    "    keyCode: %d," +
+                    "    which: %d," +
+                    "    bubbles: true," +
+                    "    cancelable: true" +
+                    "  });" +
+                    "  console.log('[ANDROID_INJECT] 创建的释放事件对象:', event);" +
+                    "  window.dispatchEvent(event);" +
+                    "  document.dispatchEvent(event);" +
+                    "  console.log('[ANDROID_INJECT] 释放事件已分发');" +
+                    "} catch (error) {" +
+                    "  console.error('[ANDROID_INJECT] 注入释放事件失败:', error);" +
+                    "}",
+                    keyCode, keyName, keyName, keyName, keyCode, keyCode
+                );
+                webView.evaluateJavascript(js, null);
+            }
+        }
+        
+        return super.onKeyUp(keyCode, event);
+    }
+
+    // 处理系统按键（如返回键）
+    @Override
+    public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+        android.util.Log.d("MainActivity", "onKeyLongPress: keyCode=" + keyCode + ", event=" + event);
+        
+        if (webView != null) {
+            boolean handled = webView.dispatchKeyEvent(event);
+            if (handled) {
+                return true;
+            }
+        }
+        
+        return super.onKeyLongPress(keyCode, event);
+    }
+    
+    // 将 Android 按键代码转换为按键名称
+    private String getKeyName(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_BACK:
+                return "Backspace";
+            case KeyEvent.KEYCODE_DPAD_UP:
+                return "ArrowUp";
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                return "ArrowDown";
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                return "ArrowLeft";
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                return "ArrowRight";
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+                return "Enter";
+            case KeyEvent.KEYCODE_MENU:
+                return "ContextMenu";
+            case KeyEvent.KEYCODE_HOME:
+                return "Home";
+            case KeyEvent.KEYCODE_VOLUME_UP:
+                return "VolumeUp";
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+                return "VolumeDown";
+            case KeyEvent.KEYCODE_POWER:
+                return "Power";
+            case KeyEvent.KEYCODE_SEARCH:
+                return "Search";
+            case KeyEvent.KEYCODE_ESCAPE:
+                return "Escape";
+            default:
+                return null;
+        }
     }
 }

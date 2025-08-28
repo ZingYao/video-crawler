@@ -20,15 +20,15 @@ export const isWails = (): boolean => {
   const result = hasGoObject || hasWailsProtocol || hasWailsDomain || hasWailsOrigin
   
   // 调试信息（生产环境构建时会自动移除）
-  console.error('=== isWails 环境检测 ===')
-  console.error('hasGoObject:', hasGoObject)
-  console.error('hasWailsProtocol:', hasWailsProtocol)
-  console.error('hasWailsDomain:', hasWailsDomain)
-  console.error('hasWailsOrigin:', hasWailsOrigin)
-  console.error('window.location.protocol:', window.location.protocol)
-  console.error('window.location.origin:', window.location.origin)
-  console.error('window.go:', (window as any).go)
-  console.error('最终结果:', result)
+  // console.log('=== isWails 环境检测 ===')
+  // console.log('hasGoObject:', hasGoObject)
+  // console.log('hasWailsProtocol:', hasWailsProtocol)
+  // console.log('hasWailsDomain:', hasWailsDomain)
+  // console.log('hasWailsOrigin:', hasWailsOrigin)
+  // console.log('window.location.protocol:', window.location.protocol)
+  // console.log('window.location.origin:', window.location.origin)
+  // console.log('window.go:', (window as any).go)
+  // console.log('最终结果:', result)
   
   return result
 }
@@ -67,13 +67,13 @@ export const isClientEnvironment = (): boolean => {
   const result = isWailsEnv || isAndroidEnv
   
   // 调试信息
-  console.error('=== isClientEnvironment 环境检测 ===')
-  console.error('isWailsEnv:', isWailsEnv)
-  console.error('isAndroidEnv:', isAndroidEnv)
-  console.error('hasAndroidKV:', !!(window as any).AndroidKV)
-  console.error('hostname:', window.location.hostname)
-  console.error('userAgent:', navigator.userAgent)
-  console.error('最终结果:', result)
+  // console.log('=== isClientEnvironment 环境检测 ===')
+  // console.log('isWailsEnv:', isWailsEnv)
+  // console.log('isAndroidEnv:', isAndroidEnv)
+  // console.log('hasAndroidKV:', !!(window as any).AndroidKV)
+  // console.log('hostname:', window.location.hostname)
+  // console.log('userAgent:', navigator.userAgent)
+  // console.log('最终结果:', result)
   
   return result
 }

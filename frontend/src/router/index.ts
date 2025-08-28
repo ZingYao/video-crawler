@@ -168,11 +168,11 @@ router.beforeEach(async (to, from, next) => {
   // 检查是否在Wails环境中
   const isWailsEnv = isWails()
   
-  if (import.meta.env.DEV) {
-    console.error('=== router beforeEach 环境检测 ===')
-    console.error('isWails:', isWailsEnv)
-    console.error('to.path:', to.path)
-  }
+  // if (import.meta.env.DEV) {
+  //   console.log('=== router beforeEach 环境检测 ===')
+  //   console.log('isWails:', isWailsEnv)
+  //   console.log('to.path:', to.path)
+  // }
   
   // 只在Wails环境中检查服务状态和启动页面
   if (isWailsEnv) {

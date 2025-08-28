@@ -107,7 +107,7 @@ export const useSettingsStore = defineStore('settings', () => {
         console.warn('[Settings] API返回数据格式不正确:', response)
       }
     } catch (error) {
-      console.error('[Settings] Failed to load actual video sources:', error)
+      console.log('[Settings] Failed to load actual video sources:', error)
       // 如果加载失败，保持现有设置
     }
   }
@@ -128,20 +128,37 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // 从缓存加载设置
   const loadSettings = async () => {
+    console.log('[SETTINGS] 开始加载设置...')
     let settingsJson: string | null = null
     
     // 检查是否在 Android WebView 环境
     if (window.AndroidKV) {
+      console.log('[SETTINGS] 检测到 Android WebView 环境，使用 AndroidKV 加载')
       // Android 特殊渠道加载
       settingsJson = window.AndroidKV.getItem('app_settings')
     } else {
+      console.log('[SETTINGS] 浏览器环境，使用 localStorage 加载')
       // 浏览器环境使用 localStorage
       settingsJson = localStorage.getItem('video_crawler_settings')
     }
 
+    console.log('[SETTINGS] 原始设置数据:', {
+      hasData: !!settingsJson,
+      dataLength: settingsJson?.length || 0,
+      dataPreview: settingsJson ? settingsJson.substring(0, 200) + '...' : null,
+      timestamp: Date.now()
+    })
+
     if (settingsJson) {
       try {
         const loaded = JSON.parse(settingsJson)
+        console.log('[SETTINGS] 解析设置数据成功:', {
+          loaded,
+          virtualCursorEnabled: loaded.virtualCursorEnabled,
+          virtualCursorTipsShown: loaded.virtualCursorTipsShown,
+          timestamp: Date.now()
+        })
+        
         // 合并默认设置，确保新增字段有默认值
         settings.value = {
           ...defaultSettings,
@@ -151,14 +168,28 @@ export const useSettingsStore = defineStore('settings', () => {
           virtualCursorEnabled: loaded.virtualCursorEnabled !== undefined ? loaded.virtualCursorEnabled : true,
           virtualCursorTipsShown: loaded.virtualCursorTipsShown !== undefined ? loaded.virtualCursorTipsShown : false,
         }
+        
+        console.log('[SETTINGS] 设置合并完成:', {
+          finalSettings: settings.value,
+          virtualCursorEnabled: settings.value.virtualCursorEnabled,
+          virtualCursorTipsShown: settings.value.virtualCursorTipsShown,
+          timestamp: Date.now()
+        })
       } catch (e) {
-        console.error('Failed to parse settings:', e)
+        console.log('[SETTINGS] 解析设置失败，使用默认设置:', e)
         settings.value = { ...defaultSettings }
         await saveSettings() // 保存默认设置到缓存
       }
     } else {
+      console.log('[SETTINGS] 首次加载，使用默认设置')
       // 首次加载，使用默认设置
       settings.value = { ...defaultSettings }
+      console.log('[SETTINGS] 默认设置:', {
+        defaultSettings,
+        virtualCursorEnabled: settings.value.virtualCursorEnabled,
+        virtualCursorTipsShown: settings.value.virtualCursorTipsShown,
+        timestamp: Date.now()
+      })
       await saveSettings()
     }
 
