@@ -353,6 +353,25 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 showLoading(false);
                 try { CookieManager.getInstance().flush(); } catch (Exception ignored) {}
+                
+                android.util.Log.d("MainActivity", "页面加载完成: " + url);
+                
+                // 页面加载完成后，注入一些必要的 JavaScript
+                String js = "console.log('页面加载完成，JavaScript 环境已就绪');";
+                view.evaluateJavascript(js, null);
+                
+                // 测试 JavaScript 注入是否正常工作
+                String testJs = "console.log('[ANDROID_INJECT] 页面加载完成，测试 JavaScript 注入');";
+                view.evaluateJavascript(testJs, null);
+                
+                // 添加一个全局的按键事件测试函数
+                String testFunctionJs = 
+                    "window.testAndroidKeyInjection = function() {" +
+                    "  console.log('[ANDROID_INJECT] 测试函数被调用');" +
+                    "  return 'JavaScript 注入测试成功';" +
+                    "};" +
+                    "console.log('[ANDROID_INJECT] 测试函数已注册');";
+                view.evaluateJavascript(testFunctionJs, null);
             }
         });
 
@@ -919,6 +938,11 @@ public class MainActivity extends AppCompatActivity {
             String keyName = getKeyName(keyCode);
             if (keyName != null) {
                 android.util.Log.d("MainActivity", "Injecting key event via JavaScript: " + keyName);
+                
+                // 先测试 JavaScript 是否能正常执行
+                String testJs = "console.log('[ANDROID_INJECT] JavaScript 测试注入成功');";
+                webView.evaluateJavascript(testJs, null);
+                
                 // 直接创建并分发 KeyboardEvent
                 String js = String.format(
                     "try {" +
@@ -966,6 +990,11 @@ public class MainActivity extends AppCompatActivity {
             String keyName = getKeyName(keyCode);
             if (keyName != null) {
                 android.util.Log.d("MainActivity", "Injecting key up event via JavaScript: " + keyName);
+                
+                // 先测试 JavaScript 是否能正常执行
+                String testJs = "console.log('[ANDROID_INJECT] JavaScript 测试注入成功 (keyup)');";
+                webView.evaluateJavascript(testJs, null);
+                
                 // 直接创建并分发 KeyboardEvent
                 String js = String.format(
                     "try {" +
