@@ -3,6 +3,9 @@
 type Vec2 = { x: number; y: number }
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v))
+// 静默日志：将本文件中的所有 [VM] 调试输出置空
+// 统一使用 vmLog，便于后续按需开启
+const vmLog = (..._args: any[]) => {}
 
 export interface VirtualMouseOptions {
   // 初始速度（像素/秒）
@@ -62,6 +65,8 @@ export class VirtualMouse {
     const el = document.createElement('div')
     el.setAttribute('data-virtual-mouse', 'true')
     const size = this.opts.cursorSize
+    // 注入光标呼吸动画样式
+    this.injectCursorAnimationStyle()
     el.style.cssText = [
       'position:fixed',
       `width:${size}px`,
@@ -71,14 +76,32 @@ export class VirtualMouse {
       'z-index:2147483647',
       'background:#10b981',
       'border:2px solid #ffffff',
-      'box-shadow:0 0 8px rgba(16,185,129,0.6)',
+      // 初始阴影，动画会在此基础上呼吸
+      'box-shadow:0 0 10px rgba(16,185,129,0.55), 0 0 0 0 rgba(16,185,129,0.25)',
       'transform:translate(-50%, -50%)',
       'opacity:0',
       'transition: background-color 120ms ease, opacity 250ms ease',
+      // 呼吸动画
+      'animation: vm-breathe 2.2s ease-in-out infinite',
       'mix-blend-mode: normal',
     ].join(';')
     document.body.appendChild(el)
     return el
+  }
+
+  // 注入虚拟光标呼吸动画 keyframes（仅一次）
+  private injectCursorAnimationStyle() {
+    if (document.getElementById('vm-cursor-anim-style')) return
+    const s = document.createElement('style')
+    s.id = 'vm-cursor-anim-style'
+    s.textContent = `
+      @keyframes vm-breathe {
+        0% { box-shadow: 0 0 10px rgba(16,185,129,0.55), 0 0 0 0 rgba(16,185,129,0.25); }
+        50% { box-shadow: 0 0 14px rgba(16,185,129,0.85), 0 0 0 8px rgba(16,185,129,0.12); }
+        100% { box-shadow: 0 0 10px rgba(16,185,129,0.55), 0 0 0 0 rgba(16,185,129,0.25); }
+      }
+    `
+    try { document.head.appendChild(s) } catch {}
   }
 
   private setCursorPos(p: Vec2) {
@@ -98,6 +121,7 @@ export class VirtualMouse {
     // 检查是否需要触发hover事件
     const lastElement = this.lastHoveredElement
     if (lastElement !== element) {
+      // 记录并清理上一个元素（由事件自身负责样式）
       // 触发mouseleave事件
       if (lastElement) {
         const leaveEvent = new MouseEvent('mouseleave', {
@@ -151,12 +175,6 @@ export class VirtualMouse {
       element.dispatchEvent(moveEvent)
       
       this.lastHoveredElement = element
-      
-      console.log('[VM] 虚拟光标hover事件:', {
-        element: element.tagName,
-        pos: { x: pos.x, y: pos.y },
-        timestamp: Date.now()
-      })
     } else if (element) {
       // 即使元素没有变化，也触发mousemove事件来保持hover状态
       const moveEvent = new MouseEvent('mousemove', {
@@ -169,6 +187,8 @@ export class VirtualMouse {
     }
   }
 
+  // 已移除伪 hover 样式与类名映射，仅保留事件分发以触发组件自身的 hover 逻辑
+
 
 
   // 设置鼠标样式为虚拟光标样式
@@ -180,7 +200,17 @@ export class VirtualMouse {
     // 创建 SVG 数据 URL
     const svg = `
       <svg width="${cursorSize}" height="${cursorSize}" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-2}" fill="${cursorColor}" stroke="${borderColor}" stroke-width="2"/>
+        <defs>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="1.8" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-2}"
+                fill="${cursorColor}" stroke="${borderColor}" stroke-width="2" filter="url(#glow)"/>
         <circle cx="${cursorSize/2}" cy="${cursorSize/2}" r="${cursorSize/2-4}" fill="${cursorColor}"/>
       </svg>
     `
@@ -208,7 +238,7 @@ export class VirtualMouse {
     
     document.head.appendChild(style)
     
-    console.log('[VM] 设置全局鼠标样式为虚拟光标样式')
+    vmLog('[VM] 设置全局鼠标样式为虚拟光标样式')
   }
 
   // 设置鼠标样式为透明（隐藏鼠标）
@@ -216,13 +246,16 @@ export class VirtualMouse {
     // 直接设置为none，完全隐藏鼠标光标
     document.body.style.cursor = 'none'
     
+    // 注入全局样式，隐藏所有元素上的系统光标（包含手指/禁用等所有变体）
+    this.ensureHideSystemCursorStyle()
+
     // 移除虚拟光标样式表
     const style = document.getElementById('virtual-mouse-cursor-style')
     if (style) {
       style.remove()
     }
     
-    console.log('[VM] 设置鼠标样式为透明（none）')
+    vmLog('[VM] 设置鼠标样式为透明（none）')
   }
 
   // 恢复默认鼠标样式
@@ -234,8 +267,36 @@ export class VirtualMouse {
     if (style) {
       style.remove()
     }
+    const hideStyle = document.getElementById('vm-hide-system-cursor')
+    if (hideStyle) {
+      hideStyle.remove()
+    }
     
-    console.log('[VM] 恢复默认鼠标样式')
+    vmLog('[VM] 恢复默认鼠标样式')
+  }
+
+  // 确保隐藏系统光标样式存在；若被路由切换/框架重渲染移除，自动补回
+  private ensureHideSystemCursorStyle() {
+    if (!document.getElementById('vm-hide-system-cursor')) {
+      const style = document.createElement('style')
+      style.id = 'vm-hide-system-cursor'
+      style.textContent = `* { cursor: none !important; }`
+      try { document.head.appendChild(style) } catch {}
+    }
+    // 处理同源 iframe
+    const iframes = Array.from(document.querySelectorAll('iframe')) as HTMLIFrameElement[]
+    for (const f of iframes) {
+      try {
+        const doc = f.contentDocument
+        if (!doc) continue
+        if (!doc.getElementById('vm-hide-system-cursor')) {
+          const s = doc.createElement('style')
+          s.id = 'vm-hide-system-cursor'
+          s.textContent = `* { cursor: none !important; }`
+          doc.head?.appendChild(s)
+        }
+      } catch {}
+    }
   }
 
   private updateVelocity() {
@@ -291,7 +352,7 @@ export class VirtualMouse {
     const stack = new Error().stack
     const callerInfo = stack?.split('\n')[2]?.trim() || 'unknown'
     
-    console.log('[VM][registerActivity] 触发显示原因:', {
+    vmLog('[VM][registerActivity] 触发显示原因:', {
       hiddenByInputFocus: this.hiddenByInputFocus,
       hiddenByInactivity: this.hiddenByInactivity,
       currentOpacity: this.cursor.style.opacity,
@@ -301,10 +362,10 @@ export class VirtualMouse {
     
     // 若由输入框隐藏则不显示
     if (!this.hiddenByInputFocus) {
-      console.log('[VM][registerActivity] 显示光标 (非输入框隐藏状态)')
+      vmLog('[VM][registerActivity] 显示光标 (非输入框隐藏状态)')
       this.showCursor(250)
     } else {
-      console.log('[VM][registerActivity] 跳过显示 (输入框隐藏状态)')
+      vmLog('[VM][registerActivity] 跳过显示 (输入框隐藏状态)')
     }
     
     // 重置 10s 无操作隐藏
@@ -312,17 +373,17 @@ export class VirtualMouse {
     this.inactivityTimer = window.setTimeout(() => {
       // 仅当没有方向键按住时才隐藏
       if (!(this.held['ArrowLeft'] || this.held['ArrowRight'] || this.held['ArrowUp'] || this.held['ArrowDown'])) {
-        console.log('[VM][registerActivity] 设置无操作隐藏定时器 (10s)')
+        vmLog('[VM][registerActivity] 设置无操作隐藏定时器 (10s)')
         this.hideCursor(1000, 'inactivity')
       } else {
-        console.log('[VM][registerActivity] 跳过无操作隐藏 (方向键按住中)')
+        vmLog('[VM][registerActivity] 跳过无操作隐藏 (方向键按住中)')
       }
     }, this.inactivityMs)
 
     // 首次使用事件（供外部弹窗提示）
     if (!(window as any).__vmFirstUseNotified) {
       (window as any).__vmFirstUseNotified = true
-      console.log('[VM][registerActivity] 触发首次使用事件')
+      vmLog('[VM][registerActivity] 触发首次使用事件')
       try { window.dispatchEvent(new CustomEvent('virtual-mouse-first-use')) } catch {}
     }
   }
@@ -404,7 +465,7 @@ export class VirtualMouse {
 
     // 调试日志：按键与状态
     try {
-      console.log('[VM][keydown] 按键按下:', { 
+      vmLog('[VM][keydown] 按键按下:', { 
         key: e.key, 
         normKey, 
         repeat: e.repeat, 
@@ -417,7 +478,7 @@ export class VirtualMouse {
 
     // Enter：在非输入模式下触发鼠标点击
     if (normKey === 'Enter' && !isEditable) {
-      console.log('[VM][keydown] Enter 键触发点击:', {
+      vmLog('[VM][keydown] Enter 键触发点击:', {
         pos: { ...this.pos },
         targetElement: document.elementFromPoint(this.pos.x, this.pos.y)?.tagName,
         timestamp: Date.now()
@@ -431,14 +492,14 @@ export class VirtualMouse {
         el.dispatchEvent(new MouseEvent('click', ev))
       }
       // 不调用 registerActivity，避免虚拟光标被隐藏
-      console.log('[VM][keydown] Enter 键点击完成，不触发 registerActivity')
+      vmLog('[VM][keydown] Enter 键点击完成，不触发 registerActivity')
       return
     }
 
     // 输入聚焦时：方向键不接管，仅处理 Esc 退出并显示光标
     if (isEditable) {
       if (normKey === 'Escape') {
-        console.log('[VM][keydown] 输入框退出键 (Esc):', {
+        vmLog('[VM][keydown] 输入框退出键 (Esc):', {
           normKey,
           activeElement: active?.tagName,
           timestamp: Date.now()
@@ -447,7 +508,7 @@ export class VirtualMouse {
         try { active?.blur() } catch {}
         this.showCursor(250)
       } else {
-        console.log('[VM][keydown] 输入框内按键，跳过处理:', {
+        vmLog('[VM][keydown] 输入框内按键，跳过处理:', {
           normKey,
           activeElement: active?.tagName,
           timestamp: Date.now()
@@ -456,7 +517,7 @@ export class VirtualMouse {
       return
     }
     if (normKey === 'ArrowLeft' || normKey === 'ArrowRight' || normKey === 'ArrowUp' || normKey === 'ArrowDown') {
-      console.log('[VM][keydown] 方向键移动:', {
+      vmLog('[VM][keydown] 方向键移动:', {
         normKey,
         repeat: e.repeat,
         held: { ...this.held },
@@ -470,13 +531,13 @@ export class VirtualMouse {
       // keydown 仅用于移动，双击滚动改由 keyup 识别，更稳定
       this.held[normKey] = true
       this.updateVelocity()
-      try { console.log('[VM] move update', { held: { ...this.held }, vel: { ...this.vel }, speed: this.speed }) } catch {}
+      try { vmLog('[VM] move update', { held: { ...this.held }, vel: { ...this.vel }, speed: this.speed }) } catch {}
       
       // 进入键盘控制模式
       if (!this.isKeyboardMode) {
         this.isKeyboardMode = true
         this.setTransparentCursorStyle()
-        console.log('[VM][keydown] 进入键盘控制模式，隐藏鼠标光标')
+        vmLog('[VM][keydown] 进入键盘控制模式，隐藏鼠标光标')
       }
       
       // 如果虚拟光标被鼠标隐藏，在鼠标最后位置显示
@@ -486,7 +547,7 @@ export class VirtualMouse {
         this.pos.y = this.lastMousePos.y
         this.setCursorPos(this.pos)
         this.showCursor(250)
-        console.log('[VM][keydown] 方向键触发，在鼠标最后位置显示虚拟光标:', this.lastMousePos)
+        vmLog('[VM][keydown] 方向键触发，在鼠标最后位置显示虚拟光标:', this.lastMousePos)
       } else {
         this.showCursor(250)
       }
@@ -494,12 +555,12 @@ export class VirtualMouse {
       // 确保触发hover事件
       this.triggerVirtualMouseEvents(this.pos)
       
-      console.log('[VM][keydown] 方向键触发 registerActivity')
+      vmLog('[VM][keydown] 方向键触发 registerActivity')
       this.registerActivity()
     }
     // AndroidTV 返回键兼容（仅在非输入框状态下处理）
     if (normKey === 'Backspace' || normKey === 'BrowserBack') {
-      console.log('[VM][keydown] AndroidTV 返回键:', {
+      vmLog('[VM][keydown] AndroidTV 返回键:', {
         normKey,
         activeElement: document.activeElement?.tagName,
         isEditable,
@@ -508,13 +569,13 @@ export class VirtualMouse {
       
       // 如果在输入框中，让 Backspace 正常处理（删除文本）
       if (isEditable) {
-        console.log('[VM][keydown] 输入框中的 Backspace，允许正常删除文本')
+        vmLog('[VM][keydown] 输入框中的 Backspace，允许正常删除文本')
         return // 不阻止默认行为，让 Backspace 正常删除文本
       }
       
       // 非输入框状态：处理返回逻辑
       e.preventDefault(); e.stopPropagation()
-      console.log('[VM][keydown] 非输入框返回键，触发返回事件')
+      vmLog('[VM][keydown] 非输入框返回键，触发返回事件')
       // 非输入态：尽量不影响页面路由，交由业务自行处理返回
       // 这里仅发出一个事件供业务层监听
       try { window.dispatchEvent(new CustomEvent('virtual-mouse-back')) } catch {}
@@ -560,7 +621,7 @@ export class VirtualMouse {
         this.keyUpCount[normKey] = 1
       }
       try { 
-        console.log('[VM][keyup] 方向键释放:', { 
+        vmLog('[VM][keyup] 方向键释放:', { 
           normKey, 
           interval, 
           count: this.keyUpCount[normKey],
@@ -573,7 +634,7 @@ export class VirtualMouse {
         if (normKey === 'ArrowUp' || normKey === 'ArrowDown') {
           const delta = Math.round(window.innerHeight * 0.6) * (normKey === 'ArrowDown' ? 1 : -1)
           try { 
-            console.log('[VM] 垂直双击滚动触发:', { 
+            vmLog('[VM] 垂直双击滚动触发:', { 
               normKey, 
               delta, 
               interval,
@@ -585,7 +646,7 @@ export class VirtualMouse {
         } else if (normKey === 'ArrowLeft' || normKey === 'ArrowRight') {
           const deltaX = Math.round(window.innerWidth * 0.6) * (normKey === 'ArrowRight' ? 1 : -1)
           try { 
-            console.log('[VM] 水平双击滚动触发:', { 
+            vmLog('[VM] 水平双击滚动触发:', { 
               normKey, 
               deltaX, 
               interval,
@@ -600,7 +661,7 @@ export class VirtualMouse {
         this.keyUpCount[normKey] = 0
       } else {
         try {
-          console.log('[VM][keyup] 双击滚动未触发:', {
+          vmLog('[VM][keyup] 双击滚动未触发:', {
             normKey,
             interval,
             count: this.keyUpCount[normKey],
@@ -610,17 +671,17 @@ export class VirtualMouse {
           })
         } catch {}
       }
-      console.log('[VM][keyup] 方向键释放触发 registerActivity')
+      vmLog('[VM][keyup] 方向键释放触发 registerActivity')
       this.registerActivity()
     }
   }
 
   enable() {
     if (this.enabled) {
-      console.log('[VM][enable] 虚拟光标已启用，跳过')
+      vmLog('[VM][enable] 虚拟光标已启用，跳过')
       return
     }
-    console.log('[VM][enable] 启用虚拟光标:', {
+    vmLog('[VM][enable] 启用虚拟光标:', {
       opts: this.opts,
       initialPos: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
       timestamp: Date.now()
@@ -630,8 +691,15 @@ export class VirtualMouse {
     this.pos = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
     this.setCursorPos(this.pos)
     
-    // 设置鼠标样式为虚拟光标样式
-    this.setVirtualCursorStyle()
+    // 使用自定义虚拟光标作为鼠标指针：隐藏系统鼠标
+    this.setTransparentCursorStyle()
+    // 观察 <head> 变化，若样式被移除（热更新/路由切换），自动补回
+    try {
+      const head = document.head
+      const mo = new MutationObserver(() => this.ensureHideSystemCursorStyle())
+      mo.observe(head, { childList: true, subtree: false })
+      ;(this as any)._vmHeadObserver = mo
+    } catch {}
     
 
     
@@ -654,10 +722,10 @@ export class VirtualMouse {
 
   disable() {
     if (!this.enabled) {
-      console.log('[VM][disable] 虚拟光标未启用，跳过')
+      vmLog('[VM][disable] 虚拟光标未启用，跳过')
       return
     }
-    console.log('[VM][disable] 禁用虚拟光标:', {
+    vmLog('[VM][disable] 禁用虚拟光标:', {
       timestamp: Date.now()
     })
     this.enabled = false
@@ -682,6 +750,8 @@ export class VirtualMouse {
     
     // 恢复默认鼠标样式
     this.restoreDefaultCursorStyle()
+    // 断开观察器
+    try { (this as any)._vmHeadObserver?.disconnect?.() } catch {}
     
     // 清理hover状态
     this.lastHoveredElement = null
@@ -692,15 +762,6 @@ export class VirtualMouse {
   }
 
   private hideCursor(durationMs: number, reason: 'input' | 'inactivity' | 'mouse') {
-    console.log('[VM][hideCursor] 隐藏光标:', {
-      reason,
-      durationMs,
-      hiddenByInputFocus: this.hiddenByInputFocus,
-      hiddenByInactivity: this.hiddenByInactivity,
-      hiddenByMouse: this.hiddenByMouse,
-      timestamp: Date.now()
-    })
-    
     if (reason === 'input') this.hiddenByInputFocus = true
     if (reason === 'inactivity') this.hiddenByInactivity = true
     if (reason === 'mouse') this.hiddenByMouse = true
@@ -710,7 +771,7 @@ export class VirtualMouse {
     this.cursor.style.opacity = '0'
   }
   private showCursor(durationMs: number) {
-    console.log('[VM][showCursor] 显示光标:', {
+    vmLog('[VM][showCursor] 显示光标:', {
       durationMs,
       hiddenByInputFocus: this.hiddenByInputFocus,
       hiddenByInactivity: this.hiddenByInactivity,
@@ -720,11 +781,11 @@ export class VirtualMouse {
     
     this.hiddenByInactivity = false
     if (this.hiddenByInputFocus) {
-      console.log('[VM][showCursor] 跳过显示 (输入框隐藏状态)')
+      vmLog('[VM][showCursor] 跳过显示 (输入框隐藏状态)')
       return // 输入态仍保持隐藏
     }
     if (this.hiddenByMouse) {
-      console.log('[VM][showCursor] 跳过显示 (鼠标隐藏状态)')
+      vmLog('[VM][showCursor] 跳过显示 (鼠标隐藏状态)')
       return // 鼠标活动时保持隐藏
     }
     this.cursor.style.transition = `background-color 120ms ease, opacity ${durationMs}ms ease`
@@ -735,7 +796,7 @@ export class VirtualMouse {
     const t = e.target as HTMLElement | null
     if (!t) return
     const isEditable = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.getAttribute('contenteditable') === 'true'
-    console.log('[VM][onFocusIn] 焦点进入:', {
+    vmLog('[VM][onFocusIn] 焦点进入:', {
       tagName: t.tagName,
       isEditable,
       timestamp: Date.now()
@@ -749,7 +810,7 @@ export class VirtualMouse {
     if (!t) return
     const isEditable = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.getAttribute('contenteditable') === 'true'
     
-    console.log('[VM][onFocusOut] 焦点离开:', {
+    vmLog('[VM][onFocusOut] 焦点离开:', {
       tagName: t.tagName,
       isEditable,
       timestamp: Date.now()
@@ -768,7 +829,7 @@ export class VirtualMouse {
     if (!(e instanceof KeyboardEvent)) return
     
     const ke = e as KeyboardEvent
-    console.log('[VM][GLOBAL_KEY] 物理按键检测:', {
+    vmLog('[VM][GLOBAL_KEY] 物理按键检测:', {
       key: ke.key,
       code: ke.code,
       keyCode: ke.keyCode,
@@ -801,13 +862,13 @@ export class VirtualMouse {
           ke.metaKey
         )
       } catch (error) {
-        console.log('[VM][GLOBAL_KEY] Android 按键事件发送失败:', error)
+        vmLog('[VM][GLOBAL_KEY] Android 按键事件发送失败:', error)
       }
     }
   }
 
   private addGlobalKeyLogger() {
-    console.log('[VM] 添加全局按键监听器')
+    vmLog('[VM] 添加全局按键监听器')
     
     // 监听多种事件类型，包括可能的 Android 事件
     const events = ['keydown', 'keyup', 'keypress', 'input', 'beforeinput']
@@ -826,17 +887,17 @@ export class VirtualMouse {
     
     // Android 按键事件注入接口（由 Android 端直接调用）
     if ((window as any).AndroidKeyEvent) {
-      console.log('[VM] Android 按键事件接口已可用')
+      vmLog('[VM] Android 按键事件接口已可用')
     }
     
     // 测试监听器是否正常工作
-    console.log('[VM] 全局按键监听器已添加，监听事件类型:', events.concat(androidEvents))
-    console.log('[VM] 请按任意键测试，如果看不到日志，可能是 Android 系统拦截了按键事件')
+    vmLog('[VM] 全局按键监听器已添加，监听事件类型:', events.concat(androidEvents))
+    vmLog('[VM] 请按任意键测试，如果看不到日志，可能是 Android 系统拦截了按键事件')
   }
 
   // 新增：添加鼠标事件监听器
   private addMouseEventListeners() {
-    console.log('[VM] 添加鼠标事件监听器')
+    vmLog('[VM] 添加鼠标事件监听器')
     
     // 监听所有鼠标事件
     const mouseEvents = [
@@ -857,48 +918,38 @@ export class VirtualMouse {
       window.addEventListener(eventType, this.onMouseActivity, { passive: true })
     })
     
-    console.log('[VM] 鼠标事件监听器已添加，监听事件类型:', mouseEvents.concat(touchEvents))
+    vmLog('[VM] 鼠标事件监听器已添加，监听事件类型:', mouseEvents.concat(touchEvents))
   }
 
-  // 新增：鼠标活动处理
+  // 新增：鼠标活动处理（用虚拟光标跟随鼠标，实现与键盘一致的视觉）
   private onMouseActivity = (e: Event) => {
     // 检查是否是由虚拟鼠标系统触发的事件
     if (e instanceof MouseEvent && e.detail === 0 && e.isTrusted === false) {
-      console.log('[VM] 检测到虚拟鼠标事件，跳过隐藏逻辑')
       return
     }
     
-    // 记录鼠标位置
+    // 跟随鼠标移动虚拟光标，并显示
     if (e instanceof MouseEvent) {
+      // 若鼠标移出可视区域，立即隐藏虚拟光标
+      const outOfViewport = (
+        e.clientX < 0 || e.clientY < 0 ||
+        e.clientX > window.innerWidth || e.clientY > window.innerHeight
+      )
+      if (outOfViewport) {
+        this.hideCursor(120, 'mouse')
+        return
+      }
       this.lastMousePos.x = e.clientX
       this.lastMousePos.y = e.clientY
-      console.log('[VM] 记录鼠标位置:', { x: e.clientX, y: e.clientY })
-    }
-    
-    // 清除鼠标无活动定时器
-    if (this.mouseActivityTimer) {
-      clearTimeout(this.mouseActivityTimer)
-      this.mouseActivityTimer = null
-    }
-    
-    // 退出键盘控制模式
-    if (this.isKeyboardMode) {
+      this.pos.x = e.clientX
+      this.pos.y = e.clientY
+      this.setCursorPos(this.pos)
+      this.showCursor(180)
       this.isKeyboardMode = false
-      this.setVirtualCursorStyle()
-      console.log('[VM] 检测到鼠标活动，退出键盘控制模式')
-    }
-    
-    // 如果虚拟光标未被鼠标隐藏，立即隐藏
-    if (!this.hiddenByMouse) {
-      this.hideCursor(250, 'mouse')
-      console.log('[VM] 检测到鼠标活动，隐藏虚拟光标')
-    }
-    
-    // 设置鼠标无活动定时器
-    this.mouseActivityTimer = window.setTimeout(() => {
       this.hiddenByMouse = false
-      console.log('[VM] 鼠标无活动超时，允许显示虚拟光标')
-    }, this.mouseInactivityMs)
+    }
+    // 不再基于鼠标活动隐藏虚拟光标，移除定时器
+    if (this.mouseActivityTimer) { clearTimeout(this.mouseActivityTimer); this.mouseActivityTimer = null }
   }
 
   // 同步虚拟光标位置到鼠标位置
@@ -908,7 +959,7 @@ export class VirtualMouse {
     this.pos.y = mouseY
     this.setCursorPos(this.pos)
     
-    console.log('[VM] 同步虚拟光标位置到鼠标:', {
+    vmLog('[VM] 同步虚拟光标位置到鼠标:', {
       mouseX,
       mouseY,
       virtualPos: { ...this.pos },
@@ -920,7 +971,7 @@ export class VirtualMouse {
 
   // 新增：移除鼠标事件监听器
   private removeMouseEventListeners() {
-    console.log('[VM] 移除鼠标事件监听器')
+    vmLog('[VM] 移除鼠标事件监听器')
     
     const mouseEvents = [
       'mousedown', 'mouseup', 'mousemove', 'mouseenter', 'mouseleave',
@@ -942,7 +993,7 @@ export class VirtualMouse {
   }
 
   private removeGlobalKeyLogger() {
-    console.log('[VM] 移除全局按键监听器')
+    vmLog('[VM] 移除全局按键监听器')
     
     // 移除所有事件监听器
     const events = ['keydown', 'keyup', 'keypress', 'input', 'beforeinput']
