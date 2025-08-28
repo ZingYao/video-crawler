@@ -985,32 +985,75 @@ public class MainActivity extends AppCompatActivity {
     private boolean handleBackKey() {
         long currentTime = System.currentTimeMillis();
         
-        // 先注入返回键事件到 WebView，让 JavaScript 有机会处理
+        // 先检查当前是否有输入框聚焦
         if (webView != null) {
-            // 注入返回键事件到 WebView
-            String js = String.format(
-                "try {" +
-                "  console.log('[ANDROID_INJECT] 开始注入返回键事件:', {keyCode: 4, key: 'Backspace'});" +
-                "  const event = new KeyboardEvent('keydown', {" +
-                "    key: 'Backspace'," +
-                "    code: 'KeyBackspace'," +
-                "    keyCode: 4," +
-                "    which: 4," +
-                "    bubbles: true," +
-                "    cancelable: true" +
-                "  });" +
-                "  console.log('[ANDROID_INJECT] 创建返回键事件对象:', event);" +
-                "  window.dispatchEvent(event);" +
-                "  document.dispatchEvent(event);" +
-                "  console.log('[ANDROID_INJECT] 返回键事件已分发');" +
-                "} catch (error) {" +
-                "  console.error('[ANDROID_INJECT] 返回键注入失败:', error);" +
-                "}"
-            );
-            webView.evaluateJavascript(js, null);
+            // 先检查焦点状态，再决定是否注入事件
+            String checkFocusBeforeJs = 
+                "(function() {" +
+                "  try {" +
+                "    const activeElement = document.activeElement;" +
+                "    const isEditable = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.tagName === 'SELECT' || activeElement.getAttribute('contenteditable') === 'true');" +
+                "    console.log('[ANDROID_CHECK] 注入前检查焦点状态:', {activeElement: activeElement?.tagName, isEditable: isEditable});" +
+                "    return isEditable;" +
+                "  } catch (error) {" +
+                "    console.error('[ANDROID_CHECK] 注入前检查焦点失败:', error);" +
+                "    return false;" +
+                "  }" +
+                "})()";
             
-            // 延迟检查，给 JavaScript 时间处理事件
-            webView.postDelayed(() -> {
+            webView.evaluateJavascript(checkFocusBeforeJs, result -> {
+                android.util.Log.d("MainActivity", "注入前焦点检查结果: " + result);
+                boolean hasEditableFocus = "true".equals(result);
+                
+                if (hasEditableFocus) {
+                    android.util.Log.d("MainActivity", "检测到输入框聚焦，只注入事件，不执行 Android 返回逻辑");
+                    // 只注入事件，不执行后续的 Android 返回逻辑
+                    String js = String.format(
+                        "try {" +
+                        "  console.log('[ANDROID_INJECT] 开始注入返回键事件:', {keyCode: 4, key: 'Backspace'});" +
+                        "  const event = new KeyboardEvent('keydown', {" +
+                        "    key: 'Backspace'," +
+                        "    code: 'KeyBackspace'," +
+                        "    keyCode: 4," +
+                        "    which: 4," +
+                        "    bubbles: true," +
+                        "    cancelable: true" +
+                        "  });" +
+                        "  console.log('[ANDROID_INJECT] 创建返回键事件对象:', event);" +
+                        "  window.dispatchEvent(event);" +
+                        "  document.dispatchEvent(event);" +
+                        "  console.log('[ANDROID_INJECT] 返回键事件已分发');" +
+                        "} catch (error) {" +
+                        "  console.error('[ANDROID_INJECT] 返回键注入失败:', error);" +
+                        "}"
+                    );
+                    webView.evaluateJavascript(js, null);
+                } else {
+                    android.util.Log.d("MainActivity", "没有输入框聚焦，注入事件并执行 Android 返回逻辑");
+                    // 注入事件
+                    String js = String.format(
+                        "try {" +
+                        "  console.log('[ANDROID_INJECT] 开始注入返回键事件:', {keyCode: 4, key: 'Backspace'});" +
+                        "  const event = new KeyboardEvent('keydown', {" +
+                        "    key: 'Backspace'," +
+                        "    code: 'KeyBackspace'," +
+                        "    keyCode: 4," +
+                        "    which: 4," +
+                        "    bubbles: true," +
+                        "    cancelable: true" +
+                        "  });" +
+                        "  console.log('[ANDROID_INJECT] 创建返回键事件对象:', event);" +
+                        "  window.dispatchEvent(event);" +
+                        "  document.dispatchEvent(event);" +
+                        "  console.log('[ANDROID_INJECT] 返回键事件已分发');" +
+                        "} catch (error) {" +
+                        "  console.error('[ANDROID_INJECT] 返回键注入失败:', error);" +
+                        "}"
+                    );
+                    webView.evaluateJavascript(js, null);
+                    
+                    // 延迟检查，给 JavaScript 时间处理事件
+                    webView.postDelayed(() -> {
                 android.util.Log.d("MainActivity", "延迟检查开始 - 检查 WebView 历史记录和 JavaScript 处理结果");
                 
                 // 检查 WebView 是否能处理返回键（通过检查是否有历史记录）
