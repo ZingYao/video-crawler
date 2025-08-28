@@ -985,7 +985,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean handleBackKey() {
         long currentTime = System.currentTimeMillis();
         
-        // 先尝试让 WebView 处理返回键
+        // 先注入返回键事件到 WebView，让 JavaScript 有机会处理
         if (webView != null) {
             // 注入返回键事件到 WebView
             String js = String.format(
@@ -1009,27 +1009,30 @@ public class MainActivity extends AppCompatActivity {
             );
             webView.evaluateJavascript(js, null);
             
-            // 检查 WebView 是否能处理返回键（通过检查是否有历史记录）
-            if (webView.canGoBack()) {
-                android.util.Log.d("MainActivity", "WebView 可以返回，让 WebView 处理");
-                webView.goBack();
-                return true;
-            }
+            // 延迟检查，给 JavaScript 时间处理事件
+            webView.postDelayed(() -> {
+                // 检查 WebView 是否能处理返回键（通过检查是否有历史记录）
+                if (webView.canGoBack()) {
+                    android.util.Log.d("MainActivity", "WebView 可以返回，让 WebView 处理");
+                    webView.goBack();
+                } else {
+                    // WebView 无法处理返回键，检查是否需要退出应用
+                    if (currentTime - lastBackPressTime < BACK_PRESS_INTERVAL) {
+                        // 第二次按返回键，退出应用
+                        android.util.Log.d("MainActivity", "第二次按返回键，退出应用");
+                        finish();
+                    } else {
+                        // 第一次按返回键，显示提示
+                        android.util.Log.d("MainActivity", "第一次按返回键，显示退出提示");
+                        lastBackPressTime = currentTime;
+                        android.widget.Toast.makeText(this, "再按一次返回键退出应用", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }, 100); // 延迟100ms给JavaScript处理时间
         }
         
-        // WebView 无法处理返回键，检查是否需要退出应用
-        if (currentTime - lastBackPressTime < BACK_PRESS_INTERVAL) {
-            // 第二次按返回键，退出应用
-            android.util.Log.d("MainActivity", "第二次按返回键，退出应用");
-            finish();
-            return true;
-        } else {
-            // 第一次按返回键，显示提示
-            android.util.Log.d("MainActivity", "第一次按返回键，显示退出提示");
-            lastBackPressTime = currentTime;
-            android.widget.Toast.makeText(this, "再按一次返回键退出应用", android.widget.Toast.LENGTH_SHORT).show();
-            return true;
-        }
+        // 总是返回 true，阻止默认的返回键行为
+        return true;
     }
 
     @Override
