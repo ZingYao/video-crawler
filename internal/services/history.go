@@ -132,13 +132,21 @@ func (s *historyService) AddSearchHistory(ctx *gin.Context, userEntity *entities
 		}
 	}
 
-	// 最多保留 50 条记录（先进先出）
-	if len(searchHistoryList) >= 50 {
-		searchHistoryList = searchHistoryList[1:]
-		logger.CtxLogger(ctx).Info("Removed oldest search history record due to limit")
+	// 去重：若存在相同 keyword（当提供 sourceId 时还需相同 sourceId），移除旧记录
+	filtered := make([]entities.SearchHistory, 0, len(searchHistoryList))
+	for _, h := range searchHistoryList {
+		same := false
+		if sourceId != "" {
+			same = h.Keyword == keyword && h.SourceId == sourceId
+		} else {
+			same = h.Keyword == keyword
+		}
+		if !same {
+			filtered = append(filtered, h)
+		}
 	}
 
-	// 添加新记录
+	// 创建新记录并插入到最前，保证最新在顶部
 	history := entities.SearchHistory{
 		Id:        uuid.New().String(),
 		UserId:    userEntity.Id,
@@ -146,7 +154,13 @@ func (s *historyService) AddSearchHistory(ctx *gin.Context, userEntity *entities
 		SourceId:  sourceId,
 		CreatedAt: time.Now(),
 	}
-	searchHistoryList = append(searchHistoryList, history)
+	searchHistoryList = append([]entities.SearchHistory{history}, filtered...)
+
+	// 最多保留 50 条：截断超出的尾部
+	if len(searchHistoryList) > 50 {
+		searchHistoryList = searchHistoryList[:50]
+		logger.CtxLogger(ctx).Info("Trimmed search history to latest 50 records")
+	}
 
 	// 写回文件（原子覆盖）
 	content, err = json.Marshal(searchHistoryList)
@@ -162,6 +176,7 @@ func (s *historyService) AddSearchHistory(ctx *gin.Context, userEntity *entities
 	logger.CtxLogger(ctx).WithFields(logrus.Fields{
 		"history_id": history.Id,
 		"total":      len(searchHistoryList),
+		"action":     "upsert_to_top",
 	}).Info("Search history added successfully")
 
 	return nil
