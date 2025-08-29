@@ -379,8 +379,6 @@ public class MainActivity extends AppCompatActivity {
                 showLoading(false);
                 try { CookieManager.getInstance().flush(); } catch (Exception ignored) {}
                 Log.d("MainActivity", "onPageFinished: "+url);
-                // 保存当前URL到本地存储
-                saveLastUrl(url);
                 
                 // 延迟注入JavaScript来监听hash路由变化，确保页面完全加载
                 view.postDelayed(new Runnable() {
@@ -524,9 +522,12 @@ public class MainActivity extends AppCompatActivity {
         
         String current = webView.getUrl();
         if (current == null || !current.equals(targetUrl)) {
+            android.util.Log.d("MainActivity", "需要加载新URL: " + targetUrl + " (当前: " + current + ")");
             try { webView.stopLoading(); } catch (Exception ignored) {}
             webView.loadUrl(targetUrl);
             try { webView.clearHistory(); } catch (Exception ignored) {}
+        } else {
+            android.util.Log.d("MainActivity", "URL未变化，跳过加载: " + targetUrl);
         }
     }
 
@@ -706,9 +707,11 @@ public class MainActivity extends AppCompatActivity {
         return lastUrl;
     }
 
+    private boolean hashListenerInjected = false;
+    
     // 注入JavaScript来监听hash路由变化
     private void injectHashRouteListener() {
-        if (webView == null) return;
+        if (webView == null || hashListenerInjected) return;
         
         String js = "try {\n" +
                    "  var currentUrl = window.location.href;\n" +
@@ -765,6 +768,7 @@ public class MainActivity extends AppCompatActivity {
 
         try {
             webView.evaluateJavascript(js, null);
+            hashListenerInjected = true;
             android.util.Log.d("MainActivity", "Hash路由监听器注入成功");
         } catch (Exception e) {
             android.util.Log.e("MainActivity", "注入Hash路由监听器失败: " + e.getMessage());
@@ -774,7 +778,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        ensureServerRunningAndLoad();
+        // 只有在页面未加载时才重新加载
+        if (webView != null && (webView.getUrl() == null || webView.getUrl().isEmpty())) {
+            ensureServerRunningAndLoad();
+        }
     }
 
     private int getStatusBarHeight() { return 0; }

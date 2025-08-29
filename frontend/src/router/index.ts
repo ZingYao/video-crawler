@@ -89,8 +89,8 @@ const router = createRouter({
       meta: { requiresAuth: true, title: '观影' }
     },
     {
-      path: '/api-docs',
-      name: 'api-docs',
+      path: '/doc',
+      name: 'doc',
       component: ApiDocView,
       meta: { requiresAuth: false, requiresClient: true, title: 'API接口文档' }
     },

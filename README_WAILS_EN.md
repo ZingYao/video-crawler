@@ -42,7 +42,7 @@ make build-http
 
 ## API Docs (Wails menu)
 
-- Open the left menu “API Docs” or visit route `/api-docs`
+- Open the left menu “API Docs” or visit route `/doc`
 - Shows the current port; categorized API specs with body/response examples and curl/JS/Python snippets
 
 ## Config Files
