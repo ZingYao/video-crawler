@@ -6,7 +6,7 @@ const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(ma
 // 静默日志：将本文件中的所有 [VM] 调试输出置空
 // 统一使用 vmLog，便于后续按需开启
 const vmLog = (..._args: any[]) => {
-    console.log(..._args)
+    // console.log(..._args)
 }
 
 export interface VirtualMouseOptions {
@@ -625,9 +625,9 @@ export class VirtualMouse {
             // 进入键盘控制模式
             if (!this.isKeyboardMode) {
                 this.isKeyboardMode = true
-                // 临时关闭隐藏系统鼠标，便于对比位置差异
-                this.restoreDefaultCursorStyle()
-                vmLog('[VM][keydown] 进入键盘控制模式（暂不隐藏系统鼠标）')
+                // 键盘控制时隐藏系统鼠标
+                this.setTransparentCursorStyle()
+                vmLog('[VM][keydown] 进入键盘控制模式并隐藏系统鼠标')
             }
 
             // 如果虚拟光标被鼠标隐藏，在鼠标最后位置显示
@@ -783,7 +783,7 @@ export class VirtualMouse {
 
         // 使用自定义虚拟光标作为鼠标指针：隐藏系统鼠标
         // 临时关闭鼠标样式变更，便于观察物理鼠标与虚拟光标的差异
-        this.restoreDefaultCursorStyle()
+        this.setTransparentCursorStyle()
         // 观察 <head> 变化，若样式被移除（热更新/路由切换），自动补回
         try {
             const head = document.head
@@ -865,14 +865,14 @@ export class VirtualMouse {
         this.cursor.style.opacity = '0'
     }
     private showCursor(durationMs: number) {
-        // vmLog('[VM][showCursor] 显示光标:', {
-        //   durationMs,
-        //   hiddenByInputFocus: this.hiddenByInputFocus,
-        //   hiddenByInactivity: this.hiddenByInactivity,
-        //   hiddenByMouse: this.hiddenByMouse,
-        //   hiddenByTouch: this.hiddenByTouch,
-        //   timestamp: Date.now()
-        // })
+        vmLog('[VM][showCursor] 显示光标:', {
+          durationMs,
+          hiddenByInputFocus: this.hiddenByInputFocus,
+          hiddenByInactivity: this.hiddenByInactivity,
+          hiddenByMouse: this.hiddenByMouse,
+          hiddenByTouch: this.hiddenByTouch,
+          timestamp: Date.now()
+        })
 
         this.hiddenByInactivity = false
         if (this.hiddenByInputFocus) {
@@ -1067,6 +1067,8 @@ export class VirtualMouse {
                 } catch { }
             }
             this.setCursorPos(this.pos)
+            // 检测到物理鼠标，恢复系统鼠标显示
+            // this.restoreDefaultCursorStyle()
             this.showCursor(180)
             this.isKeyboardMode = false
             this.hiddenByMouse = false

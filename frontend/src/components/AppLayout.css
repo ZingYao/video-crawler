@@ -40,6 +40,14 @@
   width: 60px;
 }
 
+/* 基于 data-visible 显隐控制（供模板 :data-visible 绑定使用） */
+.sidebar[data-visible="false"] {
+  transform: translateX(-100%) !important;
+  visibility: hidden;
+  pointer-events: none;
+  width: 0;
+}
+
 /* 侧边栏头部 */
 .sidebar-header {
   padding: 20px;

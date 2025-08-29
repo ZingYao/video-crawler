@@ -4,8 +4,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-// typedef for Go function
+// typedef for Go functions
 typedef int (*StartServerFn)(char* baseDir, int port);
+typedef char* (*GetServerErrorFn)();
+typedef char* (*GetServerStatusFn)();
 
 static void ensure_dir(const char* path) {
     if (!path || !*path) return;
@@ -36,4 +38,42 @@ Java_com_zing_video_1crawler_MainActivity_startServer(JNIEnv* env, jobject thiz,
     dlclose(handle);
     if (base_c) (*env)->ReleaseStringUTFChars(env, baseDir, base_c);
     return (jint)actual;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_zing_video_1crawler_MainActivity_getServerError(JNIEnv* env, jobject thiz) {
+    void* handle = dlopen("libgo_video_crawler.so", RTLD_NOW);
+    if (!handle) {
+        return (*env)->NewStringUTF(env, "");
+    }
+    
+    GetServerErrorFn fn = (GetServerErrorFn)dlsym(handle, "GetServerError");
+    if (!fn) {
+        dlclose(handle);
+        return (*env)->NewStringUTF(env, "");
+    }
+    
+    char* error = fn();
+    jstring result = (*env)->NewStringUTF(env, error ? error : "");
+    dlclose(handle);
+    return result;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_zing_video_1crawler_MainActivity_getServerStatus(JNIEnv* env, jobject thiz) {
+    void* handle = dlopen("libgo_video_crawler.so", RTLD_NOW);
+    if (!handle) {
+        return (*env)->NewStringUTF(env, "not_started");
+    }
+    
+    GetServerStatusFn fn = (GetServerStatusFn)dlsym(handle, "GetServerStatus");
+    if (!fn) {
+        dlclose(handle);
+        return (*env)->NewStringUTF(env, "not_started");
+    }
+    
+    char* status = fn();
+    jstring result = (*env)->NewStringUTF(env, status ? status : "not_started");
+    dlclose(handle);
+    return result;
 }

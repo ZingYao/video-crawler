@@ -1,6 +1,9 @@
 <template>
   <AppLayout page-title="设置">
     <div class="settings-container">
+      <div class="global-hint">
+        提示：可点击各滑动条右侧的数值直接输入精准数值，按回车提交，Esc 取消。
+      </div>
       <div class="settings-section">
         <h2>播放控制</h2>
         
@@ -26,7 +29,23 @@
               @input="updatePlaybackSpeed"
               class="slider"
             />
-            <span class="value-display">{{ playbackSpeed }}x</span>
+            <template v-if="!isEditingPlayback">
+              <span class="value-display" @click="startPlaybackEdit">{{ playbackSpeed }}x</span>
+            </template>
+            <template v-else>
+              <input
+                type="number"
+                class="number-input"
+                min="0.5"
+                max="5.0"
+                step="0.1"
+                v-model.number="tempPlaybackSpeed"
+                @blur="commitPlaybackEdit"
+                @keyup.enter="commitPlaybackEdit"
+                @keyup.esc="cancelPlaybackEdit"
+                ref="playbackInputRef"
+              />
+            </template>
           </div>
         </div>
 
@@ -52,7 +71,23 @@
               @input="updateProgressSensitivity"
               class="slider"
             />
-            <span class="value-display">{{ progressSensitivity }}x</span>
+            <template v-if="!isEditingProgress">
+              <span class="value-display" @click="startProgressEdit">{{ progressSensitivity }}x</span>
+            </template>
+            <template v-else>
+              <input
+                type="number"
+                class="number-input"
+                min="0.1"
+                max="1.5"
+                step="0.1"
+                v-model.number="tempProgressSensitivity"
+                @blur="commitProgressEdit"
+                @keyup.enter="commitProgressEdit"
+                @keyup.esc="cancelProgressEdit"
+                ref="progressInputRef"
+              />
+            </template>
           </div>
         </div>
       </div>
@@ -82,17 +117,23 @@
               @change="onScaleChangeEnd"
               class="slider"
             />
-            <input
-              type="number"
-              class="number-input"
-              min="0.5"
-              max="1.5"
-              step="0.01"
-              v-model.number="pageScale"
-              @change="onScaleChangeEnd"
-              @keyup.enter="onScaleChangeEnd"
-            />
-            <span class="value-display">{{ pageScale.toFixed(2) }}x</span>
+            <template v-if="!isEditingScale">
+              <span class="value-display" @click="startScaleEdit">{{ pageScale.toFixed(2) }}x</span>
+            </template>
+            <template v-else>
+              <input
+                type="number"
+                class="number-input"
+                min="0.5"
+                max="1.5"
+                step="0.01"
+                v-model.number="tempPageScale"
+                @blur="commitScaleEdit"
+                @keyup.enter="commitScaleEdit"
+                @keyup.esc="cancelScaleEdit"
+                ref="scaleInputRef"
+              />
+            </template>
           </div>
         </div>
       </div>
@@ -194,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, h, nextTick } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import AppLayout from '@/components/AppLayout.vue'
 import type { SearchSite } from '@/stores/settings'
@@ -208,6 +249,15 @@ const settingsStore = useSettingsStore()
 const playbackSpeed = ref(2.0)
 const progressSensitivity = ref(0.7)
 const pageScale = ref(1)
+const isEditingScale = ref(false)
+const tempPageScale = ref(1)
+const isEditingPlayback = ref(false)
+const tempPlaybackSpeed = ref(2.0)
+const isEditingProgress = ref(false)
+const tempProgressSensitivity = ref(0.7)
+const scaleInputRef = ref<HTMLInputElement | null>(null)
+const playbackInputRef = ref<HTMLInputElement | null>(null)
+const progressInputRef = ref<HTMLInputElement | null>(null)
 
 // 计算属性
 const searchSites = computed(() => settingsStore.settings.searchSites)
@@ -228,6 +278,7 @@ onMounted(async () => {
   playbackSpeed.value = settingsStore.settings.longPressPlaybackSpeed
   progressSensitivity.value = settingsStore.settings.progressBarSensitivity
   pageScale.value = settingsStore.settings.pageScale ?? 1
+  tempPageScale.value = pageScale.value
 })
 
 // 更新播放倍速
@@ -261,6 +312,76 @@ const resetPageScale = async () => {
   await settingsStore.updatePageScale(pageScale.value)
   applyPageScale(pageScale.value)
 }
+
+// 点击数值进入编辑
+const startScaleEdit = () => {
+  tempPageScale.value = pageScale.value
+  isEditingScale.value = true
+  nextTick(() => { try { scaleInputRef.value?.focus() } catch {} })
+}
+// 提交编辑
+const commitScaleEdit = async () => {
+  let v = Number(tempPageScale.value)
+  if (isNaN(v)) v = pageScale.value
+  v = Math.max(0.5, Math.min(1.5, v))
+  pageScale.value = Number(v.toFixed(2))
+  isEditingScale.value = false
+  
+  // 退出输入框焦点
+  if (scaleInputRef.value) {
+    scaleInputRef.value.blur()
+  }
+  
+  await onScaleChangeEnd()
+}
+// 取消编辑
+const cancelScaleEdit = () => {
+  isEditingScale.value = false
+}
+
+// 播放倍速编辑
+const startPlaybackEdit = () => {
+  tempPlaybackSpeed.value = playbackSpeed.value
+  isEditingPlayback.value = true
+  nextTick(() => { try { playbackInputRef.value?.focus() } catch {} })
+}
+const commitPlaybackEdit = async () => {
+  let v = Number(tempPlaybackSpeed.value)
+  if (isNaN(v)) v = playbackSpeed.value
+  v = Math.max(0.5, Math.min(5.0, v))
+  playbackSpeed.value = Number(v.toFixed(1))
+  isEditingPlayback.value = false
+  
+  // 退出输入框焦点
+  if (playbackInputRef.value) {
+    playbackInputRef.value.blur()
+  }
+  
+  await updatePlaybackSpeed()
+}
+const cancelPlaybackEdit = () => { isEditingPlayback.value = false }
+
+// 进度灵敏度编辑
+const startProgressEdit = () => {
+  tempProgressSensitivity.value = progressSensitivity.value
+  isEditingProgress.value = true
+  nextTick(() => { try { progressInputRef.value?.focus() } catch {} })
+}
+const commitProgressEdit = async () => {
+  let v = Number(tempProgressSensitivity.value)
+  if (isNaN(v)) v = progressSensitivity.value
+  v = Math.max(0.1, Math.min(1.5, v))
+  progressSensitivity.value = Number(v.toFixed(1))
+  isEditingProgress.value = false
+  
+  // 退出输入框焦点
+  if (progressInputRef.value) {
+    progressInputRef.value.blur()
+  }
+  
+  await updateProgressSensitivity()
+}
+const cancelProgressEdit = () => { isEditingProgress.value = false }
 
 // 切换网站状态
 const toggleSite = async (siteId: string) => {
@@ -405,6 +526,16 @@ const formatUpdateTime = (timestamp: number) => {
   padding: 20px;
 }
 
+.global-hint {
+  margin: 0 0 12px 0;
+  padding: 10px 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
 .settings-section {
   background: white;
   border-radius: 8px;
@@ -508,6 +639,7 @@ h2 {
   padding: 6px 8px;
   border: 1px solid #e5e7eb;
   border-radius: 4px;
+  color: #000;
 }
 
 /* 显示与缩放模块优化 */

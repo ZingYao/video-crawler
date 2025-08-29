@@ -1,7 +1,7 @@
 <template>
   <div class="app-layout">
     <!-- 左侧菜单 -->
-    <aside class="sidebar" :class="isSidebarOpen ? '' : 'collapsed'" :data-visible="isSidebarOpen" ref="sidebarRef" data-focus-scope>
+    <aside :class="getSidebarClass()" :data-visible="isSidebarOpen" ref="sidebarRef" data-focus-scope>
       <div class="sidebar-header">
         <div class="logo">
           <span class="logo-icon">🎬</span>
@@ -108,6 +108,15 @@ import { useConfigStore } from '@/stores/config'
 import { DownOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons-vue'
 import { isClientEnvironment } from '@/utils/wails'
 
+const getSidebarClass = () => {
+  let sClass = 'sidebar'
+  if (autoCollapsed.value && !sidebarVisible.value) {
+    sClass += ' collapsed'
+  }
+  console.log('sidebar debug',sClass,autoCollapsed.value,sidebarVisible.value,autoCollapsed.value && !sidebarVisible.value,autoCollapsed.value || sidebarVisible.value,isSidebarOpen.value)
+  return sClass
+}
+
 // 检测是否在应用环境中
 const isAppEnvironment = () => {
   // 简单的检测逻辑，可以根据需要扩展
@@ -129,7 +138,8 @@ const route = useRoute()
 const authStore = useAuthStore()
 const configStore = useConfigStore()
 const sidebarVisible = ref(false) // 用户手动开关的显式状态
-const isSidebarOpen = computed(() => sidebarVisible.value && !autoCollapsed.value)
+// 展开状态：大屏始终展开；小屏根据用户开关
+const isSidebarOpen = computed(() => autoCollapsed.value || sidebarVisible.value)
 const autoCollapsed = ref(false) // 按缩放与窗口宽度自动折叠
 const DESIGN_BREAKPOINT = 1024 // 设计断点（未缩放）
 
@@ -142,7 +152,8 @@ const getScale = () => {
 const recomputeAutoCollapsed = () => {
   const scale = getScale()
   const effectiveWidth = window.innerWidth / scale
-  autoCollapsed.value = effectiveWidth < DESIGN_BREAKPOINT
+  autoCollapsed.value = effectiveWidth > DESIGN_BREAKPOINT
+  console.log('autoCollapsed', autoCollapsed.value)
 }
 const sidebarRef = ref<HTMLElement | null>(null)
 let outsideClickHandler: ((e: MouseEvent) => void) | null = null
@@ -232,6 +243,7 @@ const scheduleOutsideListener = () => {
       const target = e.target as Node | null
       const inSidebar = !!(sidebarRef.value && target && sidebarRef.value.contains(target))
       if (!inSidebar) {
+        console.log('outside click',sidebarVisible.value)
         sidebarVisible.value = false
         removeOutsideListener()
       }
@@ -271,13 +283,6 @@ onMounted(() => {
   window.addEventListener('app-scale-changed', recomputeAutoCollapsed as any)
 })
 
-// —— 全局键盘导航（上下左右与回车）——
-const isTypingElement = (el: Element | null) => {
-  if (!el) return false
-  const tag = (el as HTMLElement).tagName
-  const editable = (el as HTMLElement).getAttribute('contenteditable')
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || editable === 'true'
-}
 
 const getFocusable = (): HTMLElement[] => {
   const selector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -296,34 +301,6 @@ const focusByOffset = (offset: number) => {
   focusables[next].focus()
 }
 
-const keyHandler = (e: KeyboardEvent) => {
-  if (isTypingElement(e.target as Element)) return
-  switch (e.key) {
-    case 'ArrowDown':
-    case 'ArrowRight':
-      e.preventDefault()
-      focusByOffset(1)
-      break
-    case 'ArrowUp':
-    case 'ArrowLeft':
-      e.preventDefault()
-      focusByOffset(-1)
-      break
-    case 'Enter':
-      const el = document.activeElement as HTMLElement | null
-      if (el) el.click?.()
-      break
-  }
-}
-
-onMounted(() => { window.addEventListener('keydown', keyHandler) })
-
-onBeforeUnmount(() => {
-  removeOutsideListener()
-  window.removeEventListener('keydown', keyHandler)
-  window.removeEventListener('resize', recomputeAutoCollapsed)
-  window.removeEventListener('app-scale-changed', recomputeAutoCollapsed as any)
-})
 </script>
 
 <style scoped>

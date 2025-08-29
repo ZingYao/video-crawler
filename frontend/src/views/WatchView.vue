@@ -40,7 +40,7 @@
                 {{ currentPlayerScheme }}
               </a-tag>
             </div>
-            
+
             <div class="player-wrap">
               <video
                 ref="videoRef"
@@ -49,7 +49,7 @@
                 preload="metadata"
                 :src="playerSource"
               />
-              
+
 
             </div>
             <div class="player-actions">
@@ -67,10 +67,10 @@
                     :options="rateOptions"
                     @change="handleRateChange"
                   />
-                  <a-button 
-                    size="small" 
-                    type="primary" 
-                    @click="downloadWithThunder" 
+                  <a-button
+                    size="small"
+                    type="primary"
+                    @click="downloadWithThunder"
                     :disabled="!playerSource"
                     :loading="downloading"
                   >
@@ -80,9 +80,9 @@
                     迅雷下载
                   </a-button>
                   <a-button size="small" type="default" @click="goOriginal" :disabled="!originalUrl">原站点</a-button>
-                  <a-button 
-                    size="small" 
-                    type="primary" 
+                  <a-button
+                    size="small"
+                    type="primary"
                     @click="searchOtherSites"
                     :loading="searchingOtherSites"
                   >
@@ -93,7 +93,7 @@
                   </a-button>
                 </a-space>
               </div>
-              
+
               <!-- 第二行：跳过片首控制 -->
               <div class="player-actions-row">
                 <a-space wrap>
@@ -116,7 +116,7 @@
                   <span v-if="skipIntro.enabled" class="skip-unit">秒</span>
                 </a-space>
               </div>
-              
+
               <!-- 第三行：跳过片尾控制 -->
               <div class="player-actions-row">
                 <a-space wrap>
@@ -187,7 +187,7 @@
                 </div>
               </a-card>
 
-              
+
             </div>
           </div>
         </template>
@@ -205,8 +205,8 @@
   >
           <div class="other-sites-search">
         <div class="search-header">
-          <a-button 
-            type="primary" 
+          <a-button
+            type="primary"
             @click="handleSearchOtherSites"
             :loading="searchingOtherSites"
             size="large"
@@ -223,15 +223,15 @@
           <span>找到 {{ otherSitesResults.length }} 个结果</span>
         </div>
         <div class="results-grid">
-          <div 
-            v-for="result in otherSitesResults" 
+          <div
+            v-for="result in otherSitesResults"
             :key="`${result.sourceId}-${result.url}`"
             class="result-card"
             @click="playFromOtherSite(result)"
           >
             <div class="card-cover">
-              <img 
-                :src="result.cover || result.poster || '/favicon.ico'" 
+              <img
+                :src="result.cover || result.poster || '/favicon.ico'"
                 :alt="result.name"
                 @error="handleImageError"
               />
@@ -239,7 +239,7 @@
             <div class="card-content">
               <h4 class="card-title">{{ result.name || result.title || '未知标题' }}</h4>
               <p class="card-source">来源：{{ result.sourceName }}</p>
-              
+
               <!-- 视频信息 -->
               <div class="card-info">
                 <p v-if="result.director" class="card-director">导演：{{ result.director }}</p>
@@ -247,10 +247,10 @@
                 <p v-if="result.release_date" class="card-date">上映：{{ result.release_date }}</p>
                 <p v-if="result.region" class="card-region">地区：{{ result.region }}</p>
               </div>
-              
+
               <!-- 描述信息 -->
               <p class="card-desc" v-if="result.description">{{ result.description }}</p>
-              
+
               <!-- 评分和类型 -->
               <div class="card-meta">
                 <span v-if="result.rate || result.score" class="rating">评分：{{ result.rate || result.score }}</span>
@@ -266,13 +266,13 @@
       </div>
     </div>
   </a-modal>
-  
+
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
- 
+
 import AppLayout from '@/components/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useConfigStore } from '@/stores/config'
@@ -351,7 +351,7 @@ async function getSourceName(sourceId: string): Promise<string> {
   if (sourceNameCache.value.has(sourceId)) {
     return sourceNameCache.value.get(sourceId) || ''
   }
-  
+
   try {
     const token = auth.token!
     const response: any = await videoSourceAPI.getVideoSourceDetail(token, sourceId)
@@ -364,15 +364,17 @@ async function getSourceName(sourceId: string): Promise<string> {
   } catch (error) {
     console.error('获取站点名称失败:', error)
   }
-  
+
   return ''
 }
 
 // 当前站点名称
 const currentSourceName = ref('')
 
-// 预加载所有站点名称
+// 预加载所有站点名称（仅预加载一次）
+let sourceNamesPreloaded = false
 async function preloadAllSourceNames() {
+  if (sourceNamesPreloaded) return
   try {
     const token = auth.token!
     const response: any = await videoSourceAPI.getVideoSourceList(token)
@@ -384,6 +386,7 @@ async function preloadAllSourceNames() {
         }
       })
       console.log(`[SourceName] 预加载了 ${sources.length} 个站点名称`)
+      sourceNamesPreloaded = true
     }
   } catch (error) {
     console.error('预加载站点名称失败:', error)
@@ -408,7 +411,7 @@ function getPlayUrlCacheKey(episodeUrl: string): string {
   return `play_url:${sourceId.value}:${encodeURIComponent(episodeUrl)}`
 }
 
- 
+
 
 // 播放器相关
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -443,12 +446,12 @@ async function releaseWakeLock(): Promise<void> {
   } catch {}
   wakeLock = null
 }
-const basePoster = computed(() => String((detailData.value?.cover || detailData.value?.poster || ''))) 
+const basePoster = computed(() => String((detailData.value?.cover || detailData.value?.poster || '')))
 
 // 播放方案显示
 const playerScheme = computed(() => {
   if (!playerSource.value || typeof playerSource.value !== 'string') return '未加载'
-  
+
   const url = playerSource.value.toLowerCase()
   if (url.includes('.m3u8')) {
     return 'HLS 流媒体'
@@ -470,9 +473,9 @@ const playerScheme = computed(() => {
 // 当前播放器方案显示
 const currentPlayerScheme = computed(() => {
   if (!playerSource.value || typeof playerSource.value !== 'string') return '未加载'
-  
+
   const url = playerSource.value.toLowerCase()
-  
+
   // 检查是否使用HLS
   if (url.includes('.m3u8')) {
     if (Hls.isSupported()) {
@@ -483,7 +486,7 @@ const currentPlayerScheme = computed(() => {
       return 'Plyr + 兜底方案'
     }
   }
-  
+
   // 其他格式都使用Plyr
   return 'Plyr 播放器'
 })
@@ -521,21 +524,21 @@ function handleRateChange(value: number) {
 
 // 处理跳过片首变化
 function handleSkipIntroChange() {
-  savePlayState({ 
-    skipIntro: { 
-      enabled: skipIntro.value.enabled, 
-      seconds: skipIntro.value.seconds 
-    } 
+  savePlayState({
+    skipIntro: {
+      enabled: skipIntro.value.enabled,
+      seconds: skipIntro.value.seconds
+    }
   })
 }
 
 // 处理跳过片尾变化
 function handleSkipOutroChange() {
-  savePlayState({ 
-    skipOutro: { 
-      enabled: skipOutro.value.enabled, 
-      seconds: skipOutro.value.seconds 
-    } 
+  savePlayState({
+    skipOutro: {
+      enabled: skipOutro.value.enabled,
+      seconds: skipOutro.value.seconds
+    }
   })
 }
 
@@ -559,16 +562,16 @@ function ensurePlyr() {
     speed: { selected: rate.value, options: rates },
     clickToPlay: true,
   })
-  
+
   // 立即禁用 Plyr 的双击全屏功能
   disablePlyrDoubleClick()
-  
+
   // 绑定 Plyr 的播放完成事件
   plyr.on('ended', () => {
     try {
       // 删除当前剧集的播放进度缓存
       deletePlayStateCache()
-      
+
       if (canNext.value) {
         playNext()
       }
@@ -576,27 +579,27 @@ function ensurePlyr() {
       console.error('[Plyr] 自动切换下一集失败:', e)
     }
   })
-  
+
   // Plyr 视频等待数据事件（卡住检测）
   plyr.on('waiting', () => {
     console.log('[Plyr] 视频等待数据')
   })
-  
+
   // Plyr 视频可以播放事件（恢复检测）
   plyr.on('canplay', () => {
     console.log('[Plyr] 视频可以播放')
   })
-  
+
   // Plyr 视频可以流畅播放事件
   plyr.on('canplaythrough', () => {
     console.log('[Plyr] 视频可以流畅播放')
   })
-  
+
   // Plyr 播放状态 -> Screen Wake Lock
   plyr.on('play', async () => { await requestWakeLock() })
   plyr.on('pause', async () => { await releaseWakeLock() })
   plyr.on('ended', async () => { await releaseWakeLock() })
-  
+
   bindPlayerEvents()
 
   // 手势：左右滑动调节进度（Plyr 容器）
@@ -609,7 +612,7 @@ function ensurePlyr() {
 // 禁用 Plyr 双击全屏的专用函数
 function disablePlyrDoubleClick() {
   if (!plyr) return
-  
+
   // 方法1: 通过CSS禁用双击选择
   const style = document.createElement('style')
   style.textContent = `
@@ -627,26 +630,26 @@ function disablePlyrDoubleClick() {
     }
   `
   document.head.appendChild(style)
-  
+
   // 方法2: 直接移除 Plyr 的双击事件监听器
   try {
     const container = plyr.elements.container
     const video = plyr.elements.video
-    
+
     // 克隆元素来移除所有事件监听器
     const newContainer = container.cloneNode(true)
     const newVideo = video.cloneNode(true)
-    
+
     container.parentNode?.replaceChild(newContainer, container)
     newContainer.appendChild(newVideo)
-    
+
     // 重新设置 Plyr 的元素引用
     plyr.elements.container = newContainer
     plyr.elements.video = newVideo
   } catch (e) {
     console.warn('无法移除Plyr事件监听器:', e)
   }
-  
+
   // 方法3: 使用事件捕获阶段阻止双击
   const preventDoubleClick = (e: Event) => {
     e.preventDefault()
@@ -654,11 +657,11 @@ function disablePlyrDoubleClick() {
     e.stopImmediatePropagation()
     return false
   }
-  
+
   // 在捕获阶段阻止双击事件
   plyr.elements.container.addEventListener('dblclick', preventDoubleClick, true)
   plyr.elements.video.addEventListener('dblclick', preventDoubleClick, true)
-  
+
   // 方法4: 覆盖 Plyr 的内部双击处理函数
   if (plyr.config && typeof plyr.config === 'object') {
     (plyr.config as any).doubleClick = false
@@ -668,11 +671,11 @@ function disablePlyrDoubleClick() {
 // 为 Plyr 添加自定义事件处理
 function addPlyrCustomEvents() {
   if (!plyr) return
-  
+
   // 双击播放/暂停功能
   let plyrLastClickTime = 0
   const plyrDoubleClickThreshold = 300
-  
+
   plyr.elements.container.addEventListener('click', (e: any) => {
     const currentTime = Date.now()
     if (currentTime - plyrLastClickTime < plyrDoubleClickThreshold) {
@@ -692,11 +695,11 @@ function addPlyrCustomEvents() {
       plyrLastClickTime = currentTime
     }
   })
-  
+
   // 长按2倍速播放功能
   let plyrLongPressTimer: any = null
   let plyrIsTouchActive = false
-  
+
   // 触摸开始
   plyr.elements.container.addEventListener('touchstart', (e: any) => {
     if (isDraggingProgress) return
@@ -717,7 +720,7 @@ function addPlyrCustomEvents() {
       }
     }, 500)
   })
-  
+
   // 触摸结束
   plyr.elements.container.addEventListener('touchend', (e: any) => {
     plyrIsTouchActive = false
@@ -737,7 +740,7 @@ function addPlyrCustomEvents() {
       message.info(`已恢复${originalRate.value}x倍速播放`, 3)
     }
   })
-  
+
   // 触摸取消
   plyr.elements.container.addEventListener('touchcancel', (e: any) => {
     plyrIsTouchActive = false
@@ -751,7 +754,7 @@ function addPlyrCustomEvents() {
       isLongPressActive.value = false
     }
   })
-  
+
   // 鼠标按下（桌面端）
   plyr.elements.container.addEventListener('mousedown', (e: any) => {
     if (e.button === 0) {
@@ -774,7 +777,7 @@ function addPlyrCustomEvents() {
       }, 500)
     }
   })
-  
+
   // 鼠标松开（桌面端）
   plyr.elements.container.addEventListener('mouseup', (e: any) => {
     if (e.button === 0) {
@@ -796,7 +799,7 @@ function addPlyrCustomEvents() {
       }
     }
   })
-  
+
   // 鼠标离开（桌面端）
   plyr.elements.container.addEventListener('mouseleave', (e: any) => {
     if (plyrIsTouchActive) {
@@ -821,23 +824,93 @@ let orientationLocked = false
 // 全屏期间键盘快进/快退
 let fullscreenKeyHandler: ((e: KeyboardEvent) => void) | null = null
 const fullscreenSeekStep = 10 // 秒
-// 获取当前应播放的剧集 URL：优先 currentPlayUrl，其次当前来源的第一集，再次所有剧集第一集，最后回退 original_url
+// 获取当前应播放的剧集 URL：根据 URL 参数和缓存决定播放逻辑
 function getSelectedEpisodeUrl(): string {
   let url = String(currentPlayUrl.value || '')
-  if (!url) {
-    const idx = Number(activeSourceKey.value || 0)
-    const src = sourcesByTab.value[idx]
-    if (src && Array.isArray(src.episodes) && src.episodes.length > 0) {
-      url = String(src.episodes[0]?.url || '')
+  
+  // 如果当前已有播放URL，优先使用
+  if (url) {
+    try { console.log('[Play] 逻辑1: 使用当前播放URL:', url) } catch {}
+    return url
+  }
+  
+  // 获取 URL 参数中的 title 和 source
+  const titleParam = String(route.query.title || '')
+  const sourceParam = String((route.query as any).source || '')
+  
+  try { console.log('[Play] URL参数检查 - title:', titleParam, 'source:', sourceParam) } catch {}
+  
+  // 逻辑2: URL 中有 source 和 title 时，播放对应 source 下剧集名称和 title 相同的剧集
+  if (titleParam && sourceParam) {
+    try { console.log('[Play] 逻辑2: URL中有source和title，查找对应剧集') } catch {}
+    
+    // 查找对应的 source
+    const targetSource = sourcesByTab.value.find(s => s.name === sourceParam)
+    if (targetSource && Array.isArray(targetSource.episodes)) {
+      // 在对应 source 中查找对应标题的剧集
+      const targetEpisode = targetSource.episodes.find(ep => ep.name === titleParam)
+      if (targetEpisode && targetEpisode.url) {
+        url = targetEpisode.url
+        try { console.log('[Play] 逻辑2成功: 找到对应Source和Title的剧集:', sourceParam, titleParam, '->', url) } catch {}
+        return url
+      } else {
+        try { console.log('[Play] 逻辑2失败: 在Source中找到的剧集URL无效或不存在') } catch {}
+      }
+    } else {
+      try { console.log('[Play] 逻辑2失败: 找不到对应的Source:', sourceParam) } catch {}
     }
   }
-  if (!url && flatEpisodes.value.length > 0) {
+  
+  // 逻辑3: URL 中没有 source 和 title 时，查看缓存中是否存在播放的 source 和剧集
+  if (!titleParam && !sourceParam) {
+    try { console.log('[Play] 逻辑3: URL中没有source和title，查看缓存') } catch {}
+    
+    const state = loadPlayState()
+    if (state?.url && state?.source && state?.title) {
+      try { console.log('[Play] 缓存中存在播放信息:', state) } catch {}
+      
+      // 查找缓存中对应的 source
+      const cachedSource = sourcesByTab.value.find(s => s.name === state.source)
+      if (cachedSource && Array.isArray(cachedSource.episodes)) {
+        // 在缓存对应的 source 中查找对应标题的剧集
+        const cachedEpisode = cachedSource.episodes.find(ep => ep.name === state.title)
+        if (cachedEpisode && cachedEpisode.url) {
+          url = cachedEpisode.url
+          try { console.log('[Play] 逻辑3成功: 使用缓存中的Source和Title:', state.source, state.title, '->', url) } catch {}
+          return url
+        } else {
+          try { console.log('[Play] 逻辑3失败: 缓存中的剧集在当前Source中找不到或URL无效') } catch {}
+        }
+      } else {
+        try { console.log('[Play] 逻辑3失败: 缓存中的Source不存在:', state.source) } catch {}
+      }
+    } else {
+      try { console.log('[Play] 逻辑3失败: 缓存中不存在有效的播放信息') } catch {}
+    }
+  } else {
+    try { console.log('[Play] 逻辑3跳过: URL中有参数，不使用缓存逻辑') } catch {}
+  }
+  
+  // 逻辑4: 兜底逻辑 - 播放第一个资源的第一个剧集
+  if (sourcesByTab.value.length > 0) {
+    const firstSource = sourcesByTab.value[0]
+    if (firstSource && Array.isArray(firstSource.episodes) && firstSource.episodes.length > 0) {
+      url = String(firstSource.episodes[0]?.url || '')
+      try { console.log('[Play] 逻辑4: 兜底 - 播放第一个Source的第一集:', firstSource.name, '->', url) } catch {}
+      return url
+    }
+  }
+  
+  // 逻辑5: 最后兜底 - 使用 flatEpisodes 的第一集
+  if (flatEpisodes.value.length > 0) {
     url = String(flatEpisodes.value[0]?.url || '')
+    try { console.log('[Play] 逻辑5: 最后兜底 - 使用 flatEpisodes 第一集:', url) } catch {}
+    return url
   }
-  if (!url) {
-    url = String(videoUrl.value || '')
-  }
-  try { console.log('[Play] getSelectedEpisodeUrl =>', url) } catch {}
+  
+  // 逻辑6: 最终回退到 original_url
+  url = String(videoUrl.value || '')
+  try { console.log('[Play] 逻辑6: 最终回退到 original_url:', url) } catch {}
   return url
 }
 
@@ -858,7 +931,7 @@ function bindPlayerEvents() {
       if (dur > 0 && Math.abs(ct - lastSavedSecond) >= 5) {
         lastSavedSecond = ct
         savePlayState({ currentTime: ct })
-        
+
         // 更新观看历史（无需登录模式下使用本地缓存）
         if (!configStore.needsLogin() && sourceId.value && videoUrl.value) {
           const videoId = `${sourceId.value}|${videoUrl.value}`
@@ -866,24 +939,24 @@ function bindPlayerEvents() {
           localHistoryManager.updateVideoProgress(videoId, ct, progress)
         }
       }
-      
+
       // 检查是否需要跳过片首
       if (skipIntro.value.enabled && ct < skipIntro.value.seconds) {
         v.currentTime = skipIntro.value.seconds
         console.log(`跳过片首，跳转到 ${skipIntro.value.seconds} 秒`)
       }
-      
+
       // 下一集预加载和提示逻辑
       if (canNext.value && dur > 0) {
         const remainingTime = dur - ct
-        
+
         // 提前20秒预加载下一集
         if (remainingTime <= 20 && !nextEpisodePreloaded.value && !nextEpisodePreloadTimer.value) {
           nextEpisodePreloadTimer.value = window.setTimeout(() => {
             preloadNextEpisode()
           }, 100) // 延迟100ms避免频繁调用
         }
-        
+
         // 提前5秒显示切换提示
         if (remainingTime <= 5 && !nextEpisodeToastShown.value && !nextEpisodeToastTimer.value) {
           nextEpisodeToastTimer.value = window.setTimeout(() => {
@@ -893,42 +966,42 @@ function bindPlayerEvents() {
           }, 100) // 延迟100ms避免频繁调用
         }
       }
-      
+
       // 检查是否需要跳过片尾
       if (skipOutro.value.enabled && dur > 0) {
         // 计算片尾触发点：如果视频长度比跳过秒数短，则在视频播放到80%时触发
-        const outroTriggerPoint = dur <= skipOutro.value.seconds 
+        const outroTriggerPoint = dur <= skipOutro.value.seconds
           ? dur * 0.8  // 视频长度较短时，在80%处触发
           : dur - skipOutro.value.seconds  // 正常情况，在片尾前指定秒数触发
-        
+
         if (ct > outroTriggerPoint) {
           // 检查当前剧集URL是否发生变化，如果变化了说明切换了剧集，需要重置状态
           if (skipOutroCurrentUrl.value !== currentPlayUrl.value) {
             skipOutroTriggered.value = false
             skipOutroCurrentUrl.value = currentPlayUrl.value
           }
-          
+
           // 检查冷却时间
           const currentTime = Date.now()
           const timeSinceLastTrigger = currentTime - skipOutroLastTriggerTime.value
           if (timeSinceLastTrigger < skipOutroCooldownTime) {
             return
           }
-          
+
           // 如果已经触发过跳过片尾，则不再触发
           if (skipOutroTriggered.value) {
             return
           }
-          
+
           // 标记已触发，避免重复触发
           skipOutroTriggered.value = true
           skipOutroLastTriggerTime.value = currentTime
-          
+
                       // 如果接近片尾，自动切换到下一集
             if (canNext.value) {
               // 删除当前剧集的播放进度缓存
               deletePlayStateCache()
-              
+
               // 如果有预加载的URL，直接使用
               if (nextEpisodeUrl.value) {
                 const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
@@ -947,7 +1020,7 @@ function bindPlayerEvents() {
       }
     } catch {}
   })
-  
+
   // 播放完成自动切换下一集（原生事件）
   v.addEventListener('ended', () => {
     try {
@@ -958,27 +1031,27 @@ function bindPlayerEvents() {
       console.error('[Video] 自动切换下一集失败:', e)
     }
   })
-  
+
   // 视频等待数据事件（卡住检测）
   v.addEventListener('waiting', () => {
     console.log('[Video] 视频等待数据')
   })
-  
+
   // 视频可以播放事件（恢复检测）
   v.addEventListener('canplay', () => {
     console.log('[Video] 视频可以播放')
   })
-  
+
   // 视频可以流畅播放事件
   v.addEventListener('canplaythrough', () => {
     console.log('[Video] 视频可以流畅播放')
   })
-  
+
   // 双击播放/暂停功能（原生 video 容器点击处理与 Plyr 一致）
   let lastClickTime = 0
   let clickCount = 0
   const doubleClickThreshold = 300 // 双击时间阈值（毫秒）
-  
+
   v.addEventListener('click', (e) => {
     const currentTime = Date.now()
     if (currentTime - lastClickTime < doubleClickThreshold) {
@@ -994,7 +1067,7 @@ function bindPlayerEvents() {
           console.log('[Video] 双击播放')
         }
       } catch {}
-      
+
       // 阻止默认行为
       e.preventDefault()
       e.stopPropagation()
@@ -1005,7 +1078,7 @@ function bindPlayerEvents() {
       lastClickTime = currentTime
     }
   })
-  
+
   // 禁用默认的双击全屏行为
   v.addEventListener('dblclick', (e) => {
     e.preventDefault()
@@ -1013,18 +1086,18 @@ function bindPlayerEvents() {
     e.stopImmediatePropagation()
     return false
   })
-  
+
   // 在视频元素上添加 CSS 样式禁用双击选择
   v.style.userSelect = 'none'
   ;(v.style as any).webkitUserSelect = 'none'
   ;(v.style as any).mozUserSelect = 'none'
   ;(v.style as any).msUserSelect = 'none'
-  
+
   // 长按2倍速播放事件监听
   let touchStartTime = 0
   let isTouchActive = false
   let longPressTimer: any = null
-  
+
   // 触摸开始
   v.addEventListener('touchstart', (e) => {
     if (isDraggingProgress) return
@@ -1038,7 +1111,7 @@ function bindPlayerEvents() {
       }
     }, 500)
   }, { passive: false })
-  
+
   // 触摸结束
   v.addEventListener('touchend', (e) => {
     e.preventDefault() // 阻止默认行为
@@ -1049,7 +1122,7 @@ function bindPlayerEvents() {
     }
     endLongPress()
   }, { passive: false })
-  
+
   // 触摸取消
   v.addEventListener('touchcancel', (e) => {
     e.preventDefault() // 阻止默认行为
@@ -1060,7 +1133,7 @@ function bindPlayerEvents() {
     }
     endLongPress()
   }, { passive: false })
-  
+
   // 鼠标按下（桌面端）
   v.addEventListener('mousedown', (e) => {
     if (e.button === 0) { // 左键
@@ -1076,7 +1149,7 @@ function bindPlayerEvents() {
       }, 500)
     }
   }, { passive: false })
-  
+
   // 鼠标松开（桌面端）
   v.addEventListener('mouseup', (e) => {
     if (e.button === 0) { // 左键
@@ -1089,7 +1162,7 @@ function bindPlayerEvents() {
       endLongPress()
     }
   }, { passive: false })
-  
+
   // 鼠标离开（桌面端）
   v.addEventListener('mouseleave', (e) => {
     if (isTouchActive) {
@@ -1101,7 +1174,7 @@ function bindPlayerEvents() {
       endLongPress()
     }
   })
-  
+
   // 倍速变更（通过 plyr 统一）
   // 元数据
   v.addEventListener('loadedmetadata', () => {
@@ -1109,7 +1182,7 @@ function bindPlayerEvents() {
       if (v.videoWidth && v.videoHeight) { lastVideoW = v.videoWidth; lastVideoH = v.videoHeight }
     } catch {}
   })
-  
+
   // 为 Plyr 添加双击快进快退和长按功能
   if (plyr) {
     addPlyrCustomEvents()
@@ -1119,17 +1192,17 @@ function bindPlayerEvents() {
     const container = v.parentElement
     if (container) attachProgressDrag(container)
   } catch {}
-  
+
   // 启动网速监控
   if (!speedCheckInterval) {
     startSpeedMonitoring()
   }
-  
+
   // 启动倍速监听
   if (!rateCheckInterval) {
     startRateMonitoring()
   }
-  
+
   // 页面可见性变化时恢复/释放 Wake Lock
   try {
     document.addEventListener('visibilitychange', async () => {
@@ -1194,7 +1267,7 @@ async function handleEnterFullscreen() {
       try { console.log('[Fullscreen] 获取视频尺寸失败:', e) } catch {}
     }
   }
-  
+
   const orientation = estimateOrientation()
   try { console.log(`[Fullscreen] 根据视频尺寸 ${lastVideoW}x${lastVideoH} 设置屏幕方向: ${orientation}`) } catch {}
   await lockOrientation(orientation)
@@ -1388,22 +1461,31 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
   if (!ep?.url || !preloadedUrl) {
     return
   }
-  
+
   // 清理预加载状态
   clearNextEpisodePreload()
-  
+
   // 立刻更新当前剧集，用于后续解析播放链接与按钮状态
   currentPlayUrl.value = ep.url
-  
+
   // 重置跳过片尾状态，新剧集可以重新触发
   skipOutroTriggered.value = false
   skipOutroCurrentUrl.value = ep.url
   skipOutroLastTriggerTime.value = 0 // 重置冷却时间
-  
-  // 仅更新地址栏中标题与来源，不修改 url 参数，避免影响回显
-  const q = { ...route.query, title: ep.name, source: sourceName || (ep as any).__sourceName }
+
+  // 更新地址栏中标题与来源，不修改 original_url 参数，避免影响回显
+  const q = { 
+    ...route.query, 
+    title: ep.name, 
+    source: sourceName || (ep as any).__sourceName,
+    // 保持 original_url 不变，避免触发路由监听器
+    original_url: route.query.original_url || route.query.url
+  }
   router.replace({ name: 'watch', params: route.params, query: q })
   
+  // 立即缓存当前播放的剧集信息
+  savePlayState({ url: ep.url, title: ep.name, source: q.source })
+
   try {
     if (!preloadedUrl || typeof preloadedUrl !== 'string') {
       console.error('[playEpisodeWithUrl] 预加载URL无效')
@@ -1424,7 +1506,7 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
       }
       // 设置倍速
       if (plyr) {
-        try { 
+        try {
           plyr.speed = rate.value
         } catch {}
       } else if (videoRef.value) {
@@ -1443,18 +1525,17 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
       // 自动播放
       try { await videoRef.value.play() } catch {}
       bindPlayerEvents()
-      
+
       // 滚动到视频播放器
       await nextTick()
       if (videoRef.value) {
-        videoRef.value.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+        videoRef.value.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
         })
       }
     }
-    // 保存所选剧集
-    savePlayState({ url: ep.url, title: ep.name, source: q.source })
+    // 注：剧集信息已在函数开始时缓存，此处无需重复缓存
   } catch (error) {
     console.error('播放剧集失败:', error)
   }
@@ -1464,40 +1545,50 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
   if (!ep?.url) {
     return
   }
-  
+
   // 清理预加载状态
   clearNextEpisodePreload()
-  
+
   // 立刻更新当前剧集，用于后续解析播放链接与按钮状态
   currentPlayUrl.value = ep.url
-  
+
   // 重置跳过片尾状态，新剧集可以重新触发
   skipOutroTriggered.value = false
   skipOutroCurrentUrl.value = ep.url
   skipOutroLastTriggerTime.value = 0 // 重置冷却时间
-  // 仅更新地址栏中标题与来源，不修改 url 参数，避免影响回显
-  const q = { ...route.query, title: ep.name, source: sourceName || (ep as any).__sourceName }
+  // 更新地址栏中标题与来源，不修改 original_url 参数，避免影响回显
+  const q = { 
+    ...route.query, 
+    title: ep.name, 
+    source: sourceName || (ep as any).__sourceName,
+    // 保持 original_url 不变，避免触发路由监听器
+    original_url: route.query.original_url || route.query.url
+  }
   router.replace({ name: 'watch', params: route.params, query: q })
+  
+  // 立即缓存当前播放的剧集信息
+  savePlayState({ url: ep.url, title: ep.name, source: q.source })
+  
   try {
     // 先尝试从缓存加载播放链接
     let url = loadPlayUrlCache(ep.url)
-    
+
     if (!url) {
       // 缓存未命中，请求新的播放链接
       const token = auth.token!
       const res: any = await videoAPI.playUrl(token, sourceId.value, ep.url)
       url = res?.data?.video_url || res?.data || ''
       if (!url) return
-      
+
       // 缓存播放链接
       savePlayUrlCache(ep.url, url)
     }
-    
+
     if (!url || typeof url !== 'string') {
       console.error('[playEpisode] 获取播放链接失败')
       return
     }
-    
+
     playerSource.value = url
     await nextTick()
     ensurePlyr()
@@ -1513,7 +1604,7 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
       }
       // 设置倍速
       if (plyr) {
-        try { 
+        try {
           plyr.speed = rate.value
         } catch {}
       } else if (videoRef.value) {
@@ -1532,18 +1623,17 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
       // 自动播放
       try { await videoRef.value.play() } catch {}
       bindPlayerEvents()
-      
+
       // 滚动到视频播放器
       await nextTick()
       if (videoRef.value) {
-        videoRef.value.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+        videoRef.value.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
         })
       }
     }
-    // 保存所选剧集
-    savePlayState({ url: ep.url, title: ep.name, source: q.source })
+    // 注：剧集信息已在函数开始时缓存，此处无需重复缓存
   } catch (error) {
     console.error('播放剧集失败:', error)
   }
@@ -1556,23 +1646,23 @@ function playPrev() {
 // 预加载下一集播放链接
 async function preloadNextEpisode() {
   if (!canNext.value || nextEpisodePreloaded.value) return
-  
+
   try {
     const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
     if (!nextEpisode?.url) return
-    
+
     console.log('开始预加载下一集播放链接:', nextEpisode.url)
-    
+
     // 先尝试从缓存加载播放链接
     let url = loadPlayUrlCache(nextEpisode.url)
-    
+
     if (!url) {
       // 缓存未命中，请求新的播放链接
       console.log('缓存未命中，请求下一集播放链接:', nextEpisode.url)
       const token = auth.token!
       const res: any = await videoAPI.playUrl(token, sourceId.value, nextEpisode.url)
       url = res?.data?.video_url || res?.data || ''
-      
+
       if (url) {
         // 缓存播放链接
         savePlayUrlCache(nextEpisode.url, url)
@@ -1580,7 +1670,7 @@ async function preloadNextEpisode() {
     } else {
       console.log('使用缓存的下一集播放链接:', nextEpisode.url)
     }
-    
+
     if (url) {
       nextEpisodeUrl.value = url
       nextEpisodePreloaded.value = true
@@ -1596,12 +1686,12 @@ function clearNextEpisodePreload() {
   nextEpisodeUrl.value = ''
   nextEpisodePreloaded.value = false
   nextEpisodeToastShown.value = false
-  
+
   if (nextEpisodePreloadTimer.value) {
     clearTimeout(nextEpisodePreloadTimer.value)
     nextEpisodePreloadTimer.value = null
   }
-  
+
   if (nextEpisodeToastTimer.value) {
     clearTimeout(nextEpisodeToastTimer.value)
     nextEpisodeToastTimer.value = null
@@ -1612,10 +1702,10 @@ function playNext() {
   if (!canNext.value) {
     return
   }
-  
+
   // 清理预加载状态
   clearNextEpisodePreload()
-  
+
   // 如果有预加载的URL，直接使用
   if (nextEpisodeUrl.value) {
     const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
@@ -1631,36 +1721,36 @@ function downloadWithThunder() {
   if (!playerSource.value) {
     return
   }
-  
+
   downloading.value = true
-  
+
   try {
     // 构建文件名：视频名称 + 剧集名称
     const videoName = base.value.name || '未知视频'
     const currentEpisode = flatEpisodes.value.find(e => e.url === currentPlayUrl.value)
     const episodeName = currentEpisode?.name || ''
     const fileName = episodeName ? `${videoName} - ${episodeName}` : videoName
-    
+
     // 清理文件名中的非法字符
     const cleanFileName = fileName.replace(/[<>:"/\\|?*]/g, '_').trim()
-    
+
     // 构建迅雷下载链接
     const thunderUrl = `thunder://${btoa(`AA${playerSource.value}ZZ`)}`
-    
+
     // 创建下载链接并触发下载
     const link = document.createElement('a')
     link.href = thunderUrl
     link.download = `${cleanFileName}.mp4` // 设置下载文件名
     link.style.display = 'none'
-    
+
     // 添加到页面并触发点击
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    
+
     // 显示成功提示
     message.success('已调用迅雷下载，请检查迅雷是否已启动')
-    
+
   } catch (error) {
     console.error('迅雷下载失败:', error)
     message.error('迅雷下载失败，请检查迅雷是否已安装')
@@ -1674,34 +1764,34 @@ function startSpeedMonitoring() {
   if (speedCheckInterval) {
     clearInterval(speedCheckInterval)
   }
-  
+
   lastLoadedBytes = 0
   lastSpeedCheckTime = Date.now()
   networkSpeed.value = ''
-  
+
   speedCheckInterval = setInterval(() => {
     if (videoRef.value) {
       const v = videoRef.value
       const currentTime = Date.now()
       const timeDiff = (currentTime - lastSpeedCheckTime) / 1000 // 秒
-      
+
       if (timeDiff > 0 && v.buffered.length > 0) {
         const bufferedEnd = v.buffered.end(v.buffered.length - 1)
         const currentVideoTime = v.currentTime
         const bufferedTime = bufferedEnd - currentVideoTime
-        
+
         // 更准确的字节数估算：基于视频时长和码率
         // 假设平均码率为 2Mbps (250KB/s)
         const estimatedBitrate = 2 * 1024 * 1024 // 2Mbps
         const bufferedBytes = bufferedTime * estimatedBitrate / 8
-        
+
         const bytesDiff = bufferedBytes - lastLoadedBytes
         const speedBps = bytesDiff / timeDiff
-        
+
         if (speedBps > 0) {
           const speedKBps = speedBps / 1024
           const speedMBps = speedKBps / 1024
-          
+
           if (speedMBps >= 1) {
             networkSpeed.value = `${speedMBps.toFixed(1)} MB/s`
           } else {
@@ -1710,10 +1800,10 @@ function startSpeedMonitoring() {
         } else {
           networkSpeed.value = '0 KB/s'
         }
-        
+
         lastLoadedBytes = bufferedBytes
         lastSpeedCheckTime = currentTime
-        
+
         // 检测播放中卡住的情况
         checkVideoStuck()
       }
@@ -1724,9 +1814,9 @@ function startSpeedMonitoring() {
 // 检测视频是否卡住
 function checkVideoStuck() {
   if (!videoRef.value) return
-  
+
   const v = videoRef.value
-  
+
   // 网速监控逻辑（移除loading相关代码）
 }
 
@@ -1758,13 +1848,13 @@ function startRateMonitoring() {
   if (rateCheckInterval) {
     clearInterval(rateCheckInterval)
   }
-  
+
   lastVideoRate = 1
   rateCheckInterval = setInterval(() => {
     if (!videoRef.value) return
-    
+
     const currentRate = videoRef.value.playbackRate || 1
-    
+
     // 如果倍速发生变化且不是长按状态，同步到页面
     if (Math.abs(currentRate - lastVideoRate) > 0.01 && !isLongPressActive.value) {
       lastVideoRate = currentRate
@@ -1790,7 +1880,7 @@ function startLongPress() {
   if (longPressTimer) {
     clearTimeout(longPressTimer)
   }
-  
+
   longPressTimer = setTimeout(() => {
     if (isDraggingProgress) return
     // 保存当前播放速率
@@ -1798,7 +1888,7 @@ function startLongPress() {
     // 设置为2倍速并同步到UI
     syncRateToUI(2)
     isLongPressActive.value = true
-    
+
     // 应用2倍速
     try {
       if (plyr) {
@@ -1830,12 +1920,12 @@ function endLongPress() {
     clearTimeout(longPressTimer)
     longPressTimer = null
   }
-  
+
   if (isLongPressActive.value) {
     // 恢复原始播放速率并同步到UI
     syncRateToUI(originalRate.value)
     isLongPressActive.value = false
-    
+
     // 应用原始速率
     try {
       if (plyr) {
@@ -1902,15 +1992,15 @@ function loadCache(): boolean {
   return false
 }
 
-type PlayState = { 
-  url?: string; 
-  title?: string; 
-  source?: string; 
-  currentTime?: number; 
-  rate?: number; 
+type PlayState = {
+  url?: string;
+  title?: string;
+  source?: string;
+  currentTime?: number;
+  rate?: number;
   skipIntro?: { enabled: boolean; seconds: number };
   skipOutro?: { enabled: boolean; seconds: number };
-  updatedAt?: number 
+  updatedAt?: number
 }
 function savePlayState(partial: PlayState) {
   try {
@@ -1919,7 +2009,7 @@ function savePlayState(partial: PlayState) {
     const merged: PlayState = { ...prev, ...partial, rate: rate.value, updatedAt: Date.now() }
     localStorage.setItem(playStateKey.value, JSON.stringify(merged))
     try { console.log('[PlayState] 已保存播放状态:', merged) } catch {}
-    
+
     // 管理缓存数量
     managePlayStateCache()
   } catch {}
@@ -1952,7 +2042,7 @@ function managePlayStateCache() {
   try {
     const allKeys = Object.keys(localStorage)
     const playStateKeys = allKeys.filter(key => key.startsWith('watch_state:'))
-    
+
     if (playStateKeys.length > 50) {
       // 按时间戳排序，删除最早的缓存
       const cacheItems = playStateKeys.map(key => {
@@ -1965,17 +2055,17 @@ function managePlayStateCache() {
         } catch {}
         return { key, updatedAt: 0 }
       }).filter(item => item.updatedAt > 0)
-      
+
       // 按时间戳排序，最早的在前
       cacheItems.sort((a, b) => a.updatedAt - b.updatedAt)
-      
+
       // 删除最早的缓存，保留50条
       const toDelete = cacheItems.slice(0, cacheItems.length - 50)
       toDelete.forEach(item => {
         localStorage.removeItem(item.key)
         console.log(`[PlayState] 清理过期缓存: ${item.key}`)
       })
-      
+
       console.log(`[PlayState] 缓存管理完成，删除了 ${toDelete.length} 条过期缓存`)
     }
   } catch (e) {
@@ -2017,22 +2107,22 @@ function loadPlayUrlCache(episodeUrl: string): string | null {
       console.log(`[PlayUrlCache] 未发现播放链接缓存: ${episodeUrl}`)
       return null
     }
-    
+
     const cache: PlayUrlCache = JSON.parse(raw)
-    
+
     // 检查缓存是否过期
     if (Date.now() > cache.expiresAt) {
       console.log(`[PlayUrlCache] 播放链接缓存已过期: ${episodeUrl}`)
       localStorage.removeItem(cacheKey)
       return null
     }
-    
+
     // 检查缓存是否匹配当前剧集
     if (cache.episodeUrl !== episodeUrl || cache.sourceId !== sourceId.value) {
       console.log(`[PlayUrlCache] 播放链接缓存不匹配: ${episodeUrl}`)
       return null
     }
-    
+
     console.log(`[PlayUrlCache] 命中播放链接缓存: ${episodeUrl} -> ${cache.url}`)
     return cache.url
   } catch (e) {
@@ -2065,12 +2155,12 @@ async function fetchDetail(force = false) {
     detailData.value = res?.data ?? res
     fromCache.value = false
     saveCache()
-    
+
     // 记录观看历史（无需登录模式下使用本地缓存）
     if (!configStore.needsLogin() && detailData.value) {
       const videoTitle = displayTitle.value || '未知标题'
       const videoId = `${sourceId.value}|${videoUrl.value}`
-      
+
       localHistoryManager.addVideoHistory(
         videoId,
         videoTitle,
@@ -2079,7 +2169,7 @@ async function fetchDetail(force = false) {
         currentSourceName.value || '未知站点'
       )
     }
-    
+
     await resolvePlayUrl() // detail 成功后拉取真实播放链接
   } catch (e: any) {
     error.value = e?.message || '获取详情失败'
@@ -2096,17 +2186,17 @@ async function resolvePlayUrl() {
     skipOutroLastTriggerTime.value = 0 // 重置冷却时间
     // 优先请求"当前选中剧集"的播放链接；无则回退
     const episodeUrl = getSelectedEpisodeUrl()
-    
+
     // 先尝试从缓存加载播放链接
     let url = loadPlayUrlCache(episodeUrl)
-    
+
     if (!url) {
       // 缓存未命中，请求新的播放链接
       console.log(`[resolvePlayUrl] 缓存未命中，请求播放链接: ${episodeUrl}`)
       const token = auth.token!
       const res: any = await videoAPI.playUrl(token, sourceId.value, episodeUrl)
       url = res?.data?.video_url || res?.data || ''
-      
+
       if (url) {
         // 缓存播放链接
         savePlayUrlCache(episodeUrl, url)
@@ -2114,12 +2204,12 @@ async function resolvePlayUrl() {
     } else {
       console.log(`[resolvePlayUrl] 使用缓存的播放链接: ${episodeUrl}`)
     }
-    
+
     if (!url || typeof url !== 'string') {
       console.error('[resolvePlayUrl] 获取播放链接失败')
       return
     }
-    
+
     playerSource.value = url
     await nextTick()
     ensurePlyr()
@@ -2148,9 +2238,9 @@ async function resolvePlayUrl() {
         }
         // 设置倍速
         if (plyr) {
-          try { 
+          try {
             plyr.speed = rate.value
-            console.log('[HLS] set plyr speed to', rate.value) 
+            console.log('[HLS] set plyr speed to', rate.value)
           } catch {}
         } else if (videoRef.value) {
           try {
@@ -2163,13 +2253,13 @@ async function resolvePlayUrl() {
         const state = loadPlayState()
         const seekTo = state?.currentTime || 0
         if (seekTo > 0) {
-          const doSeek = () => { 
-            try { 
+          const doSeek = () => {
+            try {
               if (videoRef.value) videoRef.value.currentTime = seekTo
               console.log(`跳转到缓存进度: ${seekTo}秒`)
             } catch (e: any) {
               console.log('跳转进度失败:', e)
-            } 
+            }
           }
           if ((videoRef.value?.readyState || 0) >= 1) {
             doSeek()
@@ -2183,8 +2273,8 @@ async function resolvePlayUrl() {
         bindPlayerEvents()
       } catch {}
     }
-    // 初始化情况下，将当前播放 url 与选中的剧集 url 对齐
-    if (!currentPlayUrl.value) currentPlayUrl.value = episodeUrl
+    // 初始化情况下，将当前播放 url 与初始 url 对齐
+    if (!currentPlayUrl.value) currentPlayUrl.value = videoUrl.value
   } catch (e: any) {
     // 忽略错误，保留空源
   }
@@ -2209,7 +2299,7 @@ async function searchOtherSites() {
   otherSitesModalVisible.value = true
   hasSearchedOtherSites.value = false
   otherSitesResults.value = []
-  
+
   // 立即执行搜索
   await handleSearchOtherSites()
 }
@@ -2225,7 +2315,7 @@ async function handleSearchOtherSites() {
 
   // 加载设置
   await settingsStore.loadSettings()
-  
+
   // 检查是否有启用的搜索网站
   if (!settingsStore.hasEnabledSites && !settingsStore.settings.allSitesSelected) {
     message.warning('请先在设置中选择要搜索的网站')
@@ -2235,7 +2325,7 @@ async function handleSearchOtherSites() {
   searchingOtherSites.value = true
   hasSearchedOtherSites.value = true
   otherSitesResults.value = []
-  
+
   try {
     // 1) 拉取站点列表并按 sort 降序（越大越靠前）
     const token = auth.token!
@@ -2250,7 +2340,7 @@ async function handleSearchOtherSites() {
 
     // 2) 根据设置过滤启用的网站
     let sources: any[] = []
-    
+
     if (settingsStore.settings.allSitesSelected) {
       // 全选模式：搜索所有正常状态的站点
       sources = allSources
@@ -2262,7 +2352,7 @@ async function handleSearchOtherSites() {
         const sourceIdStr = String(source.id)
         return enabledSiteIds.some(enabledId => {
           // 支持多种ID匹配方式
-          return enabledId === sourceIdStr || 
+          return enabledId === sourceIdStr ||
                  enabledId === String(source.id) ||
                  enabledId === source.id
         })
@@ -2308,7 +2398,7 @@ async function handleSearchOtherSites() {
     await Promise.all(runners)
 
     otherSitesResults.value = results
-    
+
     const searchedSitesCount = sources.length
     const totalSitesCount = allSources.length
     const modeText = settingsStore.settings.allSitesSelected ? '全选模式' : '手动选择模式'
@@ -2325,11 +2415,11 @@ async function playFromOtherSite(result: any) {
   try {
     const token = auth.token!
     const detailResp: any = await videoAPI.detail(token, result.sourceId, result.url)
-    
+
     if (detailResp?.code === 0 && detailResp?.data) {
       // 关闭弹窗
       otherSitesModalVisible.value = false
-      
+
       // 跳转到播放页面
       await router.push({
         name: 'watch',
@@ -2340,7 +2430,7 @@ async function playFromOtherSite(result: any) {
           original_url: result.url
         }
       })
-      
+
       // 强制刷新页面数据
       await initializePage()
     } else {
@@ -2357,7 +2447,7 @@ function handleImageError(event: Event) {
   img.src = '/favicon.ico'
 }
 
- 
+
 
 
 
@@ -2365,31 +2455,79 @@ function handleImageError(event: Event) {
 async function initializePage() {
   // 加载设置
   await loadSettings()
-  
+
   // 获取当前站点名称
   await updateCurrentSourceName()
-  
+
   await fetchDetail(false)
-  const state = loadPlayState()
-  if (state?.url) {
-    if (typeof state.rate === 'number') rate.value = state.rate
-    // 恢复跳过片首片尾配置
-    if (state.skipIntro) {
-      skipIntro.value.enabled = state.skipIntro.enabled
-      skipIntro.value.seconds = state.skipIntro.seconds
+  
+  // 根据 URL 参数确定要播放的剧集
+  const titleParam = String(route.query.title || '')
+  const sourceParam = String((route.query as any).source || '')
+  
+  // 逻辑2: 如果有 title 和 source 参数，先选中对应的 source tab
+  if (titleParam && sourceParam) {
+    const targetSourceIndex = sourcesByTab.value.findIndex(s => s.name === sourceParam)
+    if (targetSourceIndex >= 0) {
+      activeSourceKey.value = String(targetSourceIndex)
+      try { console.log('[Init] 根据URL参数选中Source tab:', sourceParam, 'index:', targetSourceIndex) } catch {}
     }
-    if (state.skipOutro) {
-      skipOutro.value.enabled = state.skipOutro.enabled
-      skipOutro.value.seconds = state.skipOutro.seconds
-    }
-    const ep = flatEpisodes.value.find(e => e.url === state.url) || flatEpisodes.value[0]
-    if (ep) await playEpisode(ep)
-  } else {
-    const first = flatEpisodes.value[0]
-    if (first) await playEpisode(first)
   }
-  // 根据当前 url 选中对应的来源 tab
-  currentPlayUrl.value = loadPlayState()?.url || currentPlayUrl.value || videoUrl.value
+  
+  // 逻辑3: 如果没有 title 和 source 参数，根据缓存选中对应的 source tab
+  if (!titleParam && !sourceParam) {
+    const state = loadPlayState()
+    if (state?.source) {
+      const cachedSourceIndex = sourcesByTab.value.findIndex(s => s.name === state.source)
+      if (cachedSourceIndex >= 0) {
+        activeSourceKey.value = String(cachedSourceIndex)
+        try { console.log('[Init] 根据缓存选中Source tab:', state.source, 'index:', cachedSourceIndex) } catch {}
+      }
+    }
+  }
+  
+  // 优先使用 getSelectedEpisodeUrl 获取要播放的剧集
+  const selectedUrl = getSelectedEpisodeUrl()
+  if (selectedUrl) {
+    const ep = flatEpisodes.value.find(e => e.url === selectedUrl)
+    if (ep) {
+      await playEpisode(ep)
+    } else {
+      // 如果找不到对应的剧集，使用第一个剧集
+      const first = flatEpisodes.value[0]
+      if (first) await playEpisode(first)
+    }
+  } else {
+    // 如果没有找到要播放的剧集，使用缓存
+    const state = loadPlayState()
+    if (state?.url) {
+      if (typeof state.rate === 'number') rate.value = state.rate
+      // 恢复跳过片首片尾配置
+      if (state.skipIntro) {
+        skipIntro.value.enabled = state.skipIntro.enabled
+        skipIntro.value.seconds = state.skipIntro.seconds
+      }
+      if (state.skipOutro) {
+        skipOutro.value.enabled = state.skipOutro.enabled
+        skipOutro.value.seconds = state.skipOutro.seconds
+      }
+      const ep = flatEpisodes.value.find(e => e.url === state.url) || flatEpisodes.value[0]
+      if (ep) await playEpisode(ep)
+    } else {
+      // 最后兜底使用第一个剧集
+      const first = flatEpisodes.value[0]
+      if (first) await playEpisode(first)
+    }
+  }
+  
+  // 根据当前播放URL选中对应的来源 tab（只在没有URL参数时使用缓存）
+  if (!titleParam && !sourceParam) {
+    const cachedUrl = loadPlayState()?.url || videoUrl.value
+    if (!currentPlayUrl.value) {
+      currentPlayUrl.value = cachedUrl
+    }
+  }
+  
   const idx = sourcesByTab.value.findIndex(s => s.episodes.some(e => e.url === currentPlayUrl.value))
   if (idx >= 0) activeSourceKey.value = String(idx)
 }
@@ -2398,17 +2536,57 @@ onMounted(async () => {
   // 初始化移动设备检测
   checkMobile()
   window.addEventListener('resize', checkMobile)
-  
+
   // 预加载所有站点名称
   await preloadAllSourceNames()
-  
+
   await initializePage()
 })
 
 // 监听路由变化，确保页面内容刷新
+let lastRouteSnapshot: any = null
 watch(
-  () => [route.params.sourceId, route.query.url, route.query.original_url],
-  async () => {
+  () => [route.params.sourceId, route.query.original_url],
+  async (newVals, oldVals) => {
+    try {
+      const [newSourceId, newOriginalUrl] = newVals || []
+      const [oldSourceId, oldOriginalUrl] = oldVals || []
+      const sourceIdChanged = String(newSourceId ?? '') !== String(oldSourceId ?? '')
+      const originalUrlChanged = String(newOriginalUrl ?? '') !== String(oldOriginalUrl ?? '')
+      const reasonParts: string[] = []
+      if (sourceIdChanged) reasonParts.push(`sourceId changed: ${oldSourceId} -> ${newSourceId}`)
+      if (originalUrlChanged) reasonParts.push(`original_url changed: ${oldOriginalUrl} -> ${newOriginalUrl}`)
+      // 进一步打印 query 的差异（包括 url/title/source 等）
+      const currentSnapshot = {
+        sourceId: String(route.params.sourceId ?? ''),
+        original_url: String(route.query.original_url ?? ''),
+        url: String(route.query.url ?? ''),
+        title: String(route.query.title ?? ''),
+        source: String((route.query as any).source ?? ''),
+        fullPath: String(route.fullPath ?? window.location.pathname + window.location.search)
+      }
+      let queryDiff = ''
+      if (lastRouteSnapshot) {
+        const keys = ['original_url','url','title','source','fullPath']
+        const diffs: string[] = []
+        for (const k of keys) {
+          if (String(currentSnapshot[k]) !== String(lastRouteSnapshot[k])) {
+            diffs.push(`${k} changed: ${lastRouteSnapshot[k]} -> ${currentSnapshot[k]}`)
+          }
+        }
+        queryDiff = diffs.join(' | ')
+      } else {
+        queryDiff = 'first run'
+      }
+      const reason = [reasonParts.join(' | '), queryDiff].filter(Boolean).join(' || ')
+      console.log('[Watch reload]', window.location.href, '| reason:', reason)
+      lastRouteSnapshot = currentSnapshot
+      // 如果 sourceId 与 original_url 都未变化，则忽略此次触发，避免无意义的页面重载
+      if (!sourceIdChanged && !originalUrlChanged) {
+        console.log('[Watch reload ignored] sourceId/original_url 未变化，仅 query 辅助字段变更')
+        return
+      }
+    } catch {}
     // 重置状态
     loading.value = false
     error.value = ''
@@ -2417,7 +2595,7 @@ watch(
     currentPlayUrl.value = ''
     playerSource.value = ''
     currentSourceName.value = '' // 重置站点名称
-    
+
     // 重新初始化页面
     await initializePage()
   },
@@ -2429,21 +2607,21 @@ onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
   stopSpeedMonitoring() // 清理网速监控定时器
   stopRateMonitoring() // 清理倍速监听定时器
-  
+
   // 清理长按定时器
   if (longPressTimer) {
     clearTimeout(longPressTimer)
     longPressTimer = null
   }
-  
+
   // 清理跳过片尾状态
   skipOutroTriggered.value = false
   skipOutroCurrentUrl.value = ''
   skipOutroLastTriggerTime.value = 0 // 重置冷却时间
-  
+
   // 清理下一集预加载状态
   clearNextEpisodePreload()
-  
+
   // 释放 Wake Lock
   releaseWakeLock()
 })
@@ -2457,7 +2635,7 @@ function attachProgressDrag(container: HTMLElement) {
   let isHorizontal = false
   let containerRect: DOMRect
   let keepAliveTimer: any = null
-  
+
   const ensureProgressVisible = () => {
     try {
       container.classList.add('dragging-show-progress')
@@ -2738,31 +2916,31 @@ const loadSettings = async () => {
   .player-container {
     margin: 0 0 12px 0; /* 与内容同宽 */
   }
-  
+
   .player-wrap {
     width: 100%; /* 跟随 watch-view 内容宽度 */
     margin-left: 0;
     max-width: 100%;
   }
-  
+
   .plyr-video {
     width: 100% !important; /* 占满容器宽度 */
     height: auto !important;
     aspect-ratio: 16/9; /* 保持16:9比例 */
     max-width: 100% !important;
   }
-  
+
   .video-player :deep(.vjs-control-bar) {
     height: 40px;
   }
-  
+
   .video-player :deep(.vjs-playback-rate-menu-button) {
     font-size: 12px;
     padding: 0 4px;
   }
 }
-.player-actions { 
-  margin-top: 8px; 
+.player-actions {
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2930,22 +3108,22 @@ const loadSettings = async () => {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .result-card {
     height: 160px;
     padding: 8px;
   }
-  
+
   .card-cover {
     width: 60px;
     height: 80px;
     margin-right: 8px;
   }
-  
+
   .card-title {
     font-size: 13px;
   }
-  
+
   .card-desc {
     font-size: 11px;
   }
@@ -2984,14 +3162,14 @@ const loadSettings = async () => {
 .res-item { padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; }
 .res-name { font-weight: 600; margin-bottom: 4px; }
 .res-url { color: #334155; word-break: break-all; overflow-wrap: anywhere; }
- 
-.ep-list { 
-  display: grid; 
+
+.ep-list {
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 8px; 
+  gap: 8px;
   min-width: 0;
 }
-.ep-btn { 
+.ep-btn {
   width: 100%;
   text-align: center;
   white-space: nowrap;
@@ -3006,9 +3184,9 @@ const loadSettings = async () => {
 }
 
 @media (max-width: 768px) {
-  .card-header { 
-  flex-direction: column; 
-  align-items: flex-start; 
+  .card-header {
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .header-info {
@@ -3024,41 +3202,41 @@ const loadSettings = async () => {
   align-items: center;
 }
   .kv-list { grid-template-columns: 1fr; }
-  
+
   /* 移动端剧集列表优化 */
   .ep-list {
     grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
     gap: 6px;
   }
-  
+
   .ep-btn {
     font-size: 12px;
     padding: 0 2px;
     height: 28px;
   }
   .card-header h2 { white-space: normal; font-size: 18px; }
-  
+
   /* 移动端播放器控制区域优化 */
   .player-actions {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .player-actions-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
-  
+
   .player-actions .ant-space {
     flex-wrap: wrap;
     gap: 4px;
   }
-  
+
   .player-actions .ant-space-item {
     margin-bottom: 4px;
   }
-  
+
   .skip-label {
     min-width: auto;
     margin-bottom: 4px;

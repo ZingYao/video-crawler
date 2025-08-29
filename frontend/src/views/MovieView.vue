@@ -21,6 +21,8 @@
                     placeholder="请输入影片名称"
                     size="large"
                     @keydown.enter="handleSearch"
+                    @keyup.enter="handleSearch"
+                    @keydown="handleKeyDown"
                     @select="handleSelectHistory"
                     @focus="loadSearchHistory"
                     :disabled="searching"
@@ -399,6 +401,16 @@ function loadSearchCache(): boolean {
 onMounted(() => {
   loadSearchCache()
   loadSearchHistory()
+  // 提示手机键盘显示“搜索”并提高兼容性
+  try {
+    const input = document.querySelector('.search-form .ant-input') as HTMLInputElement | null
+    if (input) {
+      input.setAttribute('enterkeyhint', 'search')
+      input.setAttribute('inputmode', 'search')
+      // 一些机型需要将类型设为 search 才会把“回车”变为“搜索”
+      input.setAttribute('type', 'search')
+    }
+  } catch {}
 })
 
 onBeforeUnmount(() => {
@@ -459,6 +471,12 @@ const handleSearch = async () => {
   if (!searchKeyword.value.trim()) {
     message.warning('请输入搜索关键词')
     return
+  }
+
+  // 退出输入框焦点
+  const searchInput = document.querySelector('.search-form .ant-input') as HTMLInputElement
+  if (searchInput) {
+    searchInput.blur()
   }
 
   // 加载设置
@@ -576,6 +594,16 @@ const handleSearch = async () => {
     message.error('搜索失败，请重试')
   } finally {
     searching.value = false
+  }
+}
+
+// 处理键盘事件，支持搜索键
+const handleKeyDown = (event: KeyboardEvent) => {
+  // 处理搜索键（手机键盘的搜索键）
+  if (event.key === 'Enter' || event.keyCode === 13) {
+    // 阻止默认行为，避免重复触发
+    event.preventDefault()
+    handleSearch()
   }
 }
 

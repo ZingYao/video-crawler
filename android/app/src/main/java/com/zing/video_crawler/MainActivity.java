@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.app.DownloadManager;
 import android.net.Uri;
 import android.os.Environment;
+import android.util.Log;
 import android.webkit.DownloadListener;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -53,10 +54,18 @@ import android.os.PowerManager;
 
 public class MainActivity extends AppCompatActivity {
     static {
-        System.loadLibrary("go_video_crawler_jni");
+        try {
+            Log.d("MainActivity", "开始加载原生库...");
+            System.loadLibrary("go_video_crawler_jni");
+            Log.d("MainActivity", "原生库加载成功");
+        } catch(Exception e) {
+            Log.e("MainActivity", "原生库加载失败: " + e.getMessage(), e);
+        }
     }
 
     private native int startServer(String baseDir, int port);
+    private native String getServerError();
+    private native String getServerStatus();
 
     private int actualPort = 0;
     private static final int REQUEST_FILE_CHOOSER = 1001;
@@ -500,10 +509,44 @@ public class MainActivity extends AppCompatActivity {
                 int candidate = actualPort > 0 ? actualPort : last;
                 boolean alive = candidate > 0 && isPortAlive(candidate);
                 if (!alive) {
-                    int p = startServer(getFilesDir().getAbsolutePath() + "/configs", 0);
-                    if (p == 0) {
+                    // 确保配置目录存在
+                    try {
+                        java.io.File cfg = new java.io.File(getFilesDir(), "configs");
+                        if (!cfg.exists()) cfg.mkdirs();
+                    } catch (Throwable ignored) {}
+
+                    String baseDir = getFilesDir().getAbsolutePath() + "/configs";
+                    android.util.Log.d("MainActivity", "尝试启动内置服务，baseDir=" + baseDir);
+                    int p = 0;
+                    try {
+                        p = startServer(baseDir, 0);
+                        android.util.Log.d("MainActivity", "startServer 返回端口: " + p);
+                        if (p == 0) {
+                            // 获取详细的错误信息
+                            String errorMsg = getServerError();
+                            String statusMsg = getServerStatus();
+                            android.util.Log.e("MainActivity", "服务启动失败，返回端口为0");
+                            android.util.Log.e("MainActivity", "服务器状态: " + statusMsg);
+                            if (errorMsg != null && !errorMsg.isEmpty()) {
+                                android.util.Log.e("MainActivity", "服务器错误: " + errorMsg);
+                            }
+                            
+                            runOnUiThread(() -> {
+                                String displayMsg = "服务启动失败";
+                                if (errorMsg != null && !errorMsg.isEmpty()) {
+                                    displayMsg += ": " + errorMsg;
+                                }
+                                Toast.makeText(this, displayMsg, Toast.LENGTH_LONG).show();
+                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                    finishAndRemoveTask();
+                                }, 3000);
+                            });
+                            return;
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("MainActivity", "调用 startServer 时发生异常: " + e.getMessage(), e);
                         runOnUiThread(() -> {
-                            Toast.makeText(this, "服务启动失败，请重启应用", Toast.LENGTH_LONG).show();
+                            Toast.makeText(this, "服务启动异常: " + e.getMessage(), Toast.LENGTH_LONG).show();
                             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                 finishAndRemoveTask();
                             }, 3000);
@@ -513,8 +556,12 @@ public class MainActivity extends AppCompatActivity {
                     candidate = p;
                     actualPort = candidate;
                     saveLastPort(candidate);
-                    int finalPort = candidate;
-                    runOnUiThread(() -> Toast.makeText(this, "服务已启动: 127.0.0.1:" + finalPort, Toast.LENGTH_SHORT).show());
+                    android.util.Log.i("MainActivity", "内置服务启动: 127.0.0.1:" + candidate);
+                    // 老设备/低性能设备上端口可能尚未就绪，轮询等待一段时间
+                    for (int i = 0; i < 20; i++) { // 最多等待约10秒
+                        if (isPortAlive(candidate)) { break; }
+                        try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+                    }
                 } else {
                     actualPort = candidate;
                 }
@@ -986,6 +1033,27 @@ public class MainActivity extends AppCompatActivity {
     // 处理返回键逻辑
     private boolean handleBackKey() {
         long currentTime = System.currentTimeMillis();
+        
+        // 检查是否在全屏视频播放状态
+        if (customView != null) {
+            // 全屏视频播放时，让 Web 前端自己处理返回键
+            String js = String.format(
+                "try {" +
+                "  const event = new KeyboardEvent('keydown', {" +
+                "    key: 'Escape'," +
+                "    code: 'Escape'," +
+                "    keyCode: 27," +
+                "    which: 27," +
+                "    bubbles: true," +
+                "    cancelable: true" +
+                "  });" +
+                "  window.dispatchEvent(event);" +
+                "  document.dispatchEvent(event);" +
+                "} catch (error) {}"
+            );
+            webView.evaluateJavascript(js, null);
+            return true; // 阻止默认的返回键行为
+        }
         
         // 先检查当前是否有输入框聚焦
         if (webView != null) {
