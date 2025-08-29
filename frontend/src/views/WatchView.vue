@@ -353,6 +353,10 @@ const dragStartX = ref(0) // 拖动开始X坐标
 const dragStartY = ref(0) // 拖动开始Y坐标
 const isHorizontalDrag = ref(false) // 是否为横向拖动
 const isVerticalDrag = ref(false) // 是否为纵向拖动
+// 长按倍速隐藏进度条定时器
+let longPressHideTimer: number | null = null
+// 滑动进度显示进度条定时器
+let dragShowTimer: number | null = null
 
 const sourceId = computed(() => String(route.params.sourceId || ''))
 const videoUrl = computed(() => String(route.query.original_url || route.query.url || ''))
@@ -719,8 +723,6 @@ function ensurePlyr() {
     const container = plyr?.elements?.container as HTMLElement
     if (container) {
       attachProgressDrag(container)
-      // 新增：设置增强的视频控制功能
-      setupEnhancedVideoControls()
     }
   } catch {}
 }
@@ -825,7 +827,8 @@ function addPlyrCustomEvents() {
     } else {
       // 单击事件 - 切换进度条显示
       plyrLastClickTime = currentTime
-      handleVideoClick(e)
+      console.log('[PROGRESS_CTRL] [Plyr Click] 双击检测失败，执行单击切换进度条')
+      toggleProgressBar()
     }
   })
 
@@ -840,12 +843,13 @@ function addPlyrCustomEvents() {
     if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
     
     // 设置单击定时器
-    if (clickTimer) {
-      clearTimeout(clickTimer)
+    if (clickTimer.value) {
+      clearTimeout(clickTimer.value)
     }
-    clickTimer = setTimeout(() => {
+    clickTimer.value = setTimeout(() => {
       if (!isDraggingProgress && !isLongPressActive.value && plyrIsTouchActive) {
-        handleVideoClick(e)
+        console.log('[PROGRESS_CTRL] [Plyr Touch] 触摸单击定时器触发，执行切换进度条')
+        toggleProgressBar()
       }
     }, 200)
     
@@ -861,6 +865,17 @@ function addPlyrCustomEvents() {
         // 显示toast提示
         console.log(`[Plyr LongPress] 显示Toast: 已启动${longPressSpeed.value}倍速播放`)
         message.info(`已启动${longPressSpeed.value}倍速播放`, 3)
+        
+        // 长按倍速期间，每3秒隐藏一次进度条
+        console.log('[PROGRESS_CTRL] [Plyr LongPress] 启动长按倍速隐藏进度条定时器')
+        // 立即执行一次隐藏进度条
+        console.log('[PROGRESS_CTRL] [Plyr LongPress] 立即执行：隐藏进度条')
+        hideProgressBar()
+        // 启动定时器，每3秒隐藏一次
+        longPressHideTimer = setInterval(() => {
+          console.log('[PROGRESS_CTRL] [Plyr LongPress] 定时器触发：隐藏进度条')
+          hideProgressBar()
+        }, 3000)
       }
     }, 500)
   })
@@ -868,9 +883,9 @@ function addPlyrCustomEvents() {
   // 触摸移动
   containerEl.addEventListener('touchmove', (e: any) => {
     // 如果有移动，取消点击事件
-    if (clickTimer) {
-      clearTimeout(clickTimer)
-      clickTimer = null
+    if (clickTimer.value) {
+      clearTimeout(clickTimer.value)
+      clickTimer.value = null
     }
   })
 
@@ -891,12 +906,19 @@ function addPlyrCustomEvents() {
       // 显示toast提示
       console.log('[Plyr LongPress] 显示Toast: 已恢复倍速播放')
       message.info(`已恢复${originalRate.value}x倍速播放`, 3)
+      
+              // 清理长按倍速隐藏进度条定时器
+        if (longPressHideTimer) {
+          console.log('[PROGRESS_CTRL] [Plyr LongPress] 清理长按倍速隐藏进度条定时器')
+          clearInterval(longPressHideTimer)
+          longPressHideTimer = null
+        }
     }
     
     // 清除单击定时器
-    if (clickTimer) {
-      clearTimeout(clickTimer)
-      clickTimer = null
+    if (clickTimer.value) {
+      clearTimeout(clickTimer.value)
+      clickTimer.value = null
     }
   })
 
@@ -911,12 +933,19 @@ function addPlyrCustomEvents() {
       plyr.speed = originalRate.value
       syncRateToUI(originalRate.value)
       isLongPressActive.value = false
+      
+              // 清理长按倍速隐藏进度条定时器
+        if (longPressHideTimer) {
+          console.log('[PROGRESS_CTRL] [Plyr LongPress] 触摸取消：清理长按倍速隐藏进度条定时器')
+          clearInterval(longPressHideTimer)
+          longPressHideTimer = null
+        }
     }
     
     // 清除单击定时器
-    if (clickTimer) {
-      clearTimeout(clickTimer)
-      clickTimer = null
+    if (clickTimer.value) {
+      clearTimeout(clickTimer.value)
+      clickTimer.value = null
     }
   })
 
@@ -928,12 +957,12 @@ function addPlyrCustomEvents() {
       if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
       
       // 设置单击定时器
-      if (clickTimer) {
-        clearTimeout(clickTimer)
+      if (clickTimer.value) {
+        clearTimeout(clickTimer.value)
       }
-      clickTimer = setTimeout(() => {
+      clickTimer.value = setTimeout(() => {
         if (!isDraggingProgress && !isLongPressActive.value && plyrIsTouchActive) {
-          handleVideoClick(e)
+          toggleProgressBar()
         }
       }, 200)
       
@@ -949,6 +978,17 @@ function addPlyrCustomEvents() {
           // 显示toast提示
           console.log(`[Plyr LongPress] 显示Toast: 已启动${longPressSpeed.value}倍速播放`)
           message.info(`已启动${longPressSpeed.value}倍速播放`, 3)
+          
+                  // 长按倍速期间，每3秒隐藏一次进度条
+        console.log('[PROGRESS_CTRL] [Plyr LongPress] 启动长按倍速隐藏进度条定时器')
+        // 立即执行一次隐藏进度条
+        console.log('[PROGRESS_CTRL] [Plyr LongPress] 立即执行：隐藏进度条')
+        hideProgressBar()
+        // 启动定时器，每3秒隐藏一次
+        longPressHideTimer = setInterval(() => {
+          console.log('[PROGRESS_CTRL] [Plyr LongPress] 定时器触发：隐藏进度条')
+          hideProgressBar()
+        }, 3000)
         }
       }, 500)
     }
@@ -972,12 +1012,19 @@ function addPlyrCustomEvents() {
         // 显示toast提示
         console.log('[Plyr LongPress] 显示Toast: 已恢复倍速播放')
         message.info(`已恢复${originalRate.value}x倍速播放`, 3)
+        
+        // 清理长按倍速隐藏进度条定时器
+        if (longPressHideTimer) {
+          console.log('[PROGRESS_CTRL] [Plyr LongPress] 鼠标松开：清理长按倍速隐藏进度条定时器')
+          clearInterval(longPressHideTimer)
+          longPressHideTimer = null
+        }
       }
       
       // 清除单击定时器
-      if (clickTimer) {
-        clearTimeout(clickTimer)
-        clickTimer = null
+      if (clickTimer.value) {
+        clearTimeout(clickTimer.value)
+        clickTimer.value = null
       }
     }
   })
@@ -994,33 +1041,16 @@ function addPlyrCustomEvents() {
         plyr.speed = originalRate.value
         syncRateToUI(originalRate.value)
         isLongPressActive.value = false
+        
+        // 清理长按倍速隐藏进度条定时器
+        if (longPressHideTimer) {
+          console.log('[PROGRESS_CTRL] [Plyr LongPress] 鼠标离开：清理长按倍速隐藏进度条定时器')
+          clearInterval(longPressHideTimer)
+          longPressHideTimer = null
+        }
       }
     }
   })
-
-  // 新增：单击视频显示/隐藏进度条功能
-  let clickTimer: any = null
-
-  // 单击事件处理
-  const handleVideoClick = (e: any) => {
-    console.log('[VideoClick] 单击事件触发')
-    
-    // 避免与Plyr控件冲突
-    const target = e.target as HTMLElement
-    if (target && (target.closest('.plyr__control') || target.closest('.plyr__progress') || target.closest('.plyr__controls'))) {
-      console.log('[VideoClick] 在Plyr控件区域，忽略单击')
-      return
-    }
-    
-    // 避免与长按和拖动冲突
-    if (isLongPressActive.value || isDraggingProgress) {
-      console.log('[VideoClick] 长按或拖动中，忽略单击')
-      return
-    }
-    
-    console.log('[VideoClick] 执行切换进度条')
-    toggleProgressBar()
-  }
 
   // 鼠标点击事件已合并到上面的双击播放/暂停事件中
 }
@@ -3011,6 +3041,17 @@ function attachProgressDrag(container: HTMLElement) {
           container.classList.remove('plyr--hide-controls')
           container.classList.add('plyr--controls-active')
         } catch {}
+        
+        // 滑动进度期间，每3秒显示一次进度条
+        console.log('[PROGRESS_CTRL] [ProgressDrag] 启动滑动进度显示进度条定时器')
+        // 立即执行一次显示进度条
+        console.log('[PROGRESS_CTRL] [ProgressDrag] 立即执行：显示进度条')
+        showProgressBar()
+        // 启动定时器，每3秒显示一次
+        dragShowTimer = setInterval(() => {
+          console.log('[PROGRESS_CTRL] [ProgressDrag] 定时器触发：显示进度条')
+          showProgressBar()
+        }, 3000)
       }
     }
 
@@ -3034,6 +3075,14 @@ function attachProgressDrag(container: HTMLElement) {
     determined = false
     isHorizontal = false
     isDraggingProgress = false
+    
+    // 清理滑动进度显示进度条定时器
+    if (dragShowTimer) {
+      console.log('[PROGRESS_CTRL] [ProgressDrag] 滑动结束：清理滑动进度显示进度条定时器')
+      clearInterval(dragShowTimer)
+      dragShowTimer = null
+    }
+    
     try {
       container.classList.remove('dragging-show-progress')
       container.classList.remove('plyr--controls-active')
@@ -3071,231 +3120,125 @@ const loadSettings = async () => {
   progressSensitivity.value = settingsStore.settings.progressBarSensitivity
 }
 
-// 防抖定时器
-let toggleProgressBarDebounceTimer: number | null = null
-
 // 新增：视频播放控制功能
-// 单击视频显示/隐藏进度条（同时支持Plyr和原生video）
-function toggleProgressBar() {
-  // 防抖处理：如果在300ms内多次调用，只执行最后一次
-  if (toggleProgressBarDebounceTimer) {
-    clearTimeout(toggleProgressBarDebounceTimer)
-  }
-  
-  toggleProgressBarDebounceTimer = window.setTimeout(() => {
-    try {
-      console.log('[ToggleProgressBar] 开始切换进度条')
-      let container: HTMLElement | null = null
-      
-      if (plyr) {
-        // Plyr播放器
-        container = plyr.elements.container
-        console.log('[ToggleProgressBar] 使用Plyr容器')
-      } else if (videoRef.value) {
-        // 原生video播放器
-        container = videoRef.value.parentElement
-        console.log('[ToggleProgressBar] 使用原生video容器')
-      }
-      
-      if (!container) {
-        console.log('[ToggleProgressBar] 容器不存在')
-        return
-      }
-      
-      console.log('[ToggleProgressBar] 当前进度条状态:', isProgressVisible.value)
-      console.log('[ToggleProgressBar] 容器类名:', container.className)
-      
-      if (isProgressVisible.value) {
-        // 隐藏进度条
-        container.classList.remove('show-progress-bar')
-        container.classList.add('hide-progress-bar')
-        
-        // 使用Plyr API强制隐藏控件
-        if (plyr) {
-          try {
-            // 使用Plyr的内置方法隐藏控件
-            if (typeof plyr.hideControls === 'function') {
-              plyr.hideControls()
-              console.log('[ToggleProgressBar] 使用Plyr内置hideControls方法')
-            } else {
-              plyr.elements.container.classList.add('plyr--hide-controls')
-              // 直接操作Plyr控件元素
-              if (plyr.elements.controls) {
-                plyr.elements.controls.style.setProperty('display', 'none', 'important')
-                plyr.elements.controls.style.setProperty('opacity', '0', 'important')
-                plyr.elements.controls.style.setProperty('visibility', 'hidden', 'important')
-                plyr.elements.controls.style.setProperty('pointer-events', 'none', 'important')
-                console.log('[ToggleProgressBar] 强制隐藏控件2', plyr.elements.controls, plyr.elements.controls.style)
-              }
-            }
-            
-            console.log('[ToggleProgressBar] 使用Plyr API隐藏控件')
-          } catch (e) {
-            console.error('[ToggleProgressBar] Plyr API隐藏控件失败:', e)
-          }
-        }
-        
-        isProgressVisible.value = false
-        console.log('[VideoControl] 隐藏进度条')
-        console.log('[ToggleProgressBar] 隐藏后容器类名:', container.className)
-      } else {
-        // 显示进度条
-        container.classList.add('show-progress-bar')
-        container.classList.remove('hide-progress-bar')
-        
-        // 使用Plyr API强制显示控件
-        if (plyr) {
-          try {
-            // 直接操作Plyr控件元素 - 强制设置显示样式
-            if (plyr.elements.controls) {
-              // 强制设置显示样式，覆盖Plyr的隐藏逻辑
-              plyr.elements.controls.style.setProperty('display', 'flex', 'important')
-              plyr.elements.controls.style.setProperty('opacity', '1', 'important')
-              plyr.elements.controls.style.setProperty('visibility', 'visible', 'important')
-              plyr.elements.controls.style.setProperty('pointer-events', 'auto', 'important')
-              
-              console.log('[ToggleProgressBar] 强制显示控件', plyr.elements.controls, plyr.elements.controls.style)
-            }
-            
-            // 使用Plyr的内置方法显示控件
-            if (typeof plyr.showControls === 'function') {
-              plyr.showControls()
-              console.log('[ToggleProgressBar] 使用Plyr内置showControls方法')
-            } else {
-              plyr.elements.container.classList.remove('plyr--hide-controls')
-              plyr.elements.container.classList.add('plyr--controls-active')
-              console.log('[ToggleProgressBar] 使用Plyr CSS类显示控件')
-            }
-            
-            console.log('[ToggleProgressBar] 使用Plyr API显示控件')
-          } catch (e) {
-            console.error('[ToggleProgressBar] Plyr API显示控件失败:', e)
-          }
-        }
-        
-        isProgressVisible.value = true
-        console.log('[VideoControl] 显示进度条')
-        console.log('[ToggleProgressBar] 显示后容器类名:', container.className)
-        
-        // 3秒后自动隐藏
-        if (progressBarTimer.value) {
-          clearTimeout(progressBarTimer.value)
-        }
-        progressBarTimer.value = window.setTimeout(() => {
-          if (isProgressVisible.value) {
-            toggleProgressBar()
-          }
-        }, 3000)
-      }
-    } catch (e) {
-      console.error('[VideoControl] 切换进度条显示失败:', e)
+// 隐藏进度条方法
+function hideProgressBar() {
+  try {
+    console.log('[PROGRESS_CTRL] [HideProgressBar] 开始隐藏进度条')
+    let container: HTMLElement | null = null
+    
+    if (plyr) {
+      container = plyr.elements.container
+      console.log('[PROGRESS_CTRL] [HideProgressBar] 使用Plyr容器')
+    } else if (videoRef.value) {
+      container = videoRef.value.parentElement
+      console.log('[PROGRESS_CTRL] [HideProgressBar] 使用原生video容器')
     }
     
-    // 清理防抖定时器
-    toggleProgressBarDebounceTimer = null
-  }, 300) // 300ms防抖延迟
+    if (!container) {
+      console.log('[PROGRESS_CTRL] [HideProgressBar] 容器不存在')
+      return
+    }
+    
+    // 隐藏进度条样式
+    container.classList.remove('show-progress-bar')
+    container.classList.add('hide-progress-bar')
+    
+    // 使用Plyr API强制隐藏控件
+    if (plyr) {
+      try {
+        if (typeof plyr.hideControls === 'function') {
+          plyr.hideControls()
+          console.log('[PROGRESS_CTRL] [HideProgressBar] 使用Plyr内置hideControls方法')
+        } else {
+          plyr.elements.container.classList.add('plyr--hide-controls')
+          if (plyr.elements.controls) {
+            plyr.elements.controls.style.setProperty('display', 'none', 'important')
+            plyr.elements.controls.style.setProperty('opacity', '0', 'important')
+            plyr.elements.controls.style.setProperty('visibility', 'hidden', 'important')
+            plyr.elements.controls.style.setProperty('pointer-events', 'none', 'important')
+            console.log('[PROGRESS_CTRL] [HideProgressBar] 强制隐藏Plyr控件')
+          }
+        }
+      } catch (e) {
+        console.error('[PROGRESS_CTRL] [HideProgressBar] Plyr API隐藏控件失败:', e)
+      }
+    }
+    
+    isProgressVisible.value = false
+    console.log('[PROGRESS_CTRL] [HideProgressBar] 进度条已隐藏')
+  } catch (e) {
+    console.error('[PROGRESS_CTRL] [HideProgressBar] 隐藏进度条失败:', e)
+  }
 }
 
-// 新增：增强的视频播放控制功能
-function setupEnhancedVideoControls() {
-  // 获取容器元素（同时支持Plyr和原生video）
-  let container: HTMLElement | null = null
-  
-  if (plyr) {
-    container = plyr.elements.container
-  } else if (videoRef.value) {
-    container = videoRef.value.parentElement
-  }
-  
-  if (!container) return
-  
-  // 单击视频区域显示/隐藏进度条
-  const handleVideoClick = (e: MouseEvent | TouchEvent) => {
-    // 避免与Plyr控件冲突
-    const target = e.target as HTMLElement
-    if (target.closest('.plyr__control') || target.closest('.plyr__progress') || target.closest('.plyr__controls')) {
+// 显示进度条方法
+function showProgressBar() {
+  try {
+    console.log('[PROGRESS_CTRL] [ShowProgressBar] 开始显示进度条')
+    let container: HTMLElement | null = null
+    
+    if (plyr) {
+      container = plyr.elements.container
+      console.log('[PROGRESS_CTRL] [ShowProgressBar] 使用Plyr容器')
+    } else if (videoRef.value) {
+      container = videoRef.value.parentElement
+      console.log('[PROGRESS_CTRL] [ShowProgressBar] 使用原生video容器')
+    }
+    
+    if (!container) {
+      console.log('[PROGRESS_CTRL] [ShowProgressBar] 容器不存在')
       return
     }
     
-    // 避免与长按和拖动冲突
-    if (isLongPressActive.value || isDraggingProgress) {
-      return
-    }
+    // 显示进度条样式
+    container.classList.add('show-progress-bar')
+    container.classList.remove('hide-progress-bar')
     
-    toggleProgressBar()
-  }
-  
-  // 触摸事件处理
-  const handleTouchStart = (e: TouchEvent) => {
-    // 设置点击定时器，用于检测单击事件
-    if (clickTimer.value) {
-      clearTimeout(clickTimer.value)
-    }
-    clickTimer.value = window.setTimeout(() => {
-      if (!isDraggingProgress && !isLongPressActive.value) {
-        handleVideoClick(e)
+    // 使用Plyr API强制显示控件
+    if (plyr) {
+      try {
+        if (plyr.elements.controls) {
+          plyr.elements.controls.style.setProperty('display', 'flex', 'important')
+          plyr.elements.controls.style.setProperty('opacity', '1', 'important')
+          plyr.elements.controls.style.setProperty('visibility', 'visible', 'important')
+          plyr.elements.controls.style.setProperty('pointer-events', 'auto', 'important')
+          console.log('[PROGRESS_CTRL] [ShowProgressBar] 强制显示Plyr控件')
+        }
+        
+        if (typeof plyr.showControls === 'function') {
+          plyr.showControls()
+          console.log('[PROGRESS_CTRL] [ShowProgressBar] 使用Plyr内置showControls方法')
+        } else {
+          plyr.elements.container.classList.remove('plyr--hide-controls')
+          plyr.elements.container.classList.add('plyr--controls-active')
+          console.log('[PROGRESS_CTRL] [ShowProgressBar] 使用Plyr CSS类显示控件')
+        }
+      } catch (e) {
+        console.error('[PROGRESS_CTRL] [ShowProgressBar] Plyr API显示控件失败:', e)
       }
-    }, 200)
-  }
-  
-  const handleTouchMove = (e: TouchEvent) => {
-    // 如果有移动，取消点击事件
-    if (clickTimer.value) {
-      clearTimeout(clickTimer.value)
-      clickTimer.value = null
-    }
-  }
-  
-  const handleTouchEnd = () => {
-    // 清除点击定时器
-    if (clickTimer.value) {
-      clearTimeout(clickTimer.value)
-      clickTimer.value = null
-    }
-  }
-  
-  // 鼠标事件处理（桌面端）
-  const handleMouseClick = (e: MouseEvent) => {
-    // 避免与Plyr控件冲突
-    const target = e.target as HTMLElement
-    if (target.closest('.plyr__control') || target.closest('.plyr__progress') || target.closest('.plyr__controls')) {
-      return
     }
     
-    // 避免与拖动冲突
-    if (isDraggingProgress) {
-      return
-    }
-    
-    handleVideoClick(e)
-  }
-  
-  // 绑定事件
-  container.addEventListener('click', handleMouseClick)
-  container.addEventListener('touchstart', handleTouchStart, { passive: true })
-  container.addEventListener('touchmove', handleTouchMove, { passive: true })
-  container.addEventListener('touchend', handleTouchEnd, { passive: true })
-  container.addEventListener('touchcancel', handleTouchEnd, { passive: true })
-  
-  // 清理函数
-  return () => {
-    container.removeEventListener('click', handleMouseClick)
-    container.removeEventListener('touchstart', handleTouchStart)
-    container.removeEventListener('touchmove', handleTouchMove)
-    container.removeEventListener('touchend', handleTouchEnd)
-    container.removeEventListener('touchcancel', handleTouchEnd)
-    
-    if (clickTimer.value) {
-      clearTimeout(clickTimer.value)
-      clickTimer.value = null
-    }
-    
-    if (progressBarTimer.value) {
-      clearTimeout(progressBarTimer.value)
-      progressBarTimer.value = null
-    }
+    isProgressVisible.value = true
+    console.log('[PROGRESS_CTRL] [ShowProgressBar] 进度条已显示')
+  } catch (e) {
+    console.error('[PROGRESS_CTRL] [ShowProgressBar] 显示进度条失败:', e)
   }
 }
+
+// 单击切换进度条显示/隐藏
+function toggleProgressBar() {
+  console.log('[PROGRESS_CTRL] [ToggleProgressBar] 单击触发进度条切换')
+  if (isProgressVisible.value) {
+    console.log('[PROGRESS_CTRL] [ToggleProgressBar] 当前进度条可见，执行隐藏')
+    hideProgressBar()
+  } else {
+    console.log('[PROGRESS_CTRL] [ToggleProgressBar] 当前进度条隐藏，执行显示')
+    showProgressBar()
+  }
+}
+
+
 
 // 进度拖动手势（同时适配 Plyr 和原生 video 容器）
 </script>
