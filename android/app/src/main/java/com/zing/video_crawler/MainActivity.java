@@ -688,14 +688,42 @@ public class MainActivity extends AppCompatActivity {
             .apply();
     }
 
-    // 保存最后访问的URL
+    // 保存最后访问的URL（包含路由路径和参数）
     private void saveLastUrl(String url) {
         if (url != null && !url.isEmpty()) {
-            android.util.Log.d("MainActivity", "保存最后访问URL: " + url);
-            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                .edit()
-                .putString(PREF_KEY_LAST_URL, url)
-                .apply();
+            try {
+                // 解析URL，提取路径和参数
+                java.net.URI uri = new java.net.URI(url);
+                String path = uri.getPath();
+                String query = uri.getQuery();
+                String fragment = uri.getFragment(); // hash部分
+                
+                // 构建保存的URL：path + query + fragment
+                StringBuilder savedUrl = new StringBuilder();
+                if (path != null && !path.isEmpty()) {
+                    savedUrl.append(path);
+                }
+                if (query != null && !query.isEmpty()) {
+                    savedUrl.append("?").append(query);
+                }
+                if (fragment != null && !fragment.isEmpty()) {
+                    savedUrl.append("#").append(fragment);
+                }
+                
+                String finalUrl = savedUrl.toString();
+                android.util.Log.d("MainActivity", "保存最后访问URL: " + finalUrl + " (原URL: " + url + ")");
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putString(PREF_KEY_LAST_URL, finalUrl)
+                    .apply();
+            } catch (Exception e) {
+                android.util.Log.e("MainActivity", "保存URL失败: " + e.getMessage());
+                // 如果解析失败，回退到保存完整URL
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putString(PREF_KEY_LAST_URL, url)
+                    .apply();
+            }
         }
     }
 
