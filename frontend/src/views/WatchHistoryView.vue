@@ -137,11 +137,14 @@ const onRow = (record: VideoHistory) => {
 // 按钮点击：继续观看
 const continueWatch = (record: VideoHistory) => {
   if (!record.source_id || !record.video_url) return
-  // 只传递 source_id 参数，不传递 url 和 title，让观看页面从缓存加载
+  // 只传递 source_id 和 url 参数，不传递 title 和 source，让观看页面从缓存加载
   router.push({
     name: 'watch',
     params: { sourceId: record.source_id },
-    query: {}, // 不传递 url 和 title 参数
+    query: { 
+      url: record.video_url,
+      original_url: record.video_url
+    }, // 传递 url 和 original_url，不传递 title 和 source
   })
 }
 </script>
