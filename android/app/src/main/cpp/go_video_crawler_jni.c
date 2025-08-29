@@ -5,7 +5,7 @@
 #include <sys/types.h>
 
 // typedef for Go functions
-typedef int (*StartServerFn)(char* baseDir, int port);
+typedef char* (*StartServerFn)(char* baseDir, int port);
 typedef char* (*GetServerErrorFn)();
 typedef char* (*GetServerStatusFn)();
 
@@ -14,7 +14,7 @@ static void ensure_dir(const char* path) {
     mkdir(path, 0700);
 }
 
-JNIEXPORT jint JNICALL
+JNIEXPORT jstring JNICALL
 Java_com_zing_video_1crawler_MainActivity_startServer(JNIEnv* env, jobject thiz, jstring baseDir, jint port) {
     const char* base_c = (*env)->GetStringUTFChars(env, baseDir, 0);
     if (base_c && *base_c) {
@@ -25,19 +25,20 @@ Java_com_zing_video_1crawler_MainActivity_startServer(JNIEnv* env, jobject thiz,
     void* handle = dlopen("libgo_video_crawler.so", RTLD_NOW);
     if (!handle) {
         if (base_c) (*env)->ReleaseStringUTFChars(env, baseDir, base_c);
-        return 0;
+        return (*env)->NewStringUTF(env, "");
     }
     StartServerFn fn = (StartServerFn)dlsym(handle, "StartServer");
     if (!fn) {
         dlclose(handle);
         if (base_c) (*env)->ReleaseStringUTFChars(env, baseDir, base_c);
-        return 0;
+        return (*env)->NewStringUTF(env, "");
     }
 
-    int actual = fn((char*)base_c, (int)port);
+    char* result = fn((char*)base_c, (int)port);
+    jstring jresult = (*env)->NewStringUTF(env, result ? result : "");
     dlclose(handle);
     if (base_c) (*env)->ReleaseStringUTFChars(env, baseDir, base_c);
-    return (jint)actual;
+    return jresult;
 }
 
 JNIEXPORT jstring JNICALL

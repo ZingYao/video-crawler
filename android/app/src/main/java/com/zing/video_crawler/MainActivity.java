@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private native int startServer(String baseDir, int port);
+    private native String startServer(String baseDir, int port);
     private native String getServerError();
     private native String getServerStatus();
 
@@ -519,24 +519,50 @@ public class MainActivity extends AppCompatActivity {
                     android.util.Log.d("MainActivity", "尝试启动内置服务，baseDir=" + baseDir);
                     int p = 0;
                     try {
-                        p = startServer(baseDir, 0);
-                        android.util.Log.d("MainActivity", "startServer 返回端口: " + p);
-                        if (p == 0) {
-                            // 获取详细的错误信息
-                            String errorMsg = getServerError();
-                            String statusMsg = getServerStatus();
-                            android.util.Log.e("MainActivity", "服务启动失败，返回端口为0");
-                            android.util.Log.e("MainActivity", "服务器状态: " + statusMsg);
-                            if (errorMsg != null && !errorMsg.isEmpty()) {
-                                android.util.Log.e("MainActivity", "服务器错误: " + errorMsg);
-                            }
-                            
-                            runOnUiThread(() -> {
-                                String displayMsg = "服务启动失败";
-                                if (errorMsg != null && !errorMsg.isEmpty()) {
-                                    displayMsg += ": " + errorMsg;
+                        String result = startServer(baseDir, 10086);
+                        android.util.Log.d("MainActivity", "startServer 返回结果: " + result);
+                        
+                        // 解析JSON结果
+                        if (result != null && !result.isEmpty()) {
+                            try {
+                                org.json.JSONObject jsonResult = new org.json.JSONObject(result);
+                                String state = jsonResult.optString("state", "error");
+                                p = jsonResult.optInt("port", 0);
+                                String error = jsonResult.optString("error", "");
+                                
+                                android.util.Log.d("MainActivity", "解析结果 - state: " + state + ", port: " + p + ", error: " + error);
+                                
+                                if (!"success".equals(state)) {
+                                    // 服务启动失败
+                                    android.util.Log.e("MainActivity", "服务启动失败，状态: " + state);
+                                    android.util.Log.e("MainActivity", "错误信息: " + error);
+                                    
+                                    runOnUiThread(() -> {
+                                        String displayMsg = "服务启动失败";
+                                        if (error != null && !error.isEmpty()) {
+                                            displayMsg += ": " + error;
+                                        }
+                                        Toast.makeText(this, displayMsg, Toast.LENGTH_LONG).show();
+                                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                            finishAndRemoveTask();
+                                        }, 3000);
+                                    });
+                                    return;
                                 }
-                                Toast.makeText(this, displayMsg, Toast.LENGTH_LONG).show();
+                            } catch (org.json.JSONException e) {
+                                android.util.Log.e("MainActivity", "解析JSON结果失败: " + e.getMessage());
+                                runOnUiThread(() -> {
+                                    Toast.makeText(this, "解析服务器返回结果失败", Toast.LENGTH_LONG).show();
+                                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                        finishAndRemoveTask();
+                                    }, 3000);
+                                });
+                                return;
+                            }
+                        } else {
+                            android.util.Log.e("MainActivity", "startServer 返回空结果");
+                            runOnUiThread(() -> {
+                                Toast.makeText(this, "服务器启动失败：返回空结果", Toast.LENGTH_LONG).show();
                                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                                     finishAndRemoveTask();
                                 }, 3000);

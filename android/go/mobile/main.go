@@ -4,6 +4,7 @@ package main
 import "C"
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -14,6 +15,13 @@ import (
 	"video-crawler/internal/app"
 	"video-crawler/internal/config"
 )
+
+// ServerResult 表示服务器启动结果
+type ServerResult struct {
+	Port  int    `json:"port"`
+	State string `json:"state"` // "success", "error", "timeout"
+	Error string `json:"error"`
+}
 
 var (
 	startOnce     sync.Once
@@ -32,12 +40,12 @@ func getFreePort() (int, error) {
 }
 
 //export StartServer
-func StartServer(baseDir *C.char, port C.int) C.int {
+func StartServer(baseDir *C.char, port C.int) *C.char {
 	defer func() {
 		r := recover()
 		if r != nil {
 			log.Printf("StartServer 发生恐慌: %v", r)
-			serverError = fmt.Sprintf("(%v)StartServer 发生恐慌: %v", serverError, r)
+			serverError = fmt.Sprintf("StartServer 发生恐慌: %v", r)
 		}
 	}()
 	log.Printf("StartServer 被调用: baseDir=%v, port=%d", baseDir, port)
@@ -125,29 +133,79 @@ func StartServer(baseDir *C.char, port C.int) C.int {
 		}
 	})
 
-	if serverStarted {
-		return C.int(serverPort)
+	// 构建返回结果
+	result := ServerResult{
+		Port:  int(port),
+		State: "error",
+		Error: "HTTP服务启动失败",
 	}
-	return 0
+
+	if serverStarted {
+		result.Port = serverPort
+		result.State = "success"
+		result.Error = ""
+	}
+
+	// 序列化为JSON
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		log.Printf("序列化结果失败: %v", err)
+		// 返回错误结果的JSON
+		errorResult := ServerResult{
+			Port:  int(port),
+			State: "error",
+			Error: fmt.Sprintf("序列化失败: %v", err),
+		}
+		jsonData, _ = json.Marshal(errorResult)
+	}
+
+	return C.CString(string(jsonData))
 }
 
 //export GetServerError
 func GetServerError() *C.char {
-	if serverError != "" {
-		return C.CString(serverError)
+	result := ServerResult{
+		Port:  serverPort,
+		State: "error",
+		Error: serverError,
 	}
-	return C.CString("")
+
+	if serverStarted {
+		result.State = "success"
+		result.Error = ""
+	}
+
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		log.Printf("序列化错误信息失败: %v", err)
+		return C.CString("")
+	}
+
+	return C.CString(string(jsonData))
 }
 
 //export GetServerStatus
 func GetServerStatus() *C.char {
+	result := ServerResult{
+		Port:  serverPort,
+		State: "not_started",
+		Error: "",
+	}
+
 	if serverStarted {
-		return C.CString(fmt.Sprintf("running:%d", serverPort))
+		result.State = "success"
+	} else if serverError != "" {
+		result.State = "error"
+		result.Error = serverError
 	}
-	if serverError != "" {
-		return C.CString(fmt.Sprintf("error:%s", serverError))
+
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		log.Printf("序列化状态信息失败: %v", err)
+		return C.CString("")
 	}
-	return C.CString("not_started")
+
+	return C.CString(string(jsonData))
 }
 
 func main() {}
