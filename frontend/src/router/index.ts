@@ -223,7 +223,7 @@ router.beforeEach(async (to, from, next) => {
       next('/404')
       return
     }
-    // 不需要登录时，其他页面都允许访问（包括站点管理和观看历史）
+    // 不需要登录时，其他页面都允许访问（包括站点管理和观看历史、观看页面）
     next()
     return
   }
