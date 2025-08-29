@@ -1777,6 +1777,12 @@ async function playEpisodeWithUrl(ep: { name: string; url: string }, preloadedUr
         })
       }
     }
+    
+    // 播放成功后，预加载下一集的播放链接
+    setTimeout(() => {
+      preloadNextEpisodeUrl()
+    }, 1000) // 延迟1秒执行，避免影响当前播放
+    
     // 注：剧集信息已在函数开始时缓存，此处无需重复缓存
   } catch (error) {
     console.error('播放剧集失败:', error)
@@ -1875,6 +1881,12 @@ async function playEpisode(ep: { name: string; url: string }, sourceName?: strin
         })
       }
     }
+    
+    // 播放成功后，预加载下一集的播放链接
+    setTimeout(() => {
+      preloadNextEpisodeUrl()
+    }, 1000) // 延迟1秒执行，避免影响当前播放
+    
     // 注：剧集信息已在函数开始时缓存，此处无需重复缓存
   } catch (error) {
     console.error('播放剧集失败:', error)
@@ -1885,7 +1897,46 @@ function playPrev() {
   if (!canPrev.value) return
   playEpisode(currentSourceEpisodes.value[currentIndex.value - 1])
 }
-// 预加载下一集播放链接
+// 预加载下一集播放链接（优化版本，用于同时加载）
+async function preloadNextEpisodeUrl() {
+  if (!canNext.value) return
+
+  try {
+    const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
+    if (!nextEpisode?.url) return
+
+    console.log('[PreloadNext] 开始预加载下一集播放链接:', nextEpisode.url)
+
+    // 先尝试从缓存加载播放链接
+    let url = loadPlayUrlCache(nextEpisode.url)
+
+    if (!url) {
+      // 缓存未命中，请求新的播放链接
+      console.log('[PreloadNext] 缓存未命中，请求下一集播放链接:', nextEpisode.url)
+      const token = auth.token!
+      const res: any = await videoAPI.playUrl(token, sourceId.value, nextEpisode.url)
+      url = res?.data?.video_url || res?.data || ''
+
+      if (url) {
+        // 缓存播放链接
+        savePlayUrlCache(nextEpisode.url, url)
+        console.log('[PreloadNext] 下一集播放链接已缓存:', nextEpisode.url)
+      }
+    } else {
+      console.log('[PreloadNext] 使用缓存的下一集播放链接:', nextEpisode.url)
+    }
+
+    if (url) {
+      nextEpisodeUrl.value = url
+      nextEpisodePreloaded.value = true
+      console.log('[PreloadNext] 下一集播放链接预加载成功')
+    }
+  } catch (error) {
+    console.error('[PreloadNext] 预加载下一集失败:', error)
+  }
+}
+
+// 预加载下一集播放链接（原有版本，保持兼容性）
 async function preloadNextEpisode() {
   if (!canNext.value || nextEpisodePreloaded.value) return
 
@@ -1952,6 +2003,10 @@ function playNext() {
   if (nextEpisodeUrl.value) {
     const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
     playEpisodeWithUrl(nextEpisode, nextEpisodeUrl.value)
+    // 播放下一集后，立即预加载下下集的播放链接
+    setTimeout(() => {
+      preloadNextEpisodeUrl()
+    }, 1000) // 延迟1秒执行，避免影响当前播放
   } else {
     const nextEpisode = currentSourceEpisodes.value[currentIndex.value + 1]
     playEpisode(nextEpisode)
@@ -2503,6 +2558,9 @@ async function resolvePlayUrl() {
     } else {
       console.log(`[resolvePlayUrl] 使用缓存的播放链接: ${episodeUrl}`)
     }
+
+    // 同时预加载下一集的播放链接
+    await preloadNextEpisodeUrl()
 
     if (!url || typeof url !== 'string') {
       console.error('[resolvePlayUrl] 获取播放链接失败')
