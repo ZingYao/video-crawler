@@ -628,6 +628,9 @@ function ensurePlyr() {
     settings: ['speed'],
     speed: { selected: rate.value, options: rates },
     clickToPlay: true,
+    // 优化控件显示逻辑
+    hideControls: true, // 启用自动隐藏控件
+    resetOnEnd: false, // 播放结束时不要重置
   })
 
   // 立即禁用 Plyr 的双击全屏功能
@@ -666,6 +669,22 @@ function ensurePlyr() {
   plyr.on('play', async () => { await requestWakeLock() })
   plyr.on('pause', async () => { await releaseWakeLock() })
   plyr.on('ended', async () => { await releaseWakeLock() })
+
+  // 优化控件显示逻辑
+  plyr.on('enterfullscreen', () => {
+    console.log('[Plyr] 进入全屏')
+    // 全屏时允许控件自动隐藏
+    try {
+      const container = plyr.elements.container
+      container.classList.remove('dragging-show-progress')
+      container.classList.remove('longpress-hide-progress')
+    } catch {}
+  })
+
+  plyr.on('exitfullscreen', () => {
+    console.log('[Plyr] 退出全屏')
+    // 退出全屏时恢复正常控件显示
+  })
 
   bindPlayerEvents()
 
@@ -744,6 +763,12 @@ function addPlyrCustomEvents() {
   const plyrDoubleClickThreshold = 300
 
   plyr.elements.container.addEventListener('click', (e: any) => {
+    // 避免与Plyr的控件点击事件冲突
+    const target = e.target as HTMLElement
+    if (target && (target.closest('.plyr__control') || target.closest('.plyr__progress') || target.closest('.plyr__controls'))) {
+      return
+    }
+    
     const currentTime = Date.now()
     if (currentTime - plyrLastClickTime < plyrDoubleClickThreshold) {
       // 双击事件
@@ -1120,6 +1145,11 @@ function bindPlayerEvents() {
   const doubleClickThreshold = 300 // 双击时间阈值（毫秒）
 
   v.addEventListener('click', (e) => {
+    // 如果已经初始化了Plyr，让Plyr处理点击事件
+    if (plyr) {
+      return
+    }
+    
     const currentTime = Date.now()
     if (currentTime - lastClickTime < doubleClickThreshold) {
       // 双击事件
@@ -2698,9 +2728,12 @@ function attachProgressDrag(container: HTMLElement) {
 
   const ensureProgressVisible = () => {
     try {
-      container.classList.add('dragging-show-progress')
-      container.classList.remove('plyr--hide-controls')
-      container.classList.add('plyr--controls-active')
+      // 只有在非全屏状态下才强制显示进度条
+      if (!plyr || !plyr.fullscreen.active) {
+        container.classList.add('dragging-show-progress')
+        container.classList.remove('plyr--hide-controls')
+        container.classList.add('plyr--controls-active')
+      }
     } catch {}
   }
 
@@ -2752,6 +2785,12 @@ function attachProgressDrag(container: HTMLElement) {
       try { container.classList.remove('dragging-show-progress') } catch {}
       return
     }
+    
+    // 全屏状态下不进行进度拖动
+    if (plyr && plyr.fullscreen.active) {
+      return
+    }
+    
     if (!containerRect) containerRect = container.getBoundingClientRect()
     const dx = e.touches[0].clientX - startX
     const dy = e.touches[0].clientY - startY
@@ -2811,7 +2850,14 @@ function attachProgressDrag(container: HTMLElement) {
     // 结束拖动后，给予控件短暂显示时间，避免立即被隐藏造成的闪烁
     try {
       container.classList.remove('plyr--hide-controls')
-      setTimeout(() => {}, 120)
+      // 延迟清理，让Plyr的自动隐藏机制正常工作
+      setTimeout(() => {
+        try {
+          if (!plyr?.fullscreen?.active) {
+            container.classList.remove('dragging-show-progress')
+          }
+        } catch {}
+      }, 120)
     } catch {}
   }
 
@@ -2876,6 +2922,30 @@ const loadSettings = async () => {
 /* 进度拖动时，强制显示 Plyr 进度条 */
 .dragging-show-progress :deep(.plyr__progress) {
   display: block !important;
+}
+
+/* 全屏时优化控件显示 */
+.player-wrap :deep(.plyr--fullscreen) {
+  /* 全屏时允许Plyr的自动隐藏机制正常工作 */
+}
+
+.player-wrap :deep(.plyr--fullscreen .plyr__controls) {
+  transition: opacity 0.3s ease;
+}
+
+/* 确保点击视频时能正常显示控件 */
+.player-wrap :deep(.plyr__video-wrapper) {
+  cursor: pointer;
+}
+
+/* 优化控件显示时机 */
+.player-wrap :deep(.plyr__controls) {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.player-wrap :deep(.plyr--hide-controls .plyr__controls) {
+  opacity: 0;
 }
 
 /* 原生 video 控件隐藏进度条（WebKit 内核） */

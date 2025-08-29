@@ -75,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "vc_prefs";
     private static final String PREF_KEY_LAST_PORT = "last_port";
     private static final String PREF_KEY_SESSION_PREFIX = "session_snapshot_";
+    private static final String PREF_KEY_LAST_URL = "last_url";
     private ValueCallback<Uri[]> filePathCallback;
 
     // temp holders for save-as
@@ -332,6 +333,9 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                // 记录URL变更日志
+                android.util.Log.d("MainActivity", "URL变更: " + url);
+                
                 // 非本地 127.0.0.1:{actualPort} 的链接，改为外部浏览器打开
                 if (!isLocalUrl(url)) {
                     try {
@@ -364,6 +368,9 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 showLoading(false);
                 try { CookieManager.getInstance().flush(); } catch (Exception ignored) {}
+                
+                // 保存当前URL到本地存储
+                saveLastUrl(url);
             }
         });
 
@@ -483,11 +490,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadUrlForPort(int port) {
-        String expected = "http://127.0.0.1:" + port + "/";
+        // 尝试恢复上次访问的URL
+        String lastUrl = getLastUrl();
+        String targetUrl;
+        
+        if (lastUrl != null && !lastUrl.isEmpty() && lastUrl.contains("127.0.0.1:" + port)) {
+            // 如果有保存的URL且端口匹配，使用保存的URL
+            targetUrl = lastUrl;
+            android.util.Log.d("MainActivity", "恢复上次访问的URL: " + targetUrl);
+        } else {
+            // 否则使用默认的首页URL
+            targetUrl = "http://127.0.0.1:" + port + "/";
+            android.util.Log.d("MainActivity", "使用默认首页URL: " + targetUrl);
+        }
+        
         String current = webView.getUrl();
-        if (current == null || !current.startsWith(expected)) {
+        if (current == null || !current.equals(targetUrl)) {
             try { webView.stopLoading(); } catch (Exception ignored) {}
-            webView.loadUrl(expected);
+            webView.loadUrl(targetUrl);
             try { webView.clearHistory(); } catch (Exception ignored) {}
         }
     }
@@ -642,6 +662,25 @@ public class MainActivity extends AppCompatActivity {
             .edit()
             .putInt(PREF_KEY_LAST_PORT, port)
             .apply();
+    }
+
+    // 保存最后访问的URL
+    private void saveLastUrl(String url) {
+        if (url != null && !url.isEmpty()) {
+            android.util.Log.d("MainActivity", "保存最后访问URL: " + url);
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(PREF_KEY_LAST_URL, url)
+                .apply();
+        }
+    }
+
+    // 获取最后访问的URL
+    private String getLastUrl() {
+        String lastUrl = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getString(PREF_KEY_LAST_URL, "");
+        android.util.Log.d("MainActivity", "获取最后访问URL: " + (lastUrl.isEmpty() ? "无" : lastUrl));
+        return lastUrl;
     }
 
     @Override
@@ -830,9 +869,23 @@ public class MainActivity extends AppCompatActivity {
             ensureServerRunningAndLoad();
             return;
         }
-        final String url = "http://127.0.0.1:" + port + "/";
+        
+        // 尝试恢复上次访问的URL
+        String lastUrl = getLastUrl();
+        String targetUrl;
+        
+        if (lastUrl != null && !lastUrl.isEmpty() && lastUrl.contains("127.0.0.1:" + port)) {
+            // 如果有保存的URL且端口匹配，使用保存的URL
+            targetUrl = lastUrl;
+            android.util.Log.d("MainActivity", "goHome恢复上次访问的URL: " + targetUrl);
+        } else {
+            // 否则使用默认的首页URL
+            targetUrl = "http://127.0.0.1:" + port + "/";
+            android.util.Log.d("MainActivity", "goHome使用默认首页URL: " + targetUrl);
+        }
+        
         try { webView.stopLoading(); } catch (Exception ignored) {}
-        webView.loadUrl(url);
+        webView.loadUrl(targetUrl);
     }
 
     private void addFloatingTool() {
