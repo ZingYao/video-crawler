@@ -378,7 +378,7 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 showLoading(false);
                 try { CookieManager.getInstance().flush(); } catch (Exception ignored) {}
-                
+                Log.d("MainActivity", "onPageFinished: "+url);
                 // 保存当前URL到本地存储
                 saveLastUrl(url);
                 
@@ -700,40 +700,42 @@ public class MainActivity extends AppCompatActivity {
     private void injectHashRouteListener() {
         if (webView == null) return;
         
-        String js = "if (window.location && window.location.hash) {" +
-                   "  let currentHash = window.location.hash;" +
-                   "  let currentUrl = window.location.href;" +
-                   "  console.log('HashRoute', '当前URL: ' + currentUrl + ', Hash: ' + currentHash);" +
-                   "  " +
-                   "  // 监听hashchange事件" +
-                   "  window.addEventListener('hashchange', function(e) {" +
-                   "    let newHash = window.location.hash;" +
-                   "    let newUrl = window.location.href;" +
-                   "    console.log('HashRoute', 'Hash路由变化: ' + newUrl + ', Hash: ' + newHash);" +
+        String js = "try {" +
+                   "  if (window.location && window.location.hash) {" +
+                   "    var currentHash = window.location.hash;" +
+                   "    var currentUrl = window.location.href;" +
+                   "    console.log('HashRoute', '当前URL: ' + currentUrl + ', Hash: ' + currentHash);" +
                    "    " +
-                   "    // 通知Android更新URL状态" +
-                   "    if (window.AndroidUrlListener) {" +
-                   "      AndroidUrlListener.onUrlChanged(newUrl);" +
-                   "    }" +
-                   "  });" +
-                   "  " +
-                   "  // 监听popstate事件（浏览器前进后退）" +
-                   "  window.addEventListener('popstate', function(e) {" +
-                   "    let newHash = window.location.hash;" +
-                   "    let newUrl = window.location.href;" +
-                   "    console.log('HashRoute', 'PopState变化: ' + newUrl + ', Hash: ' + newHash);" +
+                   "    // 监听hashchange事件" +
+                   "    window.addEventListener('hashchange', function(e) {" +
+                   "      var newHash = window.location.hash;" +
+                   "      var newUrl = window.location.href;" +
+                   "      console.log('HashRoute', 'Hash路由变化: ' + newUrl + ', Hash: ' + newHash);" +
+                   "      " +
+                   "      // 通知Android更新URL状态" +
+                   "      if (window.AndroidUrlListener) {" +
+                   "        AndroidUrlListener.onUrlChanged(newUrl);" +
+                   "      }" +
+                   "    });" +
                    "    " +
-                   "    // 通知Android更新URL状态" +
+                   "    // 监听popstate事件（浏览器前进后退）" +
+                   "    window.addEventListener('popstate', function(e) {" +
+                   "      var newHash = window.location.hash;" +
+                   "      var newUrl = window.location.href;" +
+                   "      console.log('HashRoute', 'PopState变化: ' + newUrl + ', Hash: ' + newHash);" +
+                   "      " +
+                   "      // 通知Android更新URL状态" +
+                   "      if (window.AndroidUrlListener) {" +
+                   "        AndroidUrlListener.onUrlChanged(newUrl);" +
+                   "      }" +
+                   "    });" +
+                   "    " +
+                   "    // 如果当前URL包含hash，立即保存" +
                    "    if (window.AndroidUrlListener) {" +
-                   "      AndroidUrlListener.onUrlChanged(newUrl);" +
+                   "      AndroidUrlListener.onUrlChanged(currentUrl);" +
                    "    }" +
-                   "  });" +
-                   "  " +
-                   "  // 如果当前URL包含hash，立即保存" +
-                   "  if (window.AndroidUrlListener) {" +
-                   "    AndroidUrlListener.onUrlChanged(currentUrl);" +
                    "  }" +
-                   "}";
+                   "} catch (e) { console.error('HashRoute监听器错误:', e); }";
 
         try {
             webView.evaluateJavascript(js, null);
