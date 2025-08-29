@@ -219,6 +219,16 @@ public class MainActivity extends AppCompatActivity {
         webView.addJavascriptInterface(new AndroidSession(), "AndroidSession");
         webView.addJavascriptInterface(new AndroidKV(), "AndroidKV");
         
+        // 添加URL监听接口
+        webView.addJavascriptInterface(new Object() {
+            @android.webkit.JavascriptInterface
+            public void onUrlChanged(String url) {
+                android.util.Log.d("MainActivity", "收到URL变化通知: " + url);
+                // 保存新的URL
+                saveLastUrl(url);
+            }
+        }, "AndroidUrlListener");
+        
         // 添加按键事件接口
         webView.addJavascriptInterface(new Object() {
             @android.webkit.JavascriptInterface
@@ -371,6 +381,9 @@ public class MainActivity extends AppCompatActivity {
                 
                 // 保存当前URL到本地存储
                 saveLastUrl(url);
+                
+                // 注入JavaScript来监听hash路由变化
+                injectHashRouteListener();
             }
         });
 
@@ -681,6 +694,53 @@ public class MainActivity extends AppCompatActivity {
             .getString(PREF_KEY_LAST_URL, "");
         android.util.Log.d("MainActivity", "获取最后访问URL: " + (lastUrl.isEmpty() ? "无" : lastUrl));
         return lastUrl;
+    }
+
+    // 注入JavaScript来监听hash路由变化
+    private void injectHashRouteListener() {
+        if (webView == null) return;
+        
+        String js = "if (window.location && window.location.hash) {" +
+                   "  let currentHash = window.location.hash;" +
+                   "  let currentUrl = window.location.href;" +
+                   "  console.log('HashRoute', '当前URL: ' + currentUrl + ', Hash: ' + currentHash);" +
+                   "  " +
+                   "  // 监听hashchange事件" +
+                   "  window.addEventListener('hashchange', function(e) {" +
+                   "    let newHash = window.location.hash;" +
+                   "    let newUrl = window.location.href;" +
+                   "    console.log('HashRoute', 'Hash路由变化: ' + newUrl + ', Hash: ' + newHash);" +
+                   "    " +
+                   "    // 通知Android更新URL状态" +
+                   "    if (window.AndroidUrlListener) {" +
+                   "      AndroidUrlListener.onUrlChanged(newUrl);" +
+                   "    }" +
+                   "  });" +
+                   "  " +
+                   "  // 监听popstate事件（浏览器前进后退）" +
+                   "  window.addEventListener('popstate', function(e) {" +
+                   "    let newHash = window.location.hash;" +
+                   "    let newUrl = window.location.href;" +
+                   "    console.log('HashRoute', 'PopState变化: ' + newUrl + ', Hash: ' + newHash);" +
+                   "    " +
+                   "    // 通知Android更新URL状态" +
+                   "    if (window.AndroidUrlListener) {" +
+                   "      AndroidUrlListener.onUrlChanged(newUrl);" +
+                   "    }" +
+                   "  });" +
+                   "  " +
+                   "  // 如果当前URL包含hash，立即保存" +
+                   "  if (window.AndroidUrlListener) {" +
+                   "    AndroidUrlListener.onUrlChanged(currentUrl);" +
+                   "  }" +
+                   "}";
+
+        try {
+            webView.evaluateJavascript(js, null);
+            android.util.Log.d("MainActivity", "Hash路由监听器注入成功");
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "注入Hash路由监听器失败: " + e.getMessage());
+        }
     }
 
     @Override
