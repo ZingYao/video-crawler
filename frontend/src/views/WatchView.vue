@@ -318,6 +318,15 @@ const skipOutroCurrentUrl = ref<string>('') // 跟踪当前剧集的URL，用于
 const skipOutroLastTriggerTime = ref<number>(0) // 上次触发跳过片尾的时间戳
 const skipOutroCooldownTime = 10000 // 10秒冷却时间（毫秒）
 
+// 根据 original_url 隔离的跳过片首片尾缓存键
+const skipSettingsKey = computed(() => {
+  const originalUrl = String(route.query.original_url || route.query.url || '')
+  return `skip_settings:${encodeURIComponent(originalUrl)}`
+})
+
+// 全局播放倍速缓存键
+const globalRateKey = 'global_playback_rate'
+
 // 下一集预加载相关变量
 const nextEpisodeUrl = ref<string>('') // 下一集的播放链接
 const nextEpisodePreloaded = ref(false) // 是否已预加载下一集
@@ -504,7 +513,6 @@ const rateOptions = computed(() => {
 // 同步倍速到页面显示
 function syncRateToUI(newRate: number) {
   rate.value = newRate
-  savePlayState({ rate: newRate })
   // 更新lastVideoRate，避免倍速监听器误判
   lastVideoRate = newRate
 }
@@ -512,6 +520,8 @@ function syncRateToUI(newRate: number) {
 // 处理播放速率变化
 function handleRateChange(value: number) {
   syncRateToUI(value)
+  // 保存全局倍速设置
+  saveGlobalRate()
   try {
     if (plyr) {
       plyr.speed = value
@@ -522,24 +532,81 @@ function handleRateChange(value: number) {
   } catch {}
 }
 
+// 保存跳过片首片尾设置（根据 original_url 隔离）
+function saveSkipSettings() {
+  try {
+    const settings = {
+      skipIntro: {
+        enabled: skipIntro.value.enabled,
+        seconds: skipIntro.value.seconds
+      },
+      skipOutro: {
+        enabled: skipOutro.value.enabled,
+        seconds: skipOutro.value.seconds
+      }
+    }
+    localStorage.setItem(skipSettingsKey.value, JSON.stringify(settings))
+    console.log('[SkipSettings] 已保存跳过设置:', settings)
+  } catch (e) {
+    console.error('[SkipSettings] 保存跳过设置失败:', e)
+  }
+}
+
+// 加载跳过片首片尾设置（根据 original_url 隔离）
+function loadSkipSettings() {
+  try {
+    const raw = localStorage.getItem(skipSettingsKey.value)
+    if (!raw) return
+    
+    const settings = JSON.parse(raw)
+    if (settings.skipIntro) {
+      skipIntro.value.enabled = settings.skipIntro.enabled
+      skipIntro.value.seconds = settings.skipIntro.seconds
+    }
+    if (settings.skipOutro) {
+      skipOutro.value.enabled = settings.skipOutro.enabled
+      skipOutro.value.seconds = settings.skipOutro.seconds
+    }
+    console.log('[SkipSettings] 已加载跳过设置:', settings)
+  } catch (e) {
+    console.error('[SkipSettings] 加载跳过设置失败:', e)
+  }
+}
+
+// 保存全局播放倍速
+function saveGlobalRate() {
+  try {
+    localStorage.setItem(globalRateKey, JSON.stringify(rate.value))
+    console.log('[GlobalRate] 已保存全局倍速:', rate.value)
+  } catch (e) {
+    console.error('[GlobalRate] 保存全局倍速失败:', e)
+  }
+}
+
+// 加载全局播放倍速
+function loadGlobalRate() {
+  try {
+    const raw = localStorage.getItem(globalRateKey)
+    if (!raw) return
+    
+    const savedRate = JSON.parse(raw)
+    if (typeof savedRate === 'number' && rates.includes(savedRate)) {
+      rate.value = savedRate
+      console.log('[GlobalRate] 已加载全局倍速:', savedRate)
+    }
+  } catch (e) {
+    console.error('[GlobalRate] 加载全局倍速失败:', e)
+  }
+}
+
 // 处理跳过片首变化
 function handleSkipIntroChange() {
-  savePlayState({
-    skipIntro: {
-      enabled: skipIntro.value.enabled,
-      seconds: skipIntro.value.seconds
-    }
-  })
+  saveSkipSettings()
 }
 
 // 处理跳过片尾变化
 function handleSkipOutroChange() {
-  savePlayState({
-    skipOutro: {
-      enabled: skipOutro.value.enabled,
-      seconds: skipOutro.value.seconds
-    }
-  })
+  saveSkipSettings()
 }
 
 // 检测是否为移动设备
@@ -1997,16 +2064,13 @@ type PlayState = {
   title?: string;
   source?: string;
   currentTime?: number;
-  rate?: number;
-  skipIntro?: { enabled: boolean; seconds: number };
-  skipOutro?: { enabled: boolean; seconds: number };
   updatedAt?: number
 }
 function savePlayState(partial: PlayState) {
   try {
     const raw = localStorage.getItem(playStateKey.value)
     const prev: PlayState = raw ? JSON.parse(raw) : {}
-    const merged: PlayState = { ...prev, ...partial, rate: rate.value, updatedAt: Date.now() }
+    const merged: PlayState = { ...prev, ...partial, updatedAt: Date.now() }
     localStorage.setItem(playStateKey.value, JSON.stringify(merged))
     try { console.log('[PlayState] 已保存播放状态:', merged) } catch {}
 
@@ -2456,6 +2520,12 @@ async function initializePage() {
   // 加载设置
   await loadSettings()
 
+  // 加载全局倍速设置
+  loadGlobalRate()
+  
+  // 加载跳过片首片尾设置（根据 original_url 隔离）
+  loadSkipSettings()
+
   // 获取当前站点名称
   await updateCurrentSourceName()
 
@@ -2501,16 +2571,6 @@ async function initializePage() {
     // 如果没有找到要播放的剧集，使用缓存
     const state = loadPlayState()
     if (state?.url) {
-      if (typeof state.rate === 'number') rate.value = state.rate
-      // 恢复跳过片首片尾配置
-      if (state.skipIntro) {
-        skipIntro.value.enabled = state.skipIntro.enabled
-        skipIntro.value.seconds = state.skipIntro.seconds
-      }
-      if (state.skipOutro) {
-        skipOutro.value.enabled = state.skipOutro.enabled
-        skipOutro.value.seconds = state.skipOutro.seconds
-      }
       const ep = flatEpisodes.value.find(e => e.url === state.url) || flatEpisodes.value[0]
       if (ep) await playEpisode(ep)
     } else {
