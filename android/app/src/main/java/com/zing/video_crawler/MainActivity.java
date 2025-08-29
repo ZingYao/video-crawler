@@ -382,8 +382,13 @@ public class MainActivity extends AppCompatActivity {
                 // 保存当前URL到本地存储
                 saveLastUrl(url);
                 
-                // 注入JavaScript来监听hash路由变化
-                injectHashRouteListener();
+                // 延迟注入JavaScript来监听hash路由变化，确保页面完全加载
+                view.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        injectHashRouteListener();
+                    }
+                }, 500);
             }
         });
 
@@ -503,14 +508,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadUrlForPort(int port) {
-        // 尝试恢复上次访问的路径
-        String lastPath = getLastUrl();
+        // 尝试恢复上次访问的URL
+        String lastUrl = getLastUrl();
         String targetUrl;
         
-        if (lastPath != null && !lastPath.isEmpty()) {
-            // 如果有保存的路径，构建完整URL
-            targetUrl = "http://127.0.0.1:" + port + lastPath;
-            android.util.Log.d("MainActivity", "恢复上次访问的路径: " + lastPath + " -> " + targetUrl);
+        if (lastUrl != null && !lastUrl.isEmpty() && lastUrl.contains("127.0.0.1:" + port)) {
+            // 如果有保存的URL且端口匹配，使用保存的URL
+            targetUrl = lastUrl;
+            android.util.Log.d("MainActivity", "恢复上次访问的URL: " + targetUrl);
         } else {
             // 否则使用默认的首页URL
             targetUrl = "http://127.0.0.1:" + port + "/";
@@ -581,6 +586,11 @@ public class MainActivity extends AppCompatActivity {
                                         }, 3000);
                                     });
                                     return;
+                                } else {
+                                    int finalP = p;
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(this,"服务已启动于端口:"+ finalP,Toast.LENGTH_LONG).show();
+                                    });
                                 }
                             } catch (org.json.JSONException e) {
                                 android.util.Log.e("MainActivity", "解析JSON结果失败: " + e.getMessage());
@@ -680,31 +690,11 @@ public class MainActivity extends AppCompatActivity {
     // 保存最后访问的URL
     private void saveLastUrl(String url) {
         if (url != null && !url.isEmpty()) {
-            try {
-                // 只保存路径部分，不包含端口
-                java.net.URI uri = new java.net.URI(url);
-                String path = uri.getPath();
-                String fragment = uri.getFragment(); // hash部分
-                
-                // 构建路径：path + fragment
-                String pathOnly = path != null ? path : "/";
-                if (fragment != null && !fragment.isEmpty()) {
-                    pathOnly += "#" + fragment;
-                }
-                
-                android.util.Log.d("MainActivity", "保存最后访问路径: " + pathOnly + " (原URL: " + url + ")");
-                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                    .edit()
-                    .putString(PREF_KEY_LAST_URL, pathOnly)
-                    .apply();
-            } catch (Exception e) {
-                android.util.Log.e("MainActivity", "保存URL路径失败: " + e.getMessage());
-                // 如果解析失败，回退到保存完整URL
-                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                    .edit()
-                    .putString(PREF_KEY_LAST_URL, url)
-                    .apply();
-            }
+            android.util.Log.d("MainActivity", "保存最后访问URL: " + url);
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(PREF_KEY_LAST_URL, url)
+                .apply();
         }
     }
 
@@ -721,41 +711,57 @@ public class MainActivity extends AppCompatActivity {
         if (webView == null) return;
         
         String js = "try {\n" +
-                   "  if (window.location && window.location.hash) {\n" +
-                   "    var currentHash = window.location.hash;\n" +
-                   "    var currentUrl = window.location.href;\n" +
-                   "    console.log('HashRoute', '当前URL: ' + currentUrl + ', Hash: ' + currentHash);\n" +
-                   "    \n" +
-                   "    // 监听hashchange事件" +
-                   "    window.addEventListener('hashchange', function(e) {\n" +
-                   "      var newHash = window.location.hash;\n" +
-                   "      var newUrl = window.location.href;\n" +
-                   "      console.log('HashRoute', 'Hash路由变化: ' + newUrl + ', Hash: ' + newHash);\n" +
-                   "      \n" +
-                   "      // 通知Android更新URL状态" +
-                   "      if (window.AndroidUrlListener) {\n" +
-                   "        AndroidUrlListener.onUrlChanged(newUrl);\n" +
-                   "      }\n" +
-                   "    });\n" +
-                   "    \n" +
-                   "    // 监听popstate事件（浏览器前进后退）\n" +
-                   "    window.addEventListener('popstate', function(e) {\n" +
-                   "      var newHash = window.location.hash;\n" +
-                   "      var newUrl = window.location.href;\n" +
-                   "      console.log('HashRoute', 'PopState变化: ' + newUrl + ', Hash: ' + newHash);\n" +
-                   "      \n" +
-                   "      // 通知Android更新URL状态" +
-                   "      if (window.AndroidUrlListener) {\n" +
-                   "        AndroidUrlListener.onUrlChanged(newUrl);\n" +
-                   "      }\n" +
-                   "    });\n" +
-                   "    " +
-                   "    // 如果当前URL包含hash，立即保存\n" +
-                   "    if (window.AndroidUrlListener) {\n" +
-                   "      AndroidUrlListener.onUrlChanged(currentUrl);\n" +
-                   "    }\n" +
+                   "  var currentUrl = window.location.href;\n" +
+                   "  var currentHash = window.location.hash;\n" +
+                   "  \n" +
+                   "  // 立即保存当前URL\n" +
+                   "  if (window.AndroidUrlListener) {\n" +
+                   "    AndroidUrlListener.onUrlChanged(currentUrl);\n" +
                    "  }\n" +
-                   "} catch (e) { console.error('HashRoute监听器错误:', e); }";
+                   "  \n" +
+                   "  // 监听hashchange事件\n" +
+                   "  window.addEventListener('hashchange', function(e) {\n" +
+                   "    var newUrl = window.location.href;\n" +
+                   "    var newHash = window.location.hash;\n" +
+                   "    if (window.AndroidUrlListener) {\n" +
+                   "      AndroidUrlListener.onUrlChanged(newUrl);\n" +
+                   "    }\n" +
+                   "  });\n" +
+                   "  \n" +
+                   "  // 监听popstate事件（浏览器前进后退）\n" +
+                   "  window.addEventListener('popstate', function(e) {\n" +
+                   "    var newUrl = window.location.href;\n" +
+                   "    var newHash = window.location.hash;\n" +
+                   "    if (window.AndroidUrlListener) {\n" +
+                   "      AndroidUrlListener.onUrlChanged(newUrl);\n" +
+                   "    }\n" +
+                   "  });\n" +
+                   "  \n" +
+                   "  // 监听pushstate和replacestate事件\n" +
+                   "  var originalPushState = history.pushState;\n" +
+                   "  var originalReplaceState = history.replaceState;\n" +
+                   "  \n" +
+                   "  history.pushState = function() {\n" +
+                   "    originalPushState.apply(this, arguments);\n" +
+                   "    setTimeout(function() {\n" +
+                   "      if (window.AndroidUrlListener) {\n" +
+                   "        AndroidUrlListener.onUrlChanged(window.location.href);\n" +
+                   "      }\n" +
+                   "    }, 100);\n" +
+                   "  };\n" +
+                   "  \n" +
+                   "  history.replaceState = function() {\n" +
+                   "    originalReplaceState.apply(this, arguments);\n" +
+                   "    setTimeout(function() {\n" +
+                   "      if (window.AndroidUrlListener) {\n" +
+                   "        AndroidUrlListener.onUrlChanged(window.location.href);\n" +
+                   "      }\n" +
+                   "    }, 100);\n" +
+                   "  };\n" +
+                   "  \n" +
+                   "} catch (e) { \n" +
+                   "  // console.error('HashRoute监听器错误:', e); \n" +
+                   "}";
 
         try {
             webView.evaluateJavascript(js, null);
@@ -952,14 +958,14 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // 尝试恢复上次访问的路径
-        String lastPath = getLastUrl();
+        // 尝试恢复上次访问的URL
+        String lastUrl = getLastUrl();
         String targetUrl;
         
-        if (lastPath != null && !lastPath.isEmpty()) {
-            // 如果有保存的路径，构建完整URL
-            targetUrl = "http://127.0.0.1:" + port + lastPath;
-            android.util.Log.d("MainActivity", "goHome恢复上次访问的路径: " + lastPath + " -> " + targetUrl);
+        if (lastUrl != null && !lastUrl.isEmpty() && lastUrl.contains("127.0.0.1:" + port)) {
+            // 如果有保存的URL且端口匹配，使用保存的URL
+            targetUrl = lastUrl;
+            android.util.Log.d("MainActivity", "goHome恢复上次访问的URL: " + targetUrl);
         } else {
             // 否则使用默认的首页URL
             targetUrl = "http://127.0.0.1:" + port + "/";

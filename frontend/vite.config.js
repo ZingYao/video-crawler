@@ -65,7 +65,7 @@ export default defineConfig(function (_a) {
             }
         },
         esbuild: {
-            drop: mode === 'production' ? ['console', 'debugger'] : [],
+            drop: ['console', 'debugger'],
         },
         build: {
             rollupOptions: {
@@ -90,7 +90,7 @@ export default defineConfig(function (_a) {
             minify: 'terser',
             terserOptions: {
                 compress: {
-                    drop_console: mode === 'production',
+                    drop_console: true,
                     drop_debugger: true,
                     passes: 2,
                     pure_getters: true,
