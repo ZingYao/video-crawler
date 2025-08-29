@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => {
       vue(),
       ...(mode === 'development' ? [vueDevTools()] : []),
     ],
+    // 解决局域网访问下依赖预构建偶发 504/Outdated Optimize Dep
+    // 强制在开发启动时进行依赖预构建，并显式包含 hls.js 与 plyr
+    optimizeDeps: {
+      include: ['hls.js', 'plyr'],
+      force: true,
+    },
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))

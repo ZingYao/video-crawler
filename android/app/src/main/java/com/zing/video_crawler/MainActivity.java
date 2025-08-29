@@ -190,6 +190,9 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setDatabaseEnabled(true);
+        // —— 仅关闭/清理前端静态文件缓存（不清理 storage/db/cookies）——
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        try { webView.clearCache(true); } catch (Throwable ignored) {}
         
         // 启用WebView开发者工具
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
@@ -509,13 +512,39 @@ public class MainActivity extends AppCompatActivity {
         // 尝试恢复上次访问的URL
         String lastUrl = getLastUrl();
         String targetUrl;
-        
-        if (lastUrl != null && !lastUrl.isEmpty() && lastUrl.contains("127.0.0.1:" + port)) {
-            // 如果有保存的URL且端口匹配，使用保存的URL
-            targetUrl = lastUrl;
-            android.util.Log.d("MainActivity", "恢复上次访问的URL: " + targetUrl);
+
+        if (lastUrl != null && !lastUrl.isEmpty()) {
+            String base = "http://127.0.0.1:" + port;
+            if (lastUrl.startsWith("http://") || lastUrl.startsWith("https://")) {
+                // 完整URL：若不是当前端口，重建为当前端口
+                try {
+                    java.net.URI uri = new java.net.URI(lastUrl);
+                    String host = uri.getHost() == null ? "" : uri.getHost();
+                    int uport = uri.getPort() == -1 ? ("https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80) : uri.getPort();
+                    String path = uri.getPath();
+                    String query = uri.getQuery();
+                    String frag = uri.getFragment();
+                    if ("127.0.0.1".equals(host) && uport == port) {
+                        targetUrl = lastUrl;
+                    } else {
+                        StringBuilder sb = new StringBuilder(base);
+                        if (path != null && !path.isEmpty()) sb.append(path);
+                        if (query != null && !query.isEmpty()) sb.append("?").append(query);
+                        if (frag != null && !frag.isEmpty()) sb.append("#").append(frag);
+                        targetUrl = sb.toString();
+                    }
+                } catch (Exception e) {
+                    // 解析失败则回退到首页
+                    targetUrl = base + "/";
+                }
+            } else {
+                // 相对路径（仅 path/query/hash）：拼接当前端口
+                String rel = lastUrl.startsWith("/") ? lastUrl : "/" + lastUrl;
+                targetUrl = base + rel;
+            }
+            android.util.Log.d("MainActivity", "恢复上次访问的URL(已解析): " + targetUrl);
         } else {
-            // 否则使用默认的首页URL
+            // 默认首页
             targetUrl = "http://127.0.0.1:" + port + "/";
             android.util.Log.d("MainActivity", "使用默认首页URL: " + targetUrl);
         }

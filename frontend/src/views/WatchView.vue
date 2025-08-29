@@ -348,6 +348,22 @@ const sourceId = computed(() => String(route.params.sourceId || ''))
 const videoUrl = computed(() => String(route.query.original_url || route.query.url || ''))
 const currentPlayUrl = ref<string>('')
 const originalUrl = computed(() => String(route.query.original_url || route.query.url || videoUrl.value || ''))
+// 提前定义 base，避免初始化顺序问题导致 TDZ 报错
+const base = computed(() => {
+  const d: any = detailData.value || {}
+  return {
+    name: d.name || d.title || '',
+    director: d.director || '',
+    actor: d.actor || d.actors || '',
+    language: d.language || d.lang || '',
+    region: d.region || d.area || '',
+    release_date: d.release_date || d.releaseDate || '',
+    rate: d.rate || d.rating || '',
+    type: d.type || d.category || '',
+    description: d.description || d.desc || '',
+  }
+})
+
 const displayTitle = computed(() => {
   const ep = flatEpisodes.value.find(e => e.url === currentPlayUrl.value)
   if (ep) return `${base.value.name || ''} - ${ep.name}`.trim()
@@ -719,19 +735,21 @@ function disablePlyrDoubleClick() {
 
   // 方法2: 直接移除 Plyr 的双击事件监听器
   try {
-    const container = plyr.elements.container
-    const video = plyr.elements.video
+    const container = plyr?.elements?.container as HTMLElement | undefined
+    const video = plyr?.elements?.video as HTMLElement | undefined
 
     // 克隆元素来移除所有事件监听器
-    const newContainer = container.cloneNode(true)
-    const newVideo = video.cloneNode(true)
+    if (container && video) {
+      const newContainer = container.cloneNode(true) as HTMLElement
+      const newVideo = video.cloneNode(true) as HTMLElement
 
-    container.parentNode?.replaceChild(newContainer, container)
-    newContainer.appendChild(newVideo)
+      container.parentNode?.replaceChild(newContainer, container)
+      newContainer.appendChild(newVideo)
 
-    // 重新设置 Plyr 的元素引用
-    plyr.elements.container = newContainer
-    plyr.elements.video = newVideo
+      // 重新设置 Plyr 的元素引用
+      ;(plyr.elements as any).container = newContainer
+      ;(plyr.elements as any).video = newVideo
+    }
   } catch (e) {
     console.warn('无法移除Plyr事件监听器:', e)
   }
@@ -745,8 +763,8 @@ function disablePlyrDoubleClick() {
   }
 
   // 在捕获阶段阻止双击事件
-  plyr.elements.container.addEventListener('dblclick', preventDoubleClick, true)
-  plyr.elements.video.addEventListener('dblclick', preventDoubleClick, true)
+  try { (plyr?.elements?.container as HTMLElement)?.addEventListener('dblclick', preventDoubleClick, true) } catch {}
+  try { (plyr?.elements?.video as HTMLElement)?.addEventListener('dblclick', preventDoubleClick, true) } catch {}
 
   // 方法4: 覆盖 Plyr 的内部双击处理函数
   if (plyr.config && typeof plyr.config === 'object') {
@@ -762,7 +780,10 @@ function addPlyrCustomEvents() {
   let plyrLastClickTime = 0
   const plyrDoubleClickThreshold = 300
 
-  plyr.elements.container.addEventListener('click', (e: any) => {
+  const containerEl = (plyr?.elements?.container as HTMLElement | undefined)
+  if (!containerEl) return
+
+  containerEl.addEventListener('click', (e: any) => {
     // 避免与Plyr的控件点击事件冲突
     const target = e.target as HTMLElement
     if (target && (target.closest('.plyr__control') || target.closest('.plyr__progress') || target.closest('.plyr__controls'))) {
@@ -793,7 +814,7 @@ function addPlyrCustomEvents() {
   let plyrIsTouchActive = false
 
   // 触摸开始
-  plyr.elements.container.addEventListener('touchstart', (e: any) => {
+  containerEl.addEventListener('touchstart', (e: any) => {
     if (isDraggingProgress) return
     plyrIsTouchActive = true
     if (plyrLongPressTimer) clearTimeout(plyrLongPressTimer)
@@ -814,7 +835,7 @@ function addPlyrCustomEvents() {
   })
 
   // 触摸结束
-  plyr.elements.container.addEventListener('touchend', (e: any) => {
+  containerEl.addEventListener('touchend', (e: any) => {
     plyrIsTouchActive = false
     if (plyrLongPressTimer) {
       clearTimeout(plyrLongPressTimer)
@@ -834,7 +855,7 @@ function addPlyrCustomEvents() {
   })
 
   // 触摸取消
-  plyr.elements.container.addEventListener('touchcancel', (e: any) => {
+  containerEl.addEventListener('touchcancel', (e: any) => {
     plyrIsTouchActive = false
     if (plyrLongPressTimer) {
       clearTimeout(plyrLongPressTimer)
@@ -848,7 +869,7 @@ function addPlyrCustomEvents() {
   })
 
   // 鼠标按下（桌面端）
-  plyr.elements.container.addEventListener('mousedown', (e: any) => {
+  containerEl.addEventListener('mousedown', (e: any) => {
     if (e.button === 0) {
       if (isDraggingProgress) return
       plyrIsTouchActive = true
@@ -871,7 +892,7 @@ function addPlyrCustomEvents() {
   })
 
   // 鼠标松开（桌面端）
-  plyr.elements.container.addEventListener('mouseup', (e: any) => {
+  containerEl.addEventListener('mouseup', (e: any) => {
     if (e.button === 0) {
       plyrIsTouchActive = false
       if (plyrLongPressTimer) {
@@ -893,7 +914,7 @@ function addPlyrCustomEvents() {
   })
 
   // 鼠标离开（桌面端）
-  plyr.elements.container.addEventListener('mouseleave', (e: any) => {
+  containerEl.addEventListener('mouseleave', (e: any) => {
     if (plyrIsTouchActive) {
       plyrIsTouchActive = false
       if (plyrLongPressTimer) {
@@ -918,39 +939,36 @@ let fullscreenKeyHandler: ((e: KeyboardEvent) => void) | null = null
 const fullscreenSeekStep = 10 // 秒
 // 获取当前应播放的剧集 URL：根据 URL 参数和缓存决定播放逻辑
 function getSelectedEpisodeUrl(): string {
-  let url = String(currentPlayUrl.value || '')
-  
-  // 如果当前已有播放URL，优先使用
-  if (url) {
-    try { console.log('[Play] 逻辑1: 使用当前播放URL:', url) } catch {}
-    return url
-  }
-  
-  // 获取 URL 参数中的 title 和 source
+  let url = ''
+  // 获取 URL 参数中的 title 和 source（优先按显式参数匹配具体剧集）
   const titleParam = String(route.query.title || '')
   const sourceParam = String((route.query as any).source || '')
-  
+
   try { console.log('[Play] URL参数检查 - title:', titleParam, 'source:', sourceParam) } catch {}
-  
-  // 逻辑2: URL 中有 source 和 title 时，播放对应 source 下剧集名称和 title 相同的剧集
+
+  // 逻辑1: URL 中有 source 和 title 时，优先播放对应剧集
   if (titleParam && sourceParam) {
-    try { console.log('[Play] 逻辑2: URL中有source和title，查找对应剧集') } catch {}
-    
-    // 查找对应的 source
+    try { console.log('[Play] 逻辑1: URL中有source和title，查找对应剧集') } catch {}
     const targetSource = sourcesByTab.value.find(s => s.name === sourceParam)
     if (targetSource && Array.isArray(targetSource.episodes)) {
-      // 在对应 source 中查找对应标题的剧集
       const targetEpisode = targetSource.episodes.find(ep => ep.name === titleParam)
-      if (targetEpisode && targetEpisode.url) {
+      if (targetEpisode?.url) {
         url = targetEpisode.url
-        try { console.log('[Play] 逻辑2成功: 找到对应Source和Title的剧集:', sourceParam, titleParam, '->', url) } catch {}
+        try { console.log('[Play] 逻辑1成功: 找到对应Source和Title的剧集:', sourceParam, titleParam, '->', url) } catch {}
         return url
       } else {
-        try { console.log('[Play] 逻辑2失败: 在Source中找到的剧集URL无效或不存在') } catch {}
+        try { console.log('[Play] 逻辑1失败: 在Source中找到的剧集URL无效或不存在') } catch {}
       }
     } else {
-      try { console.log('[Play] 逻辑2失败: 找不到对应的Source:', sourceParam) } catch {}
+      try { console.log('[Play] 逻辑1失败: 找不到对应的Source:', sourceParam) } catch {}
     }
+  }
+
+  // 逻辑2: 当前已有播放URL且属于已解析的剧集列表时使用
+  const cur = String(currentPlayUrl.value || '')
+  if (cur && flatEpisodes.value.some(e => e.url === cur)) {
+    try { console.log('[Play] 逻辑2: 使用当前已在剧集列表中的播放URL:', cur) } catch {}
+    return cur
   }
   
   // 逻辑3: URL 中没有 source 和 title 时，查看缓存中是否存在播放的 source 和剧集
@@ -2049,21 +2067,7 @@ function endLongPress() {
   }
 }
 
-// 映射基础字段，容错不同脚本返回的键名
-const base = computed(() => {
-  const d: any = detailData.value || {}
-  return {
-    name: d.name || d.title || '',
-    director: d.director || '',
-    actor: d.actor || d.actors || '',
-    language: d.language || d.lang || '',
-    region: d.region || d.area || '',
-    release_date: d.release_date || d.releaseDate || '',
-    rate: d.rate || d.rating || '',
-    type: d.type || d.category || '',
-    description: d.description || d.desc || '',
-  }
-})
+// 原位置已前移，避免 TDZ；此处删除重复定义
 
 // resources 已上移
 
@@ -2233,6 +2237,12 @@ async function fetchDetail(force = false) {
     if (hit) {
       // 命中缓存也要解析播放地址
       await resolvePlayUrl()
+      // 如果基础信息缺失，触发一次强制刷新
+      if (!base.value.name) {
+        try { console.log('[Detail] 缓存数据基础信息缺失，强制刷新') } catch {}
+        await fetchDetail(true)
+        return
+      }
       return
     }
   }
