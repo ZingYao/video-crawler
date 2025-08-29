@@ -965,19 +965,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // 尝试恢复上次访问的URL
-        String lastUrl = getLastUrl();
-        String targetUrl;
-        
-        if (lastUrl != null && !lastUrl.isEmpty() && lastUrl.contains("127.0.0.1:" + port)) {
-            // 如果有保存的URL且端口匹配，使用保存的URL
-            targetUrl = lastUrl;
-            android.util.Log.d("MainActivity", "goHome恢复上次访问的URL: " + targetUrl);
-        } else {
-            // 否则使用默认的首页URL
-            targetUrl = "http://127.0.0.1:" + port + "/";
-            android.util.Log.d("MainActivity", "goHome使用默认首页URL: " + targetUrl);
-        }
+        // goHome 直接回到根路由
+        String targetUrl = "http://127.0.0.1:" + port + "/";
+        android.util.Log.d("MainActivity", "goHome回到根路由: " + targetUrl);
         
         try { webView.stopLoading(); } catch (Exception ignored) {}
         webView.loadUrl(targetUrl);
