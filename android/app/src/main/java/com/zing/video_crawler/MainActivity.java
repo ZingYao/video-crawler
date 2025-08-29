@@ -20,6 +20,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
 
 // added imports
 import android.widget.Toast;
@@ -606,14 +607,32 @@ public class MainActivity extends AppCompatActivity {
                                     android.util.Log.e("MainActivity", "错误信息: " + error);
                                     
                                     runOnUiThread(() -> {
-                                        String displayMsg = "服务启动失败";
+                                        // 构建详细的错误信息
+                                        StringBuilder errorDetails = new StringBuilder();
+                                        errorDetails.append("服务启动失败\n\n");
+                                        errorDetails.append("状态: ").append(state).append("\n");
                                         if (error != null && !error.isEmpty()) {
-                                            displayMsg += ": " + error;
+                                            errorDetails.append("错误信息: ").append(error).append("\n");
                                         }
-                                        Toast.makeText(this, displayMsg, Toast.LENGTH_LONG).show();
-                                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                            finishAndRemoveTask();
-                                        }, 3000);
+                                        errorDetails.append("\n请检查配置后重试");
+                                        
+                                        // 显示 Toast 提示
+                                        Toast.makeText(this, "服务启动失败，请查看详细信息", Toast.LENGTH_LONG).show();
+                                        
+                                        // 显示详细的错误对话框
+                                        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                                        builder.setTitle("启动失败")
+                                               .setMessage(errorDetails.toString())
+                                               .setCancelable(false)
+                                               .setPositiveButton("确定", (dialog, which) -> {
+                                                   finishAndRemoveTask();
+                                               })
+                                               .setNegativeButton("返回", (dialog, which) -> {
+                                                   finishAndRemoveTask();
+                                               });
+                                        
+                                        AlertDialog dialog = builder.create();
+                                        dialog.show();
                                     });
                                     return;
                                 } else {
