@@ -89,10 +89,14 @@ export default defineConfig(({ mode }) => {
       minify: 'terser',
       terserOptions: {
         compress: {
-          drop_console: false,
+          drop_console: true, // 移除所有 console.* 调用
           drop_debugger: true,
           passes: 2,
           pure_getters: true,
+          // 如果你需要保留某些 console 方法，可以使用以下配置：
+          // drop_console: false,
+          // pure_funcs: ['console.log', 'console.info', 'console.debug'],
+          // 这样只会移除 console.log, console.info, console.debug，但保留 console.error, console.warn
         },
         mangle: true,
       },
