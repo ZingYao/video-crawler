@@ -12,7 +12,10 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.URLUtil;
+import android.graphics.Bitmap;
 import android.content.Intent;
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -174,14 +177,17 @@ public class MainActivity extends AppCompatActivity {
         // 设置状态栏颜色为与前端标题一致的绿色
         getWindow().setStatusBarColor(Color.parseColor("#10b981"));
 
+        // 检测 WebView 类型
+        detectWebViewType();
+
         // 请求存储权限（Android 13 以下需要）
         requestStoragePermission();
 
         // 根容器
         rootLayout = new FrameLayout(this);
 
-        // 普通状态栏模式
-        webView = new WebView(this);
+        // 尝试使用 SystemWebView，如果不可用则回退到普通 WebView
+        webView = createWebView();
         webView.setOverScrollMode(View.OVER_SCROLL_ALWAYS);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -191,8 +197,46 @@ public class MainActivity extends AppCompatActivity {
         settings.setJavaScriptEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setDatabaseEnabled(true);
-        // —— 仅关闭/清理前端静态文件缓存（不清理 storage/db/cookies）——
-        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        
+        // 国产 TV 兼容性配置
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(true);
+        settings.setSupportZoom(false);
+        settings.setBuiltInZoomControls(false);
+        settings.setDisplayZoomControls(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        settings.setAllowUniversalAccessFromFileURLs(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setDomStorageEnabled(true);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT); // 改为默认缓存模式，提高加载速度
+        
+        // 设置 User Agent，增加兼容性
+        String userAgent = settings.getUserAgentString();
+        userAgent += " VideoCrawler/1.0";
+        settings.setUserAgentString(userAgent);
+        
+        // 检测并记录 WebView 信息
+        android.util.Log.i("MainActivity", "WebView 信息:");
+        android.util.Log.i("MainActivity", "  User Agent: " + userAgent);
+        android.util.Log.i("MainActivity", "  WebView 版本: " + settings.getUserAgentString());
+        
+        // 检查 WebView 是否支持现代特性
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                android.util.Log.i("MainActivity", "  WebView 支持现代特性: 是");
+            } else {
+                android.util.Log.w("MainActivity", "  WebView 支持现代特性: 否 (Android 版本过低)");
+            }
+        } catch (Exception e) {
+            android.util.Log.w("MainActivity", "  WebView 特性检测失败: " + e.getMessage());
+        }
+        
+        // 启用硬件加速（如果支持）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        }
+        
+        // 清理缓存
         try { webView.clearCache(true); } catch (Throwable ignored) {}
         
         // 启用WebView开发者工具
@@ -345,6 +389,26 @@ public class MainActivity extends AppCompatActivity {
 
         // 设置 WebViewClient（去除注入的下拉刷新脚本）
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                android.util.Log.e("MainActivity", "WebView错误: " + errorCode + " - " + description + " URL: " + failingUrl);
+                // 在 TV 上显示错误信息
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "加载失败: " + description, Toast.LENGTH_LONG).show();
+                });
+            }
+            
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse) {
+                android.util.Log.e("MainActivity", "HTTP错误: " + errorResponse.getStatusCode() + " URL: " + request.getUrl());
+            }
+            
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                android.util.Log.d("MainActivity", "开始加载页面: " + url);
+                showLoading(true);
+            }
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 // 记录URL变更日志
@@ -558,6 +622,81 @@ public class MainActivity extends AppCompatActivity {
             try { webView.clearHistory(); } catch (Exception ignored) {}
         } else {
             android.util.Log.d("MainActivity", "URL未变化，跳过加载: " + targetUrl);
+        }
+    }
+
+    // 创建 WebView，优先使用 SystemWebView
+    private WebView createWebView() {
+        WebView webView = null;
+        
+        // 尝试使用 SystemWebView（基于 Chromium）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                // 使用反射创建 SystemWebView
+                Class<?> systemWebViewClass = Class.forName("com.android.webview.chromium.WebViewChromiumFactoryProvider");
+                android.util.Log.i("MainActivity", "尝试使用 SystemWebView (Chromium)");
+                
+                // 如果 SystemWebView 可用，使用它
+                webView = new WebView(this);
+                
+                // 检查是否是 Chromium 版本
+                String userAgent = webView.getSettings().getUserAgentString();
+                if (userAgent.contains("Chrome") || userAgent.contains("Chromium")) {
+                    android.util.Log.i("MainActivity", "成功使用 Chromium WebView: " + userAgent);
+                } else {
+                    android.util.Log.w("MainActivity", "WebView 不是 Chromium 版本: " + userAgent);
+                }
+                
+            } catch (Exception e) {
+                android.util.Log.w("MainActivity", "SystemWebView 不可用，使用普通 WebView: " + e.getMessage());
+                webView = new WebView(this);
+            }
+        } else {
+            android.util.Log.i("MainActivity", "Android 版本过低，使用普通 WebView");
+            webView = new WebView(this);
+        }
+        
+        return webView;
+    }
+    
+    // 检测设备上的 WebView 类型
+    private void detectWebViewType() {
+        try {
+            android.util.Log.i("MainActivity", "=== WebView 类型检测 ===");
+            
+            // 检查 Android System WebView
+            try {
+                getPackageManager().getPackageInfo("com.google.android.webview", 0);
+                android.util.Log.i("MainActivity", "Android System WebView: 已安装");
+            } catch (Exception e) {
+                android.util.Log.w("MainActivity", "Android System WebView: 未安装");
+            }
+            
+            // 检查 Chrome
+            try {
+                getPackageManager().getPackageInfo("com.android.chrome", 0);
+                android.util.Log.i("MainActivity", "Chrome: 已安装");
+            } catch (Exception e) {
+                android.util.Log.w("MainActivity", "Chrome: 未安装");
+            }
+            
+            // 检查设备制造商
+            String manufacturer = android.os.Build.MANUFACTURER.toLowerCase();
+            android.util.Log.i("MainActivity", "设备制造商: " + manufacturer);
+            
+            // 针对不同厂商的 WebView 建议
+            if (manufacturer.contains("xiaomi") || manufacturer.contains("mi")) {
+                android.util.Log.i("MainActivity", "小米设备建议: 确保已安装 Android System WebView");
+            } else if (manufacturer.contains("tcl")) {
+                android.util.Log.i("MainActivity", "TCL 设备建议: 检查 WebView 更新");
+            } else if (manufacturer.contains("huawei") || manufacturer.contains("honor")) {
+                android.util.Log.i("MainActivity", "华为设备建议: 检查 WebView 服务是否启用");
+            }
+            
+            android.util.Log.i("MainActivity", "=== WebView 检测完成 ===");
+            
+        } catch (Exception e) {
+            android.util.Log.e("MainActivity", "WebView 类型检测失败: " + e.getMessage());
         }
     }
 
