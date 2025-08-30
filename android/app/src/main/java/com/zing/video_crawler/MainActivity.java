@@ -666,39 +666,29 @@ public class MainActivity extends AppCompatActivity {
                                 android.util.Log.i("MainActivity", "10086端口状态: " + port10086Status);
                                 
                                 runOnUiThread(() -> {
-                                    // 构建详细的错误信息
-                                    StringBuilder errorDetails = new StringBuilder();
-                                    errorDetails.append("解析服务器返回结果失败\n\n");
-                                    errorDetails.append("异常信息: ").append(e.getMessage()).append("\n");
-                                    errorDetails.append("\n").append(port10086Status).append("\n");
-                                    errorDetails.append("\n请检查服务器配置后重试");
-                                    
-                                    // 显示 Toast 提示
-                                    Toast.makeText(this, "解析服务器返回结果失败，请查看详细信息", Toast.LENGTH_LONG).show();
-                                    
-                                    // 显示详细的错误对话框
-                                    AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                                    builder.setTitle("启动失败")
-                                           .setMessage(errorDetails.toString())
-                                           .setCancelable(false)
-                                           .setPositiveButton("重试", (dialog, which) -> {
-                                               // 重新启动服务
-                                               startServerInternal();
-                                           })
-                                           .setNegativeButton("退出", (dialog, which) -> {
-                                               finishAndRemoveTask();
-                                           });
-                                    
-                                    AlertDialog dialog = builder.create();
-                                    dialog.show();
+                                    Toast.makeText(this, "解析服务器返回结果失败", Toast.LENGTH_LONG).show();
+                                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                                        finishAndRemoveTask();
+                                    }, 3000);
                                 });
                                 return;
                             }
                                                   } else {
                               android.util.Log.e("MainActivity", "startServer 返回空结果:"+(result == null)+(result != null ? (":"+result.isEmpty()): ""));
                               
+                              // 尝试通过 getServerError 获取错误信息
+                              String serverError = "";
+                              try {
+                                  serverError = getServerError();
+                                  android.util.Log.i("MainActivity", "getServerError 返回结果: " + serverError);
+                              } catch (Exception e) {
+                                  android.util.Log.e("MainActivity", "调用 getServerError 失败: " + e.getMessage(), e);
+                                  serverError = "获取服务器错误信息失败: " + e.getMessage();
+                              }
+                              final String finalServerError = serverError;
+                              
                               // 验证10086端口状态
-                              String port10086Status = checkPort10086();
+                              final String port10086Status = checkPort10086();
                               android.util.Log.i("MainActivity", "10086端口状态: " + port10086Status);
                               
                               runOnUiThread(() -> {
@@ -707,6 +697,9 @@ public class MainActivity extends AppCompatActivity {
                                   errorDetails.append("服务器启动失败\n\n");
                                   errorDetails.append("错误类型: 返回空结果\n");
                                   errorDetails.append("结果状态: ").append(result == null ? "null" : "空字符串").append("\n");
+                                  if (finalServerError != null && !finalServerError.isEmpty()) {
+                                      errorDetails.append("服务器错误: ").append(finalServerError).append("\n");
+                                  }
                                   errorDetails.append("\n").append(port10086Status).append("\n");
                                   errorDetails.append("\n请检查服务器配置后重试");
                                   
