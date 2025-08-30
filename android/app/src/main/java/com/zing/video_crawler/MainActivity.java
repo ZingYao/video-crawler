@@ -561,6 +561,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 内部启动服务方法，用于重试
+    private void startServerInternal() {
+        // 重置启动状态
+        synchronized (startLock) {
+            isStarting = false;
+            startWaiters.clear();
+        }
+        // 重新启动服务
+        ensureServerRunningAndLoad();
+    }
+
     // 串行化的探活与启动：其他调用等待当前执行完成后再继续
     private void ensureServerRunningAndLoad() {
         synchronized (startLock) {
@@ -606,6 +617,10 @@ public class MainActivity extends AppCompatActivity {
                                     android.util.Log.e("MainActivity", "服务启动失败，状态: " + state);
                                     android.util.Log.e("MainActivity", "错误信息: " + error);
                                     
+                                    // 验证10086端口状态
+                                    String port10086Status = checkPort10086();
+                                    android.util.Log.i("MainActivity", "10086端口状态: " + port10086Status);
+                                    
                                     runOnUiThread(() -> {
                                         // 构建详细的错误信息
                                         StringBuilder errorDetails = new StringBuilder();
@@ -614,6 +629,7 @@ public class MainActivity extends AppCompatActivity {
                                         if (error != null && !error.isEmpty()) {
                                             errorDetails.append("错误信息: ").append(error).append("\n");
                                         }
+                                        errorDetails.append("\n").append(port10086Status).append("\n");
                                         errorDetails.append("\n请检查配置后重试");
                                         
                                         // 显示 Toast 提示
@@ -624,10 +640,11 @@ public class MainActivity extends AppCompatActivity {
                                         builder.setTitle("启动失败")
                                                .setMessage(errorDetails.toString())
                                                .setCancelable(false)
-                                               .setPositiveButton("确定", (dialog, which) -> {
-                                                   finishAndRemoveTask();
+                                               .setPositiveButton("重试", (dialog, which) -> {
+                                                   // 重新启动服务
+                                                   startServerInternal();
                                                })
-                                               .setNegativeButton("返回", (dialog, which) -> {
+                                               .setNegativeButton("退出", (dialog, which) -> {
                                                    finishAndRemoveTask();
                                                });
                                         
@@ -643,22 +660,54 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             } catch (org.json.JSONException e) {
                                 android.util.Log.e("MainActivity", "解析JSON结果失败: " + e.getMessage());
+                                
+                                // 验证10086端口状态
+                                String port10086Status = checkPort10086();
+                                android.util.Log.i("MainActivity", "10086端口状态: " + port10086Status);
+                                
                                 runOnUiThread(() -> {
-                                    Toast.makeText(this, "解析服务器返回结果失败", Toast.LENGTH_LONG).show();
-                                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                        finishAndRemoveTask();
-                                    }, 3000);
+                                    // 构建详细的错误信息
+                                    StringBuilder errorDetails = new StringBuilder();
+                                    errorDetails.append("解析服务器返回结果失败\n\n");
+                                    errorDetails.append("异常信息: ").append(e.getMessage()).append("\n");
+                                    errorDetails.append("\n").append(port10086Status).append("\n");
+                                    errorDetails.append("\n请检查服务器配置后重试");
+                                    
+                                    // 显示 Toast 提示
+                                    Toast.makeText(this, "解析服务器返回结果失败，请查看详细信息", Toast.LENGTH_LONG).show();
+                                    
+                                    // 显示详细的错误对话框
+                                    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                                    builder.setTitle("启动失败")
+                                           .setMessage(errorDetails.toString())
+                                           .setCancelable(false)
+                                           .setPositiveButton("重试", (dialog, which) -> {
+                                               // 重新启动服务
+                                               startServerInternal();
+                                           })
+                                           .setNegativeButton("退出", (dialog, which) -> {
+                                               finishAndRemoveTask();
+                                           });
+                                    
+                                    AlertDialog dialog = builder.create();
+                                    dialog.show();
                                 });
                                 return;
                             }
                                                   } else {
                               android.util.Log.e("MainActivity", "startServer 返回空结果:"+(result == null)+(result != null ? (":"+result.isEmpty()): ""));
+                              
+                              // 验证10086端口状态
+                              String port10086Status = checkPort10086();
+                              android.util.Log.i("MainActivity", "10086端口状态: " + port10086Status);
+                              
                               runOnUiThread(() -> {
                                   // 构建详细的错误信息
                                   StringBuilder errorDetails = new StringBuilder();
                                   errorDetails.append("服务器启动失败\n\n");
                                   errorDetails.append("错误类型: 返回空结果\n");
                                   errorDetails.append("结果状态: ").append(result == null ? "null" : "空字符串").append("\n");
+                                  errorDetails.append("\n").append(port10086Status).append("\n");
                                   errorDetails.append("\n请检查服务器配置后重试");
                                   
                                   // 显示 Toast 提示
@@ -669,10 +718,11 @@ public class MainActivity extends AppCompatActivity {
                                   builder.setTitle("启动失败")
                                          .setMessage(errorDetails.toString())
                                          .setCancelable(false)
-                                         .setPositiveButton("确定", (dialog, which) -> {
-                                             finishAndRemoveTask();
+                                         .setPositiveButton("重试", (dialog, which) -> {
+                                             // 重新启动服务
+                                             startServerInternal();
                                          })
-                                         .setNegativeButton("返回", (dialog, which) -> {
+                                         .setNegativeButton("退出", (dialog, which) -> {
                                              finishAndRemoveTask();
                                          });
                                   
@@ -683,11 +733,37 @@ public class MainActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) {
                         android.util.Log.e("MainActivity", "调用 startServer 时发生异常: " + e.getMessage(), e);
+                        
+                        // 验证10086端口状态
+                        String port10086Status = checkPort10086();
+                        android.util.Log.i("MainActivity", "10086端口状态: " + port10086Status);
+                        
                         runOnUiThread(() -> {
-                            Toast.makeText(this, "服务启动异常: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                finishAndRemoveTask();
-                            }, 3000);
+                            // 构建详细的错误信息
+                            StringBuilder errorDetails = new StringBuilder();
+                            errorDetails.append("服务启动异常\n\n");
+                            errorDetails.append("异常信息: ").append(e.getMessage()).append("\n");
+                            errorDetails.append("\n").append(port10086Status).append("\n");
+                            errorDetails.append("\n请检查服务器配置后重试");
+                            
+                            // 显示 Toast 提示
+                            Toast.makeText(this, "服务启动异常，请查看详细信息", Toast.LENGTH_LONG).show();
+                            
+                            // 显示详细的错误对话框
+                            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                            builder.setTitle("启动失败")
+                                   .setMessage(errorDetails.toString())
+                                   .setCancelable(false)
+                                   .setPositiveButton("重试", (dialog, which) -> {
+                                       // 重新启动服务
+                                       startServerInternal();
+                                   })
+                                   .setNegativeButton("退出", (dialog, which) -> {
+                                       finishAndRemoveTask();
+                                   });
+                            
+                            AlertDialog dialog = builder.create();
+                            dialog.show();
                         });
                         return;
                     }
@@ -746,6 +822,32 @@ public class MainActivity extends AppCompatActivity {
             return code >= 200 && code < 500;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    private String checkPort10086() {
+        try {
+            URL url = new URL("http://127.0.0.1:10086/health");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(1000);
+            conn.setReadTimeout(1500);
+            conn.connect();
+            int code = conn.getResponseCode();
+            conn.disconnect();
+            return "10086端口健康检查: HTTP " + code;
+        } catch (Exception e) {
+            try {
+                URL url = new URL("http://127.0.0.1:10086/");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(1000);
+                conn.setReadTimeout(1500);
+                conn.connect();
+                int code = conn.getResponseCode();
+                conn.disconnect();
+                return "10086端口根路径检查: HTTP " + code;
+            } catch (Exception e2) {
+                return "10086端口不可访问: " + e2.getMessage();
+            }
         }
     }
 
