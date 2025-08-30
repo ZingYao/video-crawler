@@ -563,7 +563,14 @@ public class MainActivity extends AppCompatActivity {
         });
 
         setContentView(rootLayout);
-        ensureServerRunningAndLoad();
+        
+        // 检查是否启用 Debug 模式
+        if (isDebugModeEnabled()) {
+            startDebugMode();
+        } else {
+            ensureServerRunningAndLoad();
+        }
+        
         addFloatingTool();
     }
 
@@ -657,6 +664,65 @@ public class MainActivity extends AppCompatActivity {
         }
         
         return webView;
+    }
+    
+    // 检测是否启用 Debug 模式
+    private boolean isDebugModeEnabled() {
+        // 方法1：通过 SharedPreferences 检查
+        boolean debugPref = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getBoolean("debug_mode", false);
+        
+        // 方法2：通过 BuildConfig 检查（编译时配置）
+        boolean debugBuild = BuildConfig.DEBUG;
+        
+        // 方法3：通过系统属性检查（运行时配置）
+        boolean debugProp = "true".equals(System.getProperty("video.crawler.debug"));
+        
+        boolean isDebug = debugPref || debugBuild || debugProp;
+        
+        android.util.Log.i("MainActivity", "Debug 模式检测:");
+        android.util.Log.i("MainActivity", "  SharedPreferences: " + debugPref);
+        android.util.Log.i("MainActivity", "  BuildConfig.DEBUG: " + debugBuild);
+        android.util.Log.i("MainActivity", "  系统属性: " + debugProp);
+        android.util.Log.i("MainActivity", "  最终结果: " + isDebug);
+        
+        return isDebug;
+    }
+    
+    // Debug 模式：直接访问外部网站
+    private void startDebugMode() {
+        android.util.Log.i("MainActivity", "=== 启动 Debug 模式 ===");
+        android.util.Log.i("MainActivity", "直接访问: http://video.xiaofeituo.com");
+        
+        // 显示加载提示
+        showLoading(true);
+        
+        // 直接加载外部网站
+        webView.loadUrl("http://video.xiaofeituo.com");
+        
+        // 显示 Toast 提示
+        runOnUiThread(() -> {
+            Toast.makeText(this, "Debug 模式：正在加载 http://video.xiaofeituo.com", Toast.LENGTH_LONG).show();
+        });
+    }
+    
+    // 切换 Debug 模式
+    private void toggleDebugMode() {
+        boolean currentDebug = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getBoolean("debug_mode", false);
+        boolean newDebug = !currentDebug;
+        
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .edit()
+            .putBoolean("debug_mode", newDebug)
+            .apply();
+        
+        android.util.Log.i("MainActivity", "Debug 模式已切换: " + currentDebug + " -> " + newDebug);
+        
+        runOnUiThread(() -> {
+            String message = newDebug ? "Debug 模式已启用" : "Debug 模式已禁用";
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        });
     }
     
     // 检测设备上的 WebView 类型
@@ -1342,13 +1408,24 @@ public class MainActivity extends AppCompatActivity {
 
         ImageView btnRefresh = buildCircleButton(android.R.drawable.ic_menu_rotate, sizePx);
         ImageView btnHome = buildCircleButton(android.R.drawable.ic_menu_mylocation, sizePx);
+        ImageView btnDebug = buildCircleButton(android.R.drawable.ic_menu_help, sizePx);
         ImageView btnExit = buildCircleButton(android.R.drawable.ic_lock_power_off, sizePx);
         radialMenu.addView(btnRefresh);
         radialMenu.addView(btnHome);
+        radialMenu.addView(btnDebug);
         radialMenu.addView(btnExit);
 
         btnRefresh.setOnClickListener(v -> { radialMenu.setVisibility(View.GONE); bubbleContainer.setAlpha(0.6f); if (webView != null) webView.reload(); });
         btnHome.setOnClickListener(v -> { radialMenu.setVisibility(View.GONE); bubbleContainer.setAlpha(0.6f); goHome(); });
+        btnDebug.setOnClickListener(v -> { 
+            radialMenu.setVisibility(View.GONE); 
+            bubbleContainer.setAlpha(0.6f); 
+            toggleDebugMode();
+            // 重启应用以应用 debug 模式
+            runOnUiThread(() -> {
+                Toast.makeText(this, "请重启应用以应用 Debug 模式设置", Toast.LENGTH_LONG).show();
+            });
+        });
         btnExit.setOnClickListener(v -> { radialMenu.setVisibility(View.GONE); bubbleContainer.setAlpha(0.6f); finishAndRemoveTask(); });
 
         bubble.setOnClickListener(v -> {
