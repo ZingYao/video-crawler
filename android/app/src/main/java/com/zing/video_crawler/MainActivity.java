@@ -651,15 +651,35 @@ public class MainActivity extends AppCompatActivity {
                                 });
                                 return;
                             }
-                        } else {
-                            android.util.Log.e("MainActivity", "startServer 返回空结果");
-                            runOnUiThread(() -> {
-                                Toast.makeText(this, "服务器启动失败：返回空结果", Toast.LENGTH_LONG).show();
-                                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                    finishAndRemoveTask();
-                                }, 3000);
-                            });
-                            return;
+                                                  } else {
+                              android.util.Log.e("MainActivity", "startServer 返回空结果:"+(result == null)+(result != null ? (":"+result.isEmpty()): ""));
+                              runOnUiThread(() -> {
+                                  // 构建详细的错误信息
+                                  StringBuilder errorDetails = new StringBuilder();
+                                  errorDetails.append("服务器启动失败\n\n");
+                                  errorDetails.append("错误类型: 返回空结果\n");
+                                  errorDetails.append("结果状态: ").append(result == null ? "null" : "空字符串").append("\n");
+                                  errorDetails.append("\n请检查服务器配置后重试");
+                                  
+                                  // 显示 Toast 提示
+                                  Toast.makeText(this, "服务器启动失败，请查看详细信息", Toast.LENGTH_LONG).show();
+                                  
+                                  // 显示详细的错误对话框
+                                  AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                                  builder.setTitle("启动失败")
+                                         .setMessage(errorDetails.toString())
+                                         .setCancelable(false)
+                                         .setPositiveButton("确定", (dialog, which) -> {
+                                             finishAndRemoveTask();
+                                         })
+                                         .setNegativeButton("返回", (dialog, which) -> {
+                                             finishAndRemoveTask();
+                                         });
+                                  
+                                  AlertDialog dialog = builder.create();
+                                  dialog.show();
+                              });
+                              return;
                         }
                     } catch (Exception e) {
                         android.util.Log.e("MainActivity", "调用 startServer 时发生异常: " + e.getMessage(), e);
